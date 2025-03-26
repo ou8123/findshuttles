@@ -1,0 +1,74 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Use "postgresql" if using Vercel Postgres/Supabase, "mysql" for PlanetScale, etc.
+  provider = "postgresql"
+  // IMPORTANT: The DATABASE_URL environment variable is defined in the .env file
+  url      = env("DATABASE_URL")
+  // Use relationMode = "prisma" for PlanetScale compatibility if needed
+  // relationMode = "prisma"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  hashedPassword String?   // Store hashed passwords, not plain text!
+  role          String    // e.g., "ADMIN" or "USER"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  // Add other fields like name, role ('ADMIN'/'USER') if needed
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  name      String   @unique // e.g., "Costa Rica"
+  slug      String   @unique // e.g., "costa-rica"
+  cities    City[]
+  routesFrom Route[]  @relation("DepartureCountry")
+  routesTo  Route[]  @relation("DestinationCountry")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model City {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Tamarindo" - Make unique within country later if needed
+  slug        String   // e.g., "tamarindo"
+  latitude    Float?   // Optional latitude
+  longitude   Float?   // Optional longitude
+  countryId   String
+  country     Country  @relation(fields: [countryId], references: [id])
+  routesFrom  Route[]  @relation("DepartureCity")
+  routesTo    Route[]  @relation("DestinationCity")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, countryId]) // Ensure city name is unique within its country
+}
+
+model Route {
+  id                  String   @id @default(cuid())
+  departureCityId     String
+  departureCity       City     @relation("DepartureCity", fields: [departureCityId], references: [id])
+  departureCountryId  String   // Denormalized for easier filtering/querying
+  departureCountry    Country  @relation("DepartureCountry", fields: [departureCountryId], references: [id])
+
+  destinationCityId   String
+  destinationCity     City     @relation("DestinationCity", fields: [destinationCityId], references: [id])
+  destinationCountryId String  // Denormalized
+  destinationCountry  Country  @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
+
+  routeSlug           String   @unique // e.g., "tamarindo-to-monteverde"
+
+  viatorWidgetCode    String   @db.Text // Use Text type for potentially long script tags
+
+  seoDescription      String?  @db.Text
+  // Add FAQs later, possibly as JSON type or separate related table
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
