@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth'; // Ensure this path is correct
+import { authOptions } from "@/lib/auth"; // Revert to path alias
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
