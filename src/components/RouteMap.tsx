@@ -130,7 +130,8 @@ const RouteMap: React.FC<RouteMapProps> = ({
           <DirectionsRenderer
             options={{
               directions: directionsResponse,
-              suppressMarkers: true // Hide default A/B markers from renderer
+              suppressMarkers: true, // Hide default A/B markers from renderer
+              preserveViewport: true // Prevent renderer from changing map zoom/center
             }}
           />
         )}

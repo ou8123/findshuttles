@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap'; // Import the map component
+import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer'; // Import the new component
 
 // Define the expected shape of the props, including the dynamic parameter
 interface RoutePageProps {
@@ -85,7 +86,7 @@ export default async function RoutePage({ params }: RoutePageProps) {
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
         {routeData.viatorWidgetCode ? (
-          <div dangerouslySetInnerHTML={{ __html: routeData.viatorWidgetCode }} />
+          <ViatorWidgetRenderer widgetCode={routeData.viatorWidgetCode} />
         ) : (
           <p>Booking information currently unavailable.</p>
         )}
