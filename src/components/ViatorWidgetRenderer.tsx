@@ -39,10 +39,13 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       oldScript.parentNode?.replaceChild(newScript, oldScript);
     });
 
+    // Store the current ref value for cleanup
+    const currentContainer = containerRef.current;
+
     // Cleanup function
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (currentContainer) {
+        currentContainer.innerHTML = '';
       }
     };
   }, [widgetCode]); // Re-run when widgetCode changes

@@ -78,10 +78,17 @@ Make the content natural, informative, and engaging while maintaining SEO best p
       temperature: 0.7,
       response_format: { type: "json_object" }
     });
+// Parse the response
+const messageContent = completion.choices[0].message.content;
+if (!messageContent) {
+  return NextResponse.json(
+    { error: 'No content generated' },
+    { status: 500 }
+  );
+}
 
-    // Parse the response
-    const content = JSON.parse(completion.choices[0].message.content);
-
+const content = JSON.parse(messageContent);
+return NextResponse.json(content);
     return NextResponse.json(content);
 
   } catch (error) {
