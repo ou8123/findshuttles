@@ -20,8 +20,8 @@ function generateSlug(name: string): string {
 // type CityParams = { cityId: string };
 
 // PUT handler to update a specific city
-export async function PUT(request: Request, context: { params: { cityId: string } }) { // Use inline type
-  const { params } = context; // Extract params from context
+export async function PUT(request: Request, context: any) { // Use any for context type
+  const params = context.params as { cityId: string }; // Extract and assert params type
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -100,8 +100,8 @@ export async function PUT(request: Request, context: { params: { cityId: string 
 }
 
 // DELETE handler to delete a specific city
-export async function DELETE(context: { params: { cityId: string } }) { // Use inline type
-  const { params } = context; // Extract params from context
+export async function DELETE(context: any) { // Use any for context type
+  const params = context.params as { cityId: string }; // Extract and assert params type
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
