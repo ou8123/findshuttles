@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap'; // Import the map component
-// Removed ViatorWidgetRenderer import
+import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 
 // Removed separate RoutePageProps interface
 
@@ -75,14 +75,11 @@ export default async function RoutePage(props: any) {
         </div>
       )}
 
-      {/* Render the Viator Widget Code */}
-      {/* IMPORTANT: Rendering raw HTML like this can be dangerous if the source is not trusted.
-           Ensure viatorWidgetCode only contains safe script/HTML tags from Viator.
-           Consider sanitization or alternative rendering methods if unsure. */}
+      {/* Render the Viator Widget */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
         {routeData.viatorWidgetCode ? (
-          <div dangerouslySetInnerHTML={{ __html: routeData.viatorWidgetCode }} />
+          <ViatorWidgetRenderer widgetCode={routeData.viatorWidgetCode} />
         ) : (
           <p>Booking information currently unavailable.</p>
         )}
