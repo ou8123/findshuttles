@@ -21,7 +21,7 @@ function generateSlug(name: string): string {
 // Removed PutContext type alias
 
 // PUT handler to update a specific country
-export async function PUT(request: Request, context: any) { // Use any for context type
+export async function PUT(request: Request, context: any) { // Revert to using any for context type
   const params = context.params as { countryId: string }; // Extract and assert params type
   const session = await getServerSession(authOptions); // Keep only one declaration
   if (session?.user?.role !== 'ADMIN') {
@@ -82,7 +82,7 @@ export async function PUT(request: Request, context: any) { // Use any for conte
 // Removed DeleteContext type alias
 
 // DELETE handler to delete a specific country
-export async function DELETE(context: any) { // Use any for context type
+export async function DELETE(context: any) { // Revert to using any for context type
   const params = context.params as { countryId: string }; // Extract and assert params type
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
