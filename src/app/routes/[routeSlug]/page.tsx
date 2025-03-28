@@ -3,12 +3,7 @@ import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap'; // Import the map component
 // Removed ViatorWidgetRenderer import
 
-// Define the expected shape of the props, including the dynamic parameter
-interface RoutePageProps {
-  params: {
-    routeSlug: string;
-  };
-}
+// Removed separate RoutePageProps interface
 
 // Function to fetch route data based on the slug string
 async function getRouteData(slug: string) {
@@ -34,8 +29,8 @@ async function getRouteData(slug: string) {
   }
 }
 
-// The Page component - Destructure params directly in the signature
-export default async function RoutePage({ params }: RoutePageProps) {
+// The Page component - Use inline type for props
+export default async function RoutePage({ params }: { params: { routeSlug: string } }) {
   // Extract the slug string first
   const currentSlug = params.routeSlug;
   // Pass the slug string to the data fetching function
