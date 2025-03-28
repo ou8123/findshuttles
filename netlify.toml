@@ -1,9 +1,10 @@
 # netlify.toml
 
 [build]
-  # Command to build the site: Generate Prisma client, apply migrations, then build Next.js
+  # Command to build the site: Generate Prisma client, baseline initial migration, apply migrations, then build Next.js
   # Temporarily disable ESLint to bypass persistent type error during build
-  command = "NEXT_DISABLE_ESLINT=true prisma generate && prisma migrate deploy && next build"
+  # NOTE: The 'prisma migrate resolve' step should ideally be removed after the first successful deploy.
+  command = "NEXT_DISABLE_ESLINT=true prisma generate && npx prisma migrate resolve --applied 0_init && prisma migrate deploy && next build"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
