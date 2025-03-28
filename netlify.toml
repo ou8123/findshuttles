@@ -1,0 +1,12 @@
+# netlify.toml
+
+[build]
+  # Command to build the site: Generate Prisma client, apply migrations, then build Next.js
+  command = "prisma generate && prisma migrate deploy && next build"
+  # Directory containing the built site (relative to root)
+  publish = ".next"
+
+[build.environment]
+  # Set Node.js version (Optional but recommended - use a version supported by Netlify)
+  NODE_VERSION = "20"
+  # Ensure Prisma CLI is available during build (it's in devDependencies)
