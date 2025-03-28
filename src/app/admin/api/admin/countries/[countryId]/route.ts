@@ -19,8 +19,11 @@ function generateSlug(name: string): string {
 // Removed unused CountryParams type alias
 // type CountryParams = { countryId: string };
 
+// Define type for the context object
+type PutContext = { params: { countryId: string } };
+
 // PUT handler to update a specific country
-export async function PUT(request: Request, context: { params: { countryId: string } }) { // Use inline type
+export async function PUT(request: Request, context: PutContext) { // Use context type alias
   const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
@@ -78,8 +81,11 @@ export async function PUT(request: Request, context: { params: { countryId: stri
   }
 }
 
+// Define type for the DELETE context object
+type DeleteContext = { params: { countryId: string } };
+
 // DELETE handler to delete a specific country
-export async function DELETE(context: { params: { countryId: string } }) { // Use inline type
+export async function DELETE(context: DeleteContext) { // Use context type alias
   const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
