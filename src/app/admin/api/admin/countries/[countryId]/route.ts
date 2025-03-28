@@ -18,13 +18,12 @@ function generateSlug(name: string): string {
 
 // Removed unused CountryParams type alias
 // type CountryParams = { countryId: string };
-
 // Removed PutContext type alias
 
 // PUT handler to update a specific country
-export async function PUT(request: Request, context: { params: { countryId: string } }) { // Use fully inline type
-  const { params } = context; // Extract params from context
-  const session = await getServerSession(authOptions);
+export async function PUT(request: Request, { params }: { params: { countryId: string } }) { // Use direct destructuring
+  // const { params } = context; // No longer needed
+  const session = await getServerSession(authOptions); // Keep only one declaration
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -83,8 +82,8 @@ export async function PUT(request: Request, context: { params: { countryId: stri
 // Removed DeleteContext type alias
 
 // DELETE handler to delete a specific country
-export async function DELETE(context: { params: { countryId: string } }) { // Use fully inline type
-  const { params } = context; // Extract params from context
+export async function DELETE({ params }: { params: { countryId: string } }) { // Use direct destructuring
+  // const { params } = context; // No longer needed
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
