@@ -133,8 +133,11 @@ Make the content engaging and informative while following SEO best practices. Fo
       let parsedContent: GeneratedContent;
       try {
         parsedContent = JSON.parse(sanitizedContent);
-      } catch (parseError) {
+      } catch (error) {
         // Try parsing with more lenient cleanup
+        console.error('Failed to parse OpenAI response:', messageContent);
+        console.error('Parse error:', error);
+        
         const cleanContent = sanitizedContent
           .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
           .replace(/\\n/g, ' ')

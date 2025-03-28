@@ -6,8 +6,8 @@
   publish = ".next"
 
 [build.environment]
-  # Set Node.js version to match Next.js requirements
-  NODE_VERSION = "20.0.0"
+  # Set Node.js version to match Next.js requirements (^18.18.0 || ^19.8.0 || >= 20.0.0)
+  NODE_VERSION = "20.11.1"
   # Ensure Prisma CLI is available during build (it's in devDependencies)
   # Disable static generation entirely
   NEXT_DISABLE_STATIC_GENERATION = "true"
