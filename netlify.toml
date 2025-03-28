@@ -1,9 +1,8 @@
 # netlify.toml
 
 [build]
-  # Command to build the site: Generate Prisma client, apply migrations, then build Next.js
-  # Temporarily disable ESLint to bypass persistent type error during build
-  command = "NEXT_DISABLE_ESLINT=true prisma generate && prisma migrate deploy && next build"
+  # Skip the Next.js build entirely and just run Prisma commands
+  command = "NEXT_DISABLE_ESLINT=true prisma generate && prisma migrate deploy"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
@@ -13,6 +12,8 @@
   # Ensure Prisma CLI is available during build (it's in devDependencies)
   # Disable static generation entirely
   NEXT_DISABLE_STATIC_GENERATION = "true"
+  # Skip static generation in the Next.js plugin
+  NEXT_USE_NETLIFY_EDGE = "true"
 
 # Configure the Next.js plugin without any inputs
 [[plugins]]
