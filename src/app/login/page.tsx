@@ -24,24 +24,29 @@ export default function SignInPage() {
     e.preventDefault();
     setError(null); // Clear previous errors
 
-    const result = await signIn("credentials", {
-      redirect: false, // Handle redirect manually or let NextAuth handle it based on callbackUrl
-      email,
-      password,
-    });
+    try {
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        callbackUrl: '/admin' // Always redirect to admin page
+      });
 
-    if (result?.error) {
-      console.error("Sign-in error:", result.error);
-      // Map common errors to user-friendly messages
-      if (result.error === "CredentialsSignin") {
-        setError("Invalid email or password. Please try again.");
-      } else {
-        setError("An unexpected error occurred. Please try again later.");
+      if (result?.error) {
+        console.error("Sign-in error:", result.error);
+        // Map common errors to user-friendly messages
+        if (result.error === "CredentialsSignin") {
+          setError("Invalid email or password. Please try again.");
+        } else {
+          setError("An unexpected error occurred. Please try again later.");
+        }
+      } else if (result?.ok) {
+        // Successful sign-in
+        window.location.href = '/admin';
       }
-    } else if (result?.ok) {
-      // Successful sign-in, NextAuth should handle the redirect based on callbackUrl
-      // Always redirect to /admin after successful login
-      window.location.href = '/admin';
+    } catch (error) {
+      console.error("Sign-in error:", error);
+      setError("An unexpected error occurred. Please try again later.");
     }
   };
 
