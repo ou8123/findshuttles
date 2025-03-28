@@ -99,7 +99,7 @@ export async function PUT(request: Request, context: { params: RouteParamsType }
 }
 
 // DELETE handler to delete a specific route
-export async function DELETE(context: { params: RouteParamsType }) { // Correct signature
+export async function DELETE(request: Request, context: { params: RouteParamsType }) { // Add request parameter back
   const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
