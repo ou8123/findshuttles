@@ -29,8 +29,8 @@ async function getRouteDataForApi(slug: string) {
 // Removed unused RouteSlugParams type alias
 // type RouteSlugParams = { routeSlug: string };
 
-export async function GET(request: Request, context: { params: { routeSlug: string } }) { // Add request, use inline type
-  const { routeSlug } = context.params;
+export async function GET(request: Request, { params }: { params: { routeSlug: string } }) { // Use direct destructuring
+  const { routeSlug } = params; // Now params is directly available
 
   if (!routeSlug) {
     return NextResponse.json({ error: 'Route slug is required' }, { status: 400 });
