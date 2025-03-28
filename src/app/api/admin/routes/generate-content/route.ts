@@ -67,34 +67,59 @@ For the seoDescription, write a professional, human-like description that:
 
 Make the content engaging and informative while following SEO best practices. Focus on tourist attractions and travel experiences that make ${destinationCity.name} special.`;
 
-    // Generate content using ChatGPT
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
-    });
+    // First try with JSON mode
+    try {
+      const jsonModeCompletion = await openai.chat.completions.create({
+        model: "gpt-4-turbo-preview",
+        messages: [
+          {
+            role: "system",
+            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond in JSON format with metaTitle, metaDescription, metaKeywords, and seoDescription fields."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      });
+
       // Parse the response
-      const messageContent = completion.choices[0].message.content;
-      if (!messageContent) {
-        console.error('OpenAI returned empty content');
-        return NextResponse.json(
-          { error: 'No content generated' },
-          { status: 500 }
-        );
+      const jsonModeContent = jsonModeCompletion.choices[0].message.content;
+      if (!jsonModeContent) {
+        throw new Error('No content generated');
+      }
+
+      return NextResponse.json(JSON.parse(jsonModeContent));
+
+    } catch (error: any) {
+      // If JSON mode fails, try without it
+      console.log('JSON mode failed, trying without response_format:', error.message);
+      
+      const fallbackCompletion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond in strict JSON format with these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include any other text outside the JSON object."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7
+      });
+
+      // Parse the response
+      const fallbackContent = fallbackCompletion.choices[0].message.content;
+      if (!fallbackContent) {
+        throw new Error('No content generated');
       }
 
       try {
-        const content = JSON.parse(messageContent);
+        const content = JSON.parse(fallbackContent);
         console.log('Generated content:', {
           metaTitle: content.metaTitle,
           metaDescription: content.metaDescription?.substring(0, 50) + '...',
@@ -102,24 +127,21 @@ Make the content engaging and informative while following SEO best practices. Fo
           seoDescription: content.seoDescription?.substring(0, 50) + '...'
         });
         return NextResponse.json(content);
-      } catch (error) {
-        console.error('Failed to parse OpenAI response:', messageContent);
-        console.error('Parse error:', error);
-        return NextResponse.json(
-          { error: 'Invalid content format returned' },
-          { status: 500 }
-        );
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', fallbackContent);
+        throw new Error('Failed to parse content as JSON');
       }
-
-    } catch (error: any) {
-      console.error('Error generating content:', {
-        error: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      });
-      return NextResponse.json(
-        { error: 'Failed to generate content' },
-        { status: 500 }
-      );
     }
+
+  } catch (error: any) {
+    console.error('Error generating content:', {
+      error: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
+    return NextResponse.json(
+      { error: 'Failed to generate content' },
+      { status: 500 }
+    );
+  }
 }
