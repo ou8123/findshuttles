@@ -90,7 +90,7 @@ Make the content engaging and informative while following SEO best practices. Fo
         messages: [
           {
             role: "system",
-            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond in strict JSON format with these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include any other text outside the JSON object."
+            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond in strict JSON format with these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. For the seoDescription field, use '\\n' for line breaks. Do not include any other text outside the JSON object or any raw newlines in the response."
           },
           {
             role: "user",
@@ -113,7 +113,13 @@ Make the content engaging and informative while following SEO best practices. Fo
       }
 
       try {
-        const content = JSON.parse(messageContent);
+        // Sanitize the response before parsing
+        const sanitizedContent = messageContent
+          .replace(/\n/g, '\\n') // Escape newlines
+          .replace(/\r/g, '\\r') // Escape carriage returns
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters
+        
+        const content = JSON.parse(sanitizedContent);
         console.log('Generated content:', {
           metaTitle: content.metaTitle,
           metaDescription: content.metaDescription?.substring(0, 50) + '...',
