@@ -6,7 +6,6 @@
   publish = ".next"
 
 [build.environment]
-[build.environment]
   # Set Node.js version (Optional but recommended - use a version supported by Netlify)
   NODE_VERSION = "20"
   # Ensure Prisma CLI is available during build (it's in devDependencies)
