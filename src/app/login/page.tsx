@@ -29,7 +29,6 @@ export default function SignInPage() {
         redirect: false,
         email,
         password,
-        callbackUrl: '/admin' // Always redirect to admin page
       });
 
       if (result?.error) {
