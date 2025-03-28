@@ -15,8 +15,10 @@ interface RouteData {
     departureCityId: string;
     destinationCityId: string;
     viatorWidgetCode: string;
+    metaTitle?: string | null;
+    metaDescription?: string | null;
+    metaKeywords?: string | null;
     seoDescription?: string | null;
-    // Include other fields if needed for display/logic
 }
 
 const EditRoutePage = () => {
@@ -28,8 +30,12 @@ const EditRoutePage = () => {
   const [departureCityId, setDepartureCityId] = useState('');
   const [destinationCityId, setDestinationCityId] = useState('');
   const [viatorWidgetCode, setViatorWidgetCode] = useState('');
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [metaKeywords, setMetaKeywords] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [originalData, setOriginalData] = useState<Partial<RouteData>>({});
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // City list state
   const [cities, setCities] = useState<City[]>([]);
@@ -92,11 +98,17 @@ const EditRoutePage = () => {
         setDepartureCityId(routeData.departureCityId);
         setDestinationCityId(routeData.destinationCityId);
         setViatorWidgetCode(routeData.viatorWidgetCode);
-        setSeoDescription(routeData.seoDescription ?? ''); // Handle null
+        setMetaTitle(routeData.metaTitle ?? '');
+        setMetaDescription(routeData.metaDescription ?? '');
+        setMetaKeywords(routeData.metaKeywords ?? '');
+        setSeoDescription(routeData.seoDescription ?? '');
         setOriginalData({ // Store original values
             departureCityId: routeData.departureCityId,
             destinationCityId: routeData.destinationCityId,
             viatorWidgetCode: routeData.viatorWidgetCode,
+            metaTitle: routeData.metaTitle,
+            metaDescription: routeData.metaDescription,
+            metaKeywords: routeData.metaKeywords,
             seoDescription: routeData.seoDescription
         });
 
@@ -128,11 +140,19 @@ const EditRoutePage = () => {
         return;
     }
 
-    // Check if anything actually changed
+    // Prepare current values, converting empty strings to null
+    const currentMetaTitle = metaTitle.trim() === '' ? null : metaTitle.trim();
+    const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
+    const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
+
+    // Check if anything actually changed
     if (departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
         viatorWidgetCode === originalData.viatorWidgetCode &&
+        currentMetaTitle === originalData.metaTitle &&
+        currentMetaDesc === originalData.metaDescription &&
+        currentMetaKeywords === originalData.metaKeywords &&
         currentSeoDesc === originalData.seoDescription) {
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
@@ -149,7 +169,10 @@ const EditRoutePage = () => {
             departureCityId,
             destinationCityId,
             viatorWidgetCode,
-            seoDescription: currentSeoDesc // Send null if empty
+            metaTitle: currentMetaTitle,
+            metaDescription: currentMetaDesc,
+            metaKeywords: currentMetaKeywords,
+            seoDescription: currentSeoDesc
          }),
       });
 
@@ -255,21 +278,112 @@ const EditRoutePage = () => {
             />
         </div>
 
-       {/* SEO Description */}
+       {/* Meta Title */}
        <div>
-            <label htmlFor="seo-description" className="block text-sm font-medium text-gray-700 mb-1">
-            SEO Description
-            </label>
-            <textarea
-            id="seo-description"
-            value={seoDescription}
-            onChange={(e) => setSeoDescription(e.target.value)}
-            rows={4}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-            />
-        </div>
+         <label htmlFor="meta-title" className="block text-sm font-medium text-gray-700 mb-1">
+           Meta Title (60-70 characters)
+         </label>
+         <input
+           id="meta-title"
+           type="text"
+           value={metaTitle}
+           onChange={(e) => setMetaTitle(e.target.value)}
+           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+         />
+         <p className="text-sm text-gray-500 mt-1">{metaTitle.length} characters</p>
+       </div>
 
-        {/* Submit Button & Status */}
+       {/* Meta Description */}
+       <div>
+         <label htmlFor="meta-description" className="block text-sm font-medium text-gray-700 mb-1">
+           Meta Description (150-160 characters)
+         </label>
+         <textarea
+           id="meta-description"
+           value={metaDescription}
+           onChange={(e) => setMetaDescription(e.target.value)}
+           rows={2}
+           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+         />
+         <p className="text-sm text-gray-500 mt-1">{metaDescription.length} characters</p>
+       </div>
+
+       {/* Meta Keywords */}
+       <div>
+         <label htmlFor="meta-keywords" className="block text-sm font-medium text-gray-700 mb-1">
+           Meta Keywords (comma-separated)
+         </label>
+         <input
+           id="meta-keywords"
+           type="text"
+           value={metaKeywords}
+           onChange={(e) => setMetaKeywords(e.target.value)}
+           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+         />
+       </div>
+
+       {/* SEO Description with Generate Button */}
+       <div>
+         <div className="flex justify-between items-center mb-1">
+           <label htmlFor="seo-description" className="block text-sm font-medium text-gray-700">
+             SEO Description
+           </label>
+           <button
+             type="button"
+             onClick={async () => {
+               if (!departureCityId || !destinationCityId) {
+                 setSubmitStatus({
+                   success: false,
+                   message: 'Please select both departure and destination cities first.'
+                 });
+                 return;
+               }
+
+               setIsGenerating(true);
+               try {
+                 const response = await fetch('/api/admin/routes/generate-content', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ departureCityId, destinationCityId }),
+                 });
+
+                 if (!response.ok) throw new Error('Failed to generate content');
+
+                 const data = await response.json();
+                 setMetaTitle(data.metaTitle || '');
+                 setMetaDescription(data.metaDescription || '');
+                 setMetaKeywords(data.metaKeywords || '');
+                 setSeoDescription(data.seoDescription || '');
+                 setSubmitStatus({
+                   success: true,
+                   message: 'Content generated successfully!'
+                 });
+               } catch (error) {
+                 console.error('Error generating content:', error);
+                 setSubmitStatus({
+                   success: false,
+                   message: 'Failed to generate content. Please try again.'
+                 });
+               } finally {
+                 setIsGenerating(false);
+               }
+             }}
+             disabled={isGenerating || !departureCityId || !destinationCityId}
+             className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             {isGenerating ? 'Generating...' : 'Generate with ChatGPT'}
+           </button>
+         </div>
+         <textarea
+           id="seo-description"
+           value={seoDescription}
+           onChange={(e) => setSeoDescription(e.target.value)}
+           rows={8}
+           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+         />
+       </div>
+
+       {/* Submit Button & Status */}
         <div className="pt-2">
           {submitStatus && (
             <p className={`mb-3 text-sm ${submitStatus.success ? 'text-green-600' : 'text-red-600'}`}>

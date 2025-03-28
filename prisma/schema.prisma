@@ -66,7 +66,11 @@ model Route {
 
   viatorWidgetCode    String   @db.Text // Use Text type for potentially long script tags
 
-  seoDescription      String?  @db.Text
+  // SEO Fields
+  metaTitle          String?  @db.Text
+  metaDescription    String?  @db.Text
+  metaKeywords       String?  @db.Text
+  seoDescription     String?  @db.Text // Main content description
   // Add FAQs later, possibly as JSON type or separate related table
 
   createdAt           DateTime @default(now())
