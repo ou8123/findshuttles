@@ -33,7 +33,10 @@ async function getRouteDataForApi(slug: string) {
   }
 }
 
-export async function GET(_request: Request, context: Context) { // Prefix unused parameter with _
+// Define the inner params type
+type RouteSlugParams = { routeSlug: string };
+
+export async function GET(context: { params: RouteSlugParams }) { // Correct signature, removed unused request
   const { routeSlug } = context.params;
 
   if (!routeSlug) {

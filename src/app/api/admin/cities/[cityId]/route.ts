@@ -20,8 +20,12 @@ interface CityRouteParams {
   };
 }
 
+// Define the inner params type
+type CityParams = { cityId: string };
+
 // PUT handler to update a specific city
-export async function PUT(request: Request, { params }: CityRouteParams) {
+export async function PUT(request: Request, context: { params: CityParams }) {
+  const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -100,7 +104,8 @@ export async function PUT(request: Request, { params }: CityRouteParams) {
 }
 
 // DELETE handler to delete a specific city
-export async function DELETE({ params }: CityRouteParams) { // Removed unused request parameter
+export async function DELETE(context: { params: CityParams }) { // Correct signature
+  const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

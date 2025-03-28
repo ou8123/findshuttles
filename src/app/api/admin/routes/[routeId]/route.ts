@@ -6,7 +6,10 @@ import { Prisma } from '@prisma/client';
 
 // Removed unused local generateSlug function (assuming it's imported if needed elsewhere, or handled differently)
 
-interface RouteParams {
+// Define the inner params type
+type RouteParamsType = { routeId: string };
+
+interface RouteParams { // Keep this interface if used elsewhere, otherwise remove
   params: {
     routeId: string;
   };
@@ -22,7 +25,8 @@ interface UpdateRouteData {
 
 
 // PUT handler to update a specific route
-export async function PUT(request: Request, { params }: RouteParams) {
+export async function PUT(request: Request, context: { params: RouteParamsType }) {
+  const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -101,7 +105,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 }
 
 // DELETE handler to delete a specific route
-export async function DELETE({ params }: RouteParams) { // Removed unused request parameter
+export async function DELETE(context: { params: RouteParamsType }) { // Correct signature
+  const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
