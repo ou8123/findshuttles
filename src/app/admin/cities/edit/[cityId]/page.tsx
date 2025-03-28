@@ -54,9 +54,13 @@ const EditCityPage = () => {
         if (!response.ok) throw new Error('Failed to fetch countries');
         const data: Country[] = await response.json();
         setCountries(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch countries for dropdown:", err);
-        setCountryError("Could not load countries.");
+        let message = "Could not load countries.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setCountryError(message);
       } finally {
         setIsLoadingCountries(false);
       }
@@ -97,9 +101,13 @@ const EditCityPage = () => {
             longitude: cityData.longitude
         });
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch city data:", err);
-        setError(err.message || "Could not load city data.");
+        let message = "Could not load city data.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setError(message);
       } finally {
         setIsLoadingCity(false);
       }
@@ -160,9 +168,13 @@ const EditCityPage = () => {
       setSubmitStatus({ success: true, message: `City "${result.name}" updated successfully!` });
       router.push('/admin/cities'); // Redirect on success
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update city:", error);
-      setSubmitStatus({ success: false, message: error.message || "Failed to update city." });
+      let message = "Failed to update city.";
+      if (error instanceof Error) {
+          message = error.message;
+      }
+      setSubmitStatus({ success: false, message: message });
     } finally {
       setIsSubmitting(false);
     }

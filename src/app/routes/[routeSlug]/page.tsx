@@ -9,8 +9,9 @@ interface RoutePageProps {
   };
 }
 
-// Function to fetch route data based on the slug
+// Function to fetch route data based on the slug string
 async function getRouteData(slug: string) {
+  // Removed internal slug extraction and check
   try {
     const route = await prisma.route.findUnique({
       where: { routeSlug: slug },
@@ -32,11 +33,11 @@ async function getRouteData(slug: string) {
   }
 }
 
-// The Page component
-export default async function RoutePage(props: RoutePageProps) {
-  // Access params via props object
-  const params = props.params;
+// The Page component - Destructure params directly in the signature
+export default async function RoutePage({ params }: RoutePageProps) {
+  // Extract the slug string first
   const currentSlug = params.routeSlug;
+  // Pass the slug string to the data fetching function
   const routeData = await getRouteData(currentSlug);
 
   // If no route data is found for the slug, show a 404 page

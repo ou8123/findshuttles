@@ -33,9 +33,13 @@ const RouteList = () => {
                 }
                 const data: Route[] = await response.json();
                 setRoutes(data);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Failed to fetch routes:", err);
-                setError(err.message || "Could not load routes.");
+                let message = "Could not load routes.";
+                if (err instanceof Error) {
+                    message = err.message;
+                }
+                setError(message);
             } finally {
                 setIsLoading(false);
             }
@@ -69,9 +73,13 @@ const RouteList = () => {
             setTimeout(() => setDeleteStatus(null), 3000);
 
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`Failed to delete route ${routeId}:`, error);
-            setDeleteStatus({ id: routeId, message: error.message || "Failed to delete route.", success: false });
+            let message = "Failed to delete route.";
+            if (error instanceof Error) {
+                message = error.message;
+            }
+            setDeleteStatus({ id: routeId, message: message, success: false });
         }
     };
 

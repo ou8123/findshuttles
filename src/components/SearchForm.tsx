@@ -70,9 +70,14 @@ const SearchForm = () => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: CountryWithCitiesLookup[] = await response.json();
         setLocationsLookup(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
-        setLocationLookupError("Could not load location data for routing.");
+        let message = "Could not load location data for routing.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        // Optionally, keep the generic message or use the specific one
+        setLocationLookupError("Could not load location data for routing."); // Keeping generic for user display
       } finally {
         setIsLoadingLocationsLookup(false);
       }
@@ -95,9 +100,14 @@ const SearchForm = () => {
         if (data.length === 0) {
             setDestinationError("No routes found from this departure city.");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch valid destinations:", err);
-        setDestinationError("Could not load destinations.");
+        let message = "Could not load destinations.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        // Use the specific error message for more detail, or keep generic
+        setDestinationError(message);
       } finally {
         setIsLoadingDestinations(false);
       }

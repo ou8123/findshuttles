@@ -53,9 +53,13 @@ const EditRoutePage = () => {
         if (!response.ok) throw new Error('Failed to fetch cities');
         const data: City[] = await response.json();
         setCities(data); // Assumes API returns cities sorted appropriately
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch cities for dropdown:", err);
-        setCityError("Could not load cities.");
+        let message = "Could not load cities.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setCityError(message);
       } finally {
         setIsLoadingCities(false);
       }
@@ -96,9 +100,13 @@ const EditRoutePage = () => {
             seoDescription: routeData.seoDescription
         });
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch route data:", err);
-        setError(err.message || "Could not load route data.");
+        let message = "Could not load route data.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setError(message);
       } finally {
         setIsLoadingRoute(false);
       }
@@ -151,9 +159,13 @@ const EditRoutePage = () => {
       setSubmitStatus({ success: true, message: `Route updated successfully!` });
       router.push('/admin/routes'); // Redirect on success
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update route:", error);
-      setSubmitStatus({ success: false, message: error.message || "Failed to update route." });
+      let message = "Failed to update route.";
+      if (error instanceof Error) {
+          message = error.message;
+      }
+      setSubmitStatus({ success: false, message: message });
     } finally {
       setIsSubmitting(false);
     }

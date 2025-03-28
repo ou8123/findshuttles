@@ -63,9 +63,13 @@ const AddRouteForm = () => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: CountryWithCitiesLookup[] = await response.json();
         setLocationsLookup(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
-        setLocationLookupError("Could not load location data.");
+        let message = "Could not load location data.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setLocationLookupError(message); // Use specific error message here
       } finally {
         setIsLoadingLocationsLookup(false);
       }
@@ -197,9 +201,13 @@ const AddRouteForm = () => {
       if (departureInputRef.current) departureInputRef.current.value = '';
       if (destinationInputRef.current) destinationInputRef.current.value = '';
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to submit new route:", error);
-      setSubmitStatus({ success: false, message: error.message || "Failed to create route. Please try again." });
+      let message = "Failed to create route. Please try again.";
+      if (error instanceof Error) {
+          message = error.message;
+      }
+      setSubmitStatus({ success: false, message: message });
     } finally {
       setIsSubmitting(false);
     }

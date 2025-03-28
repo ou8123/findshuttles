@@ -29,9 +29,13 @@ const CountryList = () => {
                 }
                 const data: Country[] = await response.json();
                 setCountries(data);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Failed to fetch countries:", err);
-                setError(err.message || "Could not load countries.");
+                let message = "Could not load countries.";
+                if (err instanceof Error) {
+                    message = err.message;
+                }
+                setError(message);
             } finally {
                 setIsLoading(false);
             }
@@ -70,9 +74,13 @@ const CountryList = () => {
             setTimeout(() => setDeleteStatus(null), 3000);
 
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`Failed to delete country ${countryId}:`, error);
-            setDeleteStatus({ id: countryId, message: error.message || "Failed to delete country.", success: false });
+            let message = "Failed to delete country.";
+            if (error instanceof Error) {
+                message = error.message;
+            }
+            setDeleteStatus({ id: countryId, message: message, success: false });
             // Optionally clear error message after some time
             // setTimeout(() => setDeleteStatus(prev => (prev?.id === countryId ? null : prev)), 5000);
         }

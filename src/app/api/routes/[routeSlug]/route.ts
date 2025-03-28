@@ -33,7 +33,7 @@ async function getRouteDataForApi(slug: string) {
   }
 }
 
-export async function GET(request: Request, context: Context) {
+export async function GET(_request: Request, context: Context) { // Prefix unused parameter with _
   const { routeSlug } = context.params;
 
   if (!routeSlug) {
@@ -49,10 +49,15 @@ export async function GET(request: Request, context: Context) {
 
     return NextResponse.json(routeData);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Log the error for server-side debugging
     console.error(`API route error for slug ${routeSlug}:`, error);
+    // Determine the error message
+    let errorMessage = 'Unknown error';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
     // Return a generic error response
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message || 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
   }
 }

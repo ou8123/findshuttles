@@ -40,9 +40,13 @@ const AddCountryPage = () => {
       setSubmitStatus({ success: true, message: `Country "${result.name}" created successfully!` });
       router.push('/admin/countries'); // Redirect to the list page
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to submit new country:", error);
-      setSubmitStatus({ success: false, message: error.message || "Failed to create country. Please try again." });
+      let message = "Failed to create country. Please try again.";
+      if (error instanceof Error) {
+          message = error.message;
+      }
+      setSubmitStatus({ success: false, message: message });
     } finally {
       setIsSubmitting(false);
     }

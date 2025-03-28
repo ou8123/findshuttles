@@ -14,7 +14,7 @@ interface NewRouteData {
 }
 
 // --- GET Handler ---
-export async function GET(request: Request) {
+export async function GET(_request: Request) { // Prefix unused parameter with _
   // 1. Check Authentication and Authorization
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role;

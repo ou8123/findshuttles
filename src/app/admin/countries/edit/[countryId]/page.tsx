@@ -49,9 +49,13 @@ const EditCountryPage = () => {
         setName(countryData.name);
         setOriginalName(countryData.name); // Store original name
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch country data:", err);
-        setError(err.message || "Could not load country data.");
+        let message = "Could not load country data.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setError(message);
       } finally {
         setIsLoading(false);
       }
@@ -94,9 +98,13 @@ const EditCountryPage = () => {
       setSubmitStatus({ success: true, message: `Country "${result.name}" updated successfully!` });
       router.push('/admin/countries'); // Redirect to the list page
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update country:", error);
-      setSubmitStatus({ success: false, message: error.message || "Failed to update country. Please try again." });
+      let message = "Failed to update country. Please try again.";
+      if (error instanceof Error) {
+          message = error.message;
+      }
+      setSubmitStatus({ success: false, message: message });
     } finally {
       setIsSubmitting(false);
     }

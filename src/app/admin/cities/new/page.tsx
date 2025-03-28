@@ -38,9 +38,13 @@ const AddCityPage = () => {
         if (!response.ok) throw new Error('Failed to fetch countries');
         const data: Country[] = await response.json();
         setCountries(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch countries for dropdown:", err);
-        setCountryError("Could not load countries.");
+        let message = "Could not load countries.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setCountryError(message);
       } finally {
         setIsLoadingCountries(false);
       }
@@ -99,9 +103,13 @@ const AddCityPage = () => {
       setSubmitStatus({ success: true, message: `City "${result.name}" created successfully!` });
       router.push('/admin/cities'); // Redirect to the list page
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to submit new city:", error);
-      setSubmitStatus({ success: false, message: error.message || "Failed to create city. Please try again." });
+      let message = "Failed to create city. Please try again.";
+      if (error instanceof Error) {
+          message = error.message;
+      }
+      setSubmitStatus({ success: false, message: message });
     } finally {
       setIsSubmitting(false);
     }

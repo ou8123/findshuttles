@@ -36,9 +36,13 @@ const CityList = () => {
                 }
                 const data: City[] = await response.json();
                 setCities(data);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Failed to fetch cities:", err);
-                setError(err.message || "Could not load cities.");
+                let message = "Could not load cities.";
+                if (err instanceof Error) {
+                    message = err.message;
+                }
+                setError(message);
             } finally {
                 setIsLoading(false);
             }
@@ -72,9 +76,13 @@ const CityList = () => {
             setTimeout(() => setDeleteStatus(null), 3000);
 
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`Failed to delete city ${cityId}:`, error);
-            setDeleteStatus({ id: cityId, message: error.message || "Failed to delete city.", success: false });
+            let message = "Failed to delete city.";
+            if (error instanceof Error) {
+                message = error.message;
+            }
+            setDeleteStatus({ id: cityId, message: message, success: false });
             // Optionally clear error message after some time
             // setTimeout(() => setDeleteStatus(prev => (prev?.id === cityId ? null : prev)), 5000);
         }
