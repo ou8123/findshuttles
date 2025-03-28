@@ -102,8 +102,9 @@ Make the content engaging and informative while following SEO best practices. Fo
           seoDescription: content.seoDescription?.substring(0, 50) + '...'
         });
         return NextResponse.json(content);
-      } catch (parseError) {
+      } catch (error) {
         console.error('Failed to parse OpenAI response:', messageContent);
+        console.error('Parse error:', error);
         return NextResponse.json(
           { error: 'Invalid content format returned' },
           { status: 500 }
