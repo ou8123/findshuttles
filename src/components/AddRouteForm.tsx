@@ -30,18 +30,24 @@ const AddRouteForm = () => {
   const [destinationAutocomplete, setDestinationAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [departureName, setDepartureName] = useState<string>('');
   const [destinationName, setDestinationName] = useState<string>('');
-  const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null); // Matched city from our DB
-  const [selectedDestinationCity, setSelectedDestinationCity] = useState<CityLookup | null>(null); // Matched city from our DB
+  const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
+  const [selectedDestinationCity, setSelectedDestinationCity] = useState<CityLookup | null>(null);
 
-  // State for other form fields
+  // State for form fields
   const [viatorWidgetCode, setViatorWidgetCode] = useState<string>('');
+  const [metaTitle, setMetaTitle] = useState<string>('');
+  const [metaDescription, setMetaDescription] = useState<string>('');
+  const [metaKeywords, setMetaKeywords] = useState<string>('');
   const [seoDescription, setSeoDescription] = useState<string>('');
+
+  // State for ChatGPT generation
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   // State for submission status
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
-  const [isCreatingLocation, setIsCreatingLocation] = useState<boolean>(false); // State for find-or-create loading
-  const [createLocationError, setCreateLocationError] = useState<string | null>(null); // State for find-or-create error
+  const [isCreatingLocation, setIsCreatingLocation] = useState<boolean>(false);
+  const [createLocationError, setCreateLocationError] = useState<string | null>(null);
 
   // Refs for inputs
   const departureInputRef = useRef<HTMLInputElement>(null);
@@ -53,9 +59,8 @@ const AddRouteForm = () => {
     googleMapsApiKey: apiKey || "",
     libraries: libraries,
   });
-  // --- End Load Google Maps API ---
 
-  // Fetch internal locations data on mount (for ID/slug lookup)
+  // Fetch internal locations data on mount
   useEffect(() => {
     const fetchLocationsLookup = async () => {
       setIsLoadingLocationsLookup(true);
@@ -71,7 +76,7 @@ const AddRouteForm = () => {
         if (err instanceof Error) {
             message = err.message;
         }
-        setLocationLookupError(message); // Use specific error message here
+        setLocationLookupError(message);
       } finally {
         setIsLoadingLocationsLookup(false);
       }
@@ -112,8 +117,8 @@ const AddRouteForm = () => {
     });
 
     // Extract city and country names from address_components
-    const cityComponent = place.address_components.find(comp =>
-      comp.types.includes('locality') ||
+    const cityComponent = place.address_components.find(comp => 
+      comp.types.includes('locality') || 
       comp.types.includes('administrative_area_level_3') ||
       comp.types.includes('sublocality') ||
       comp.types.includes('sublocality_level_1')
@@ -129,7 +134,7 @@ const AddRouteForm = () => {
       // Usually the city is the second-to-last part before the country
       cityName = addressParts[addressParts.length - 2];
     }
-    cityName = cityName || place.name; // Fallback to place name if still not found
+    cityName = cityName || place.name;
     
     const countryName = countryComponent?.long_name;
 
@@ -145,21 +150,21 @@ const AddRouteForm = () => {
 
     setIsCreatingLocation(true);
     setCreateLocationError(null);
-    setSubmitStatus(null); // Clear previous submit status
+    setSubmitStatus(null);
 
     // Prepare payload including coordinates
     const payload = {
         cityName,
         countryName,
-        latitude: latitude ?? null, // Send null if undefined
-        longitude: longitude ?? null // Send null if undefined
+        latitude: latitude ?? null,
+        longitude: longitude ?? null
     };
 
     try {
       const response = await fetch('/api/admin/locations/find-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload), // Send payload with coords
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
@@ -167,11 +172,9 @@ const AddRouteForm = () => {
         throw new Error(result.error || `Failed to find or create location (HTTP ${response.status})`);
       }
 
-      const createdCity: CityLookup = result; // API returns CityLookup shape
-      setter(createdCity); // Update the state (departure or destination)
+      const createdCity: CityLookup = result;
+      setter(createdCity);
       console.log(`Successfully found/created and set city: ${createdCity.name}`);
-      // Optionally refresh the locations lookup, though not strictly necessary here
-      // fetchLocationsLookup();
       return createdCity;
 
     } catch (error: unknown) {
@@ -181,21 +184,20 @@ const AddRouteForm = () => {
         message = error.message;
       }
       setCreateLocationError(message);
-      setter(null); // Ensure selection is cleared on error
+      setter(null);
       return null;
     } finally {
       setIsCreatingLocation(false);
     }
   };
 
-
   // --- Autocomplete Handlers ---
   const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => setDepartureAutocomplete(autocomplete);
   const onDestinationLoad = (autocomplete: google.maps.places.Autocomplete) => setDestinationAutocomplete(autocomplete);
 
   const onDeparturePlaceChanged = async () => {
-    setSelectedDepartureCity(null); // Reset match
-    setCreateLocationError(null); // Clear previous errors
+    setSelectedDepartureCity(null);
+    setCreateLocationError(null);
     if (departureAutocomplete !== null) {
       const place = departureAutocomplete.getPlace();
       if (place?.name) {
@@ -207,18 +209,17 @@ const AddRouteForm = () => {
             console.log("Matched Departure City:", matchedCity);
         } else {
             console.warn(`Selected departure "${selectedName}" not found in internal data. Attempting to find or create...`);
-            // Call the helper to find or create
             await handleFindOrCreateLocation(place, setSelectedDepartureCity);
         }
       } else {
-        setDepartureName(''); // Clear name if selection invalid
+        setDepartureName('');
       }
     }
   };
 
    const onDestinationPlaceChanged = async () => {
-    setSelectedDestinationCity(null); // Reset match
-    setCreateLocationError(null); // Clear previous errors
+    setSelectedDestinationCity(null);
+    setCreateLocationError(null);
     if (destinationAutocomplete !== null) {
       const place = destinationAutocomplete.getPlace();
        if (place?.name) {
@@ -230,11 +231,10 @@ const AddRouteForm = () => {
             console.log("Matched Destination City:", matchedCity);
         } else {
             console.warn(`Selected destination "${selectedName}" not found in internal data. Attempting to find or create...`);
-            // Call the helper to find or create
             await handleFindOrCreateLocation(place, setSelectedDestinationCity);
         }
       } else {
-         setDestinationName(''); // Clear name if selection invalid
+         setDestinationName('');
       }
     }
   };
@@ -252,8 +252,6 @@ const AddRouteForm = () => {
           setSelectedDestinationCity(null);
       }
   };
-  // --- End Autocomplete Handlers ---
-
 
   // Handle form submission
   const handleSubmit = async (event: React.FormEvent) => {
@@ -283,9 +281,12 @@ const AddRouteForm = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          departureCityId: selectedDepartureCity.id, // Use ID from matched city
-          destinationCityId: selectedDestinationCity.id, // Use ID from matched city
+          departureCityId: selectedDepartureCity.id,
+          destinationCityId: selectedDestinationCity.id,
           viatorWidgetCode,
+          metaTitle: metaTitle || undefined,
+          metaDescription: metaDescription || undefined,
+          metaKeywords: metaKeywords || undefined,
           seoDescription: seoDescription || undefined,
         }),
       });
@@ -295,12 +296,15 @@ const AddRouteForm = () => {
 
       // Success
       setSubmitStatus({ success: true, message: `Route created successfully! Slug: ${result.routeSlug}` });
-      // Clear form (including autocomplete inputs)
+      // Clear form
       setDepartureName('');
       setDestinationName('');
       setSelectedDepartureCity(null);
       setSelectedDestinationCity(null);
       setViatorWidgetCode('');
+      setMetaTitle('');
+      setMetaDescription('');
+      setMetaKeywords('');
       setSeoDescription('');
       if (departureInputRef.current) departureInputRef.current.value = '';
       if (destinationInputRef.current) destinationInputRef.current.value = '';
@@ -332,7 +336,6 @@ const AddRouteForm = () => {
   }
 
   return (
-    // No <LoadScript> needed
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Departure City Autocomplete */}
       <div>
@@ -348,7 +351,7 @@ const AddRouteForm = () => {
               id="admin-departure"
               type="text"
               ref={departureInputRef}
-              required={!selectedDepartureCity} // Require input if no valid city selected
+              required={!selectedDepartureCity}
               placeholder="Enter departure city"
               className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               onChange={handleDepartureInputChange}
@@ -388,7 +391,6 @@ const AddRouteForm = () => {
        {isCreatingLocation && <p className="text-sm text-blue-600 mt-1">Checking/adding selected location to database...</p>}
        {createLocationError && <p className="text-sm text-red-600 mt-1">{createLocationError}</p>}
 
-
       {/* Viator Widget Code */}
       <div>
         <label htmlFor="viator-code" className="block text-sm font-medium text-gray-700 mb-1">
@@ -400,23 +402,118 @@ const AddRouteForm = () => {
           onChange={(e) => setViatorWidgetCode(e.target.value)}
           required
           rows={6}
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900" // Added text color
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900"
           placeholder="Paste the full HTML/script code from Viator here..."
         />
       </div>
 
-       {/* SEO Description */}
-       <div>
-        <label htmlFor="seo-description" className="block text-sm font-medium text-gray-700 mb-1">
-          SEO Description (Optional)
+      {/* Meta Title */}
+      <div>
+        <label htmlFor="meta-title" className="block text-sm font-medium text-gray-700 mb-1">
+          Meta Title (60-70 characters)
         </label>
+        <input
+          id="meta-title"
+          type="text"
+          value={metaTitle}
+          onChange={(e) => setMetaTitle(e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+        />
+        <p className="text-sm text-gray-500 mt-1">{metaTitle.length} characters</p>
+      </div>
+
+      {/* Meta Description */}
+      <div>
+        <label htmlFor="meta-description" className="block text-sm font-medium text-gray-700 mb-1">
+          Meta Description (150-160 characters)
+        </label>
+        <textarea
+          id="meta-description"
+          value={metaDescription}
+          onChange={(e) => setMetaDescription(e.target.value)}
+          rows={2}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+        />
+        <p className="text-sm text-gray-500 mt-1">{metaDescription.length} characters</p>
+      </div>
+
+      {/* Meta Keywords */}
+      <div>
+        <label htmlFor="meta-keywords" className="block text-sm font-medium text-gray-700 mb-1">
+          Meta Keywords (comma-separated)
+        </label>
+        <input
+          id="meta-keywords"
+          type="text"
+          value={metaKeywords}
+          onChange={(e) => setMetaKeywords(e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+          placeholder="keyword1, keyword2, keyword3..."
+        />
+      </div>
+
+      {/* SEO Description with Generate Button */}
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <label htmlFor="seo-description" className="block text-sm font-medium text-gray-700">
+            SEO Description
+          </label>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!selectedDepartureCity || !selectedDestinationCity) {
+                setSubmitStatus({
+                  success: false,
+                  message: 'Please select both departure and destination cities first.'
+                });
+                return;
+              }
+
+              setIsGenerating(true);
+              try {
+                const response = await fetch('/api/admin/routes/generate-content', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    departureCityId: selectedDepartureCity.id,
+                    destinationCityId: selectedDestinationCity.id
+                  }),
+                });
+
+                if (!response.ok) throw new Error('Failed to generate content');
+
+                const data = await response.json();
+                setMetaTitle(data.metaTitle || '');
+                setMetaDescription(data.metaDescription || '');
+                setMetaKeywords(data.metaKeywords || '');
+                setSeoDescription(data.seoDescription || '');
+                setSubmitStatus({
+                  success: true,
+                  message: 'Content generated successfully!'
+                });
+              } catch (error) {
+                console.error('Error generating content:', error);
+                setSubmitStatus({
+                  success: false,
+                  message: 'Failed to generate content. Please try again.'
+                });
+              } finally {
+                setIsGenerating(false);
+              }
+            }}
+            disabled={isGenerating || !selectedDepartureCity || !selectedDestinationCity}
+            className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? 'Generating...' : 'Generate with ChatGPT'}
+          </button>
+        </div>
         <textarea
           id="seo-description"
           value={seoDescription}
           onChange={(e) => setSeoDescription(e.target.value)}
-          rows={4}
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900" // Added text color
-          placeholder="Enter a brief description for search engines..."
+          rows={8}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+          placeholder="Enter a detailed description for search engines..."
         />
       </div>
 
