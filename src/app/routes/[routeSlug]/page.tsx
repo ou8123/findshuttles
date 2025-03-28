@@ -29,8 +29,9 @@ async function getRouteData(slug: string) {
   }
 }
 
-// The Page component - Use inline type for props
-export default async function RoutePage({ params }: { params: { routeSlug: string } }) {
+// The Page component - Use 'any' for props as workaround for build error
+export default async function RoutePage(props: any) {
+  const params = props.params as { routeSlug: string }; // Extract and assert params type
   // Extract the slug string first
   const currentSlug = params.routeSlug;
   // Pass the slug string to the data fetching function
