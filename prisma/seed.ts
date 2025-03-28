@@ -67,9 +67,10 @@ async function main() {
   console.log(`Created/found city: ${laFortuna.name} in ${costaRica.name}`);
 
   // --- Seed a Sample Route ---
-  const routeSlugTamarindoMonteverde = `${tamarindo.slug}-to-${monteverde.slug}`;
+  // Include country slug in the route slug
+  const routeSlugTamarindoMonteverde = `${costaRica.slug}-${tamarindo.slug}-to-${monteverde.slug}`;
   const sampleRoute = await prisma.route.upsert({
-    where: { routeSlug: routeSlugTamarindoMonteverde },
+    where: { routeSlug: routeSlugTamarindoMonteverde }, // Use the new slug format in the where clause
     update: {}, // Define updates if the route might already exist and need changes
     create: {
       departureCityId: tamarindo.id,
