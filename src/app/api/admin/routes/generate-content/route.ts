@@ -78,10 +78,15 @@ Make the content engaging and informative while following SEO best practices. Fo
 
     console.log('Attempting to generate content with OpenAI...');
     
-    // Try GPT-4 without JSON mode first
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
+      // Add timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('OpenAI request timed out')), 29000);
+      });
+
+      // OpenAI request promise
+      const openaiPromise = openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
@@ -95,8 +100,13 @@ Make the content engaging and informative while following SEO best practices. Fo
         temperature: 0.7
       });
 
-      // Parse the response
+      // Race between timeout and OpenAI request
+      const result = await Promise.race([openaiPromise, timeoutPromise]);
+      
+      // Type assertion since we know it's a ChatCompletion if we get here
+      const completion = result as Awaited<typeof openaiPromise>;
       const messageContent = completion.choices[0].message.content;
+
       if (!messageContent) {
         console.error('OpenAI returned empty content');
         throw new Error('No content generated');
@@ -123,6 +133,15 @@ Make the content engaging and informative while following SEO best practices. Fo
         stack: error.stack,
         response: error.response?.data
       });
+      
+      // Check if it's a timeout error
+      if (error.message === 'OpenAI request timed out') {
+        return NextResponse.json(
+          { error: 'Request timed out. Please try again.' },
+          { status: 504 }
+        );
+      }
+      
       return NextResponse.json(
         { error: 'Failed to generate content' },
         { status: 500 }
