@@ -19,8 +19,8 @@ interface UpdateRouteData {
 
 
 // PUT handler to update a specific route
-export async function PUT(request: Request, context: { params: RouteParamsType }) {
-  const { params } = context; // Extract params from context
+export async function PUT(request: Request, context: any) { // Use any for context type
+  const params = context.params as { routeId: string }; // Extract and assert params type
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -99,8 +99,8 @@ export async function PUT(request: Request, context: { params: RouteParamsType }
 }
 
 // DELETE handler to delete a specific route
-export async function DELETE(request: Request, context: { params: RouteParamsType }) { // Add request parameter back
-  const { params } = context; // Extract params from context
+export async function DELETE(request: Request, context: any) { // Use any for context type
+  const params = context.params as { routeId: string }; // Extract and assert params type
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
