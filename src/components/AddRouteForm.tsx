@@ -101,11 +101,36 @@ const AddRouteForm = () => {
       return null;
     }
 
-    // Extract city and country names from address_components
-    const cityComponent = place.address_components.find(comp => comp.types.includes('locality') || comp.types.includes('administrative_area_level_3'));
-    const countryComponent = place.address_components.find(comp => comp.types.includes('country'));
+    // Debug logging
+    console.log("Place details:", {
+      name: place.name,
+      formatted_address: place.formatted_address,
+      address_components: place.address_components.map(comp => ({
+        long_name: comp.long_name,
+        types: comp.types
+      }))
+    });
 
-    const cityName = cityComponent?.long_name || place.name; // Fallback to place name if locality not found
+    // Extract city and country names from address_components
+    const cityComponent = place.address_components.find(comp =>
+      comp.types.includes('locality') ||
+      comp.types.includes('administrative_area_level_3') ||
+      comp.types.includes('sublocality') ||
+      comp.types.includes('sublocality_level_1')
+    );
+
+    // If no city component found, try to find it in the formatted address
+    const countryComponent = place.address_components.find(comp => comp.types.includes('country'));
+    const addressParts = place.formatted_address?.split(',').map(part => part.trim());
+    
+    // Try to get city name from various sources
+    let cityName = cityComponent?.long_name;
+    if (!cityName && addressParts && addressParts.length > 1) {
+      // Usually the city is the second-to-last part before the country
+      cityName = addressParts[addressParts.length - 2];
+    }
+    cityName = cityName || place.name; // Fallback to place name if still not found
+    
     const countryName = countryComponent?.long_name;
 
     // Extract coordinates if available
