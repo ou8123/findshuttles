@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useCallback } from 'react'; // Removed unused useEffect
+import React, { useState, useCallback, useEffect } from 'react'; // Added useEffect back
 import {
   GoogleMap,
   useJsApiLoader,
   MarkerF as Marker,
-  DirectionsService, // Import DirectionsService
+  // DirectionsService, // We will call the service programmatically
   DirectionsRenderer // Import DirectionsRenderer
 } from '@react-google-maps/api';
 
@@ -65,6 +65,31 @@ const RouteMap: React.FC<RouteMapProps> = ({
     }
   }, []); // Empty dependency array as it doesn't depend on component state/props directly
 
+  // Use useEffect to fetch directions when origin/destination change or map loads
+  useEffect(() => {
+    if (!isLoaded) return; // Wait for map script to load
+    // Check for valid, non-zero coordinates before making the API call
+    if (!origin.lat || !origin.lng || !destination.lat || !destination.lng) {
+        console.log("Skipping directions fetch: Invalid coordinates.");
+        setDirectionsResponse(null); // Clear previous directions if coords become invalid
+        setTravelTime(null);
+        return; 
+    }
+
+    console.log("Attempting to fetch directions..."); // Log before making the call
+    const directionsService = new window.google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin: origin,
+        destination: destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      directionsCallback // Use the existing callback
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Trigger only on coordinate changes or load
+  }, [isLoaded, origin.lat, origin.lng, destination.lat, destination.lng, directionsCallback]); // Add dependencies
+
   // Define map container style
   const containerStyle = {
     width: '100%',
@@ -112,18 +137,8 @@ const RouteMap: React.FC<RouteMapProps> = ({
           label="B" // Label for destination
         />
 
-        {/* Directions Service - Fetches directions */}
-        {/* Only render if origin and destination are valid */}
-        {(origin.lat && origin.lng && destination.lat && destination.lng) && (
-          <DirectionsService
-            options={{
-              destination: destination,
-              origin: origin,
-              travelMode: google.maps.TravelMode.DRIVING // Specify travel mode
-            }}
-            callback={directionsCallback}
-          />
-        )}
+        {/* DirectionsService component removed, handled by useEffect */}
+
 
         {/* Directions Renderer - Displays the route */}
         {directionsResponse && (
