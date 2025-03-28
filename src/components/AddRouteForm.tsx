@@ -108,6 +108,10 @@ const AddRouteForm = () => {
     const cityName = cityComponent?.long_name || place.name; // Fallback to place name if locality not found
     const countryName = countryComponent?.long_name;
 
+    // Extract coordinates if available
+    const latitude = place.geometry?.location?.lat();
+    const longitude = place.geometry?.location?.lng();
+
     if (!cityName || !countryName) {
       setCreateLocationError(`Could not extract city or country name for "${place.name}".`);
       console.error("Missing city/country components:", place.address_components);
@@ -118,11 +122,19 @@ const AddRouteForm = () => {
     setCreateLocationError(null);
     setSubmitStatus(null); // Clear previous submit status
 
+    // Prepare payload including coordinates
+    const payload = {
+        cityName,
+        countryName,
+        latitude: latitude ?? null, // Send null if undefined
+        longitude: longitude ?? null // Send null if undefined
+    };
+
     try {
       const response = await fetch('/api/admin/locations/find-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cityName, countryName }),
+        body: JSON.stringify(payload), // Send payload with coords
       });
 
       const result = await response.json();

@@ -9,6 +9,8 @@ import { Prisma } from '@prisma/client';
 interface RequestBody {
   cityName: string;
   countryName: string;
+  latitude?: number | null;  // Add optional coordinates
+  longitude?: number | null; // Add optional coordinates
 }
 
 // Define the expected return type (matching CityLookup in AddRouteForm)
@@ -38,7 +40,8 @@ export async function POST(request: Request) {
   }
 
   // 3. Validate Incoming Data
-  const { cityName, countryName } = body;
+  // Extract all potential fields from the body
+  const { cityName, countryName, latitude, longitude } = body;
   if (!cityName?.trim() || !countryName?.trim()) {
     return NextResponse.json(
       { error: 'Missing required fields: cityName, countryName' },
@@ -79,17 +82,17 @@ export async function POST(request: Request) {
           countryId: country.id,
         }
       },
-      update: {}, // No updates needed if found
+      update: {}, // No updates needed if found - could add coordinate update here if desired
       create: {
         name: trimmedCityName,
         slug: citySlug,
         countryId: country.id,
-        // Coordinates can be added/updated later via the edit form
-        latitude: null,
-        longitude: null,
+        // Use coordinates from request body, defaulting to null if not provided
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
       },
     });
-    console.log(`Find-or-create Location: Found/Created city ${city.name} (ID: ${city.id}) in ${country.name}`);
+    console.log(`Find-or-create Location: Found/Created city ${city.name} (ID: ${city.id}) with coords (${latitude}, ${longitude}) in ${country.name}`);
 
     // 6. Return the found/created city data (matching CityLookup)
     const result: FoundOrCreatedCity = {
