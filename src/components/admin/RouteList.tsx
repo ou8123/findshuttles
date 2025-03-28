@@ -1,0 +1,155 @@
+"use client"; // This component handles state and interactions
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
+// Interface for Route data (including related names)
+interface Route {
+    id: string;
+    routeSlug: string;
+    departureCity: { name: string };
+    destinationCity: { name: string };
+    departureCountry: { name: string };
+    destinationCountry: { name: string };
+    // Add other fields like viatorWidgetCode if needed for display/check
+}
+
+const RouteList = () => {
+    const [routes, setRoutes] = useState<Route[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [deleteStatus, setDeleteStatus] = useState<{ id: string | null; message: string; success: boolean } | null>(null);
+
+    // Fetch routes on component mount
+    useEffect(() => {
+        const fetchRoutes = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const response = await fetch('/api/admin/routes'); // Use the API route
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Failed to fetch routes');
+                }
+                const data: Route[] = await response.json();
+                setRoutes(data);
+            } catch (err: any) {
+                console.error("Failed to fetch routes:", err);
+                setError(err.message || "Could not load routes.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchRoutes();
+    }, []); // Empty dependency array runs once on mount
+
+    // Handle Delete button click
+    const handleDelete = async (routeId: string, routeDesc: string) => {
+        setDeleteStatus({ id: routeId, message: 'Deleting...', success: false }); // Indicate deleting
+
+        if (!window.confirm(`Are you sure you want to delete the route "${routeDesc}"?`)) {
+            setDeleteStatus(null); // Clear status if cancelled
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/routes/${routeId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok && response.status !== 204) { // Check for non-204 errors
+                 const result = await response.json();
+                 throw new Error(result.error || `HTTP error! status: ${response.status}`);
+            }
+
+             // Success (status 200 OK or 204 No Content): Remove route from local state
+            setRoutes(prevRoutes => prevRoutes.filter(route => route.id !== routeId));
+            setDeleteStatus({ id: null, message: `Successfully deleted "${routeDesc}".`, success: true });
+             // Clear success message after a few seconds
+            setTimeout(() => setDeleteStatus(null), 3000);
+
+
+        } catch (error: any) {
+            console.error(`Failed to delete route ${routeId}:`, error);
+            setDeleteStatus({ id: routeId, message: error.message || "Failed to delete route.", success: false });
+        }
+    };
+
+
+    if (isLoading) {
+        return <div className="text-center p-4">Loading routes...</div>;
+    }
+
+    if (error) {
+        return <div className="text-center p-4 text-red-600">{error}</div>;
+    }
+
+    return (
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            {/* Display general delete success message */}
+             {deleteStatus?.success && deleteStatus.id === null && (
+                <div className="p-3 bg-green-100 text-green-700 text-sm rounded-t-lg">
+                    {deleteStatus.message}
+                </div>
+            )}
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Route (Departure - Destination)
+                        </th>
+                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Slug
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {routes.length === 0 && (
+                        <tr>
+                            <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                No routes found. Add one using the button above.
+                            </td>
+                        </tr>
+                    )}
+                    {routes.map((route) => {
+                        const routeDesc = `${route.departureCity.name} - ${route.destinationCity.name}`;
+                        return (
+                            <tr key={route.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {routeDesc}
+                                    <span className="block text-xs text-gray-500">
+                                        ({route.departureCountry.name} - {route.destinationCountry.name})
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {route.routeSlug}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                    <Link href={`/admin/routes/edit/${route.id}`} className="text-indigo-600 hover:text-indigo-900">
+                                        Edit
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(route.id, routeDesc)}
+                                        disabled={deleteStatus?.id === route.id}
+                                        className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {deleteStatus?.id === route.id ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                    {/* Display specific error for this row */}
+                                    {deleteStatus?.id === route.id && !deleteStatus.success && (
+                                        <span className="text-red-500 text-xs ml-2">{deleteStatus.message}</span>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+export default RouteList;

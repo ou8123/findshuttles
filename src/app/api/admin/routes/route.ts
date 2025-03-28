@@ -4,7 +4,57 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Import your
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client'; // Import Prisma types for validation/error handling
 
-// Define expected shape of the request body
+// Define expected shape of the request body for POST
+interface NewRouteData {
+  departureCityId: string;
+  destinationCityId: string;
+  viatorWidgetCode: string;
+  seoDescription?: string;
+  // Add other fields as needed
+}
+
+// --- GET Handler ---
+export async function GET(request: Request) {
+  // 1. Check Authentication and Authorization
+  const session = await getServerSession(authOptions);
+  const userRole = session?.user?.role;
+
+  if (!session || userRole !== 'ADMIN') {
+    console.log("Admin Route GET: Unauthorized access attempt.");
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // 2. Fetch Routes from Database
+  try {
+    const routes = await prisma.route.findMany({
+      include: {
+        departureCity: { select: { name: true } },      // Include departure city name
+        destinationCity: { select: { name: true } },    // Include destination city name
+        departureCountry: { select: { name: true } },   // Include departure country name
+        destinationCountry: { select: { name: true } }, // Include destination country name
+      },
+      orderBy: {
+        // Optional: Order routes, e.g., by creation date or slug
+        createdAt: 'desc',
+      }
+    });
+
+    console.log(`Admin Route GET: Fetched ${routes.length} routes for user ${session.user?.email}`);
+
+    // 3. Return Success Response
+    return NextResponse.json(routes, { status: 200 });
+
+  } catch (error) {
+    console.error("Admin Route GET: Error fetching routes.", error);
+    // Generic server error
+    return NextResponse.json(
+      { error: 'Failed to fetch routes' },
+      { status: 500 }
+    );
+  }
+}
+
+// --- POST Handler ---
 interface NewRouteData {
   departureCityId: string;
   destinationCityId: string;

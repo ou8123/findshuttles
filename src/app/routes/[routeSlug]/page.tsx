@@ -33,9 +33,10 @@ async function getRouteData(slug: string) {
 }
 
 // The Page component
-export default async function RoutePage({ params }: RoutePageProps) {
-  // Access params.routeSlug directly instead of destructuring
-  const currentSlug = params.routeSlug; // Assign to variable first
+export default async function RoutePage(props: RoutePageProps) {
+  // Access params via props object
+  const params = props.params;
+  const currentSlug = params.routeSlug;
   const routeData = await getRouteData(currentSlug);
 
   // If no route data is found for the slug, show a 404 page
