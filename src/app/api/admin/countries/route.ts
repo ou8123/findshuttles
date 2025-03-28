@@ -15,7 +15,7 @@ function generateSlug(name: string): string {
 }
 
 // GET handler to list all countries
-export async function GET(_request: Request) { // Prefix request as it might not be strictly needed by session/URL
+export async function GET() { // Removed unused _request parameter
   // Pass request object to getServerSession for API routes
   const session = await getServerSession(authOptions);
   // Explicitly log URL if needed, otherwise remove request usage
