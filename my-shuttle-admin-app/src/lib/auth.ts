@@ -72,9 +72,9 @@ export const authOptions: AuthOptions = {
     strategy: "jwt", // Use JWT for sessions when not using a database adapter initially or with Credentials
   },
   // Define pages if you want custom login pages, otherwise uses default
-  // pages: {
-  //   signIn: '/auth/signin',
-  // }
+  pages: {
+     signIn: '/api/auth/signin', // Use the default NextAuth sign-in page URL
+  },
   callbacks: {
     async jwt({ token, user }) {
       // When the user signs in (user object exists), add the role to the token
