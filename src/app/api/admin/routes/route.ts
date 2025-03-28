@@ -94,21 +94,29 @@ export async function POST(request: Request) {
 
   // 4. Create Route using Prisma
   try {
-    // Fetch city slugs and country IDs for denormalization and routeSlug creation
+    // Fetch departure city with its country slug, and destination city
     const departureCity = await prisma.city.findUnique({
         where: { id: data.departureCityId },
-        select: { slug: true, countryId: true }
+        select: {
+            slug: true,
+            countryId: true,
+            country: { // Include country relation
+                select: { slug: true } // Select country slug
+            }
+        }
     });
     const destinationCity = await prisma.city.findUnique({
         where: { id: data.destinationCityId },
-        select: { slug: true, countryId: true }
+        select: { slug: true, countryId: true } // Destination country ID is enough for denormalization
     });
 
-    if (!departureCity || !destinationCity) {
-        return NextResponse.json({ error: 'Invalid departure or destination city ID' }, { status: 400 });
+    // Validate fetched data
+    if (!departureCity || !destinationCity || !departureCity.country?.slug) { // Check country slug existence
+        return NextResponse.json({ error: 'Invalid departure/destination city ID or missing country data' }, { status: 400 });
     }
 
-    const routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
+    // Construct the new route slug format
+    const routeSlug = `${departureCity.country.slug}-${departureCity.slug}-to-${destinationCity.slug}`;
 
     const newRoute = await prisma.route.create({
       data: {
