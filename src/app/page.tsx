@@ -1,3 +1,5 @@
+"use client"; // Mark as client component to prevent static generation
+
 import SearchFormWrapper from '@/components/SearchFormWrapper';
 
 export default function Home() {
