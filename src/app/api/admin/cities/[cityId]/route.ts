@@ -16,11 +16,11 @@ function generateSlug(name: string): string {
 
 // Removed unused CityRouteParams interface
 
-// Define the inner params type
-type CityParams = { cityId: string };
+// Removed unused CityParams type alias
+// type CityParams = { cityId: string };
 
 // PUT handler to update a specific city
-export async function PUT(request: Request, context: { params: CityParams }) {
+export async function PUT(request: Request, context: { params: { cityId: string } }) { // Use inline type
   const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
@@ -100,7 +100,7 @@ export async function PUT(request: Request, context: { params: CityParams }) {
 }
 
 // DELETE handler to delete a specific city
-export async function DELETE(context: { params: CityParams }) { // Correct signature
+export async function DELETE(context: { params: { cityId: string } }) { // Use inline type
   const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
