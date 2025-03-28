@@ -1,7 +1,13 @@
 "use client";
 
-import React from 'react';
-import { GoogleMap, useJsApiLoader, MarkerF as Marker } from '@react-google-maps/api'; // Use MarkerF for functional component compatibility
+import React, { useState, useEffect, useCallback } from 'react'; // Import useState, useEffect, useCallback
+import {
+  GoogleMap,
+  useJsApiLoader,
+  MarkerF as Marker,
+  DirectionsService, // Import DirectionsService
+  DirectionsRenderer // Import DirectionsRenderer
+} from '@react-google-maps/api';
 
 interface RouteMapProps {
   departureLat: number;
@@ -21,16 +27,43 @@ const RouteMap: React.FC<RouteMapProps> = ({
 }) => {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+  // State for directions result
+  const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
+  const [travelTime, setTravelTime] = useState<string | null>(null); // State for travel time string
+
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
     libraries: libraries,
   });
 
-  // Calculate map center and bounds
+  // Define origin and destination for DirectionsService
+  const origin = { lat: departureLat, lng: departureLng };
+  const destination = { lat: destinationLat, lng: destinationLng };
+
+  // Calculate map center (can still be useful for initial load before directions)
   const center = {
     lat: (departureLat + destinationLat) / 2,
     lng: (departureLng + destinationLng) / 2,
   };
+
+  // Callback function for DirectionsService
+  const directionsCallback = useCallback((
+    response: google.maps.DirectionsResult | null,
+    status: google.maps.DirectionsStatus
+  ) => {
+    if (status === 'OK' && response) {
+      console.log("Directions received:", response);
+      setDirectionsResponse(response);
+      // Extract travel time from the first route/leg
+      const route = response.routes[0];
+      if (route && route.legs[0] && route.legs[0].duration) {
+        setTravelTime(route.legs[0].duration.text); // e.g., "4 hours 3 mins"
+      }
+    } else {
+      console.error(`Directions request failed due to ${status}`);
+      setTravelTime(null); // Clear travel time on error
+    }
+  }, []); // Empty dependency array as it doesn't depend on component state/props directly
 
   // Define map container style
   const containerStyle = {
@@ -55,6 +88,8 @@ const RouteMap: React.FC<RouteMapProps> = ({
   bounds.extend(new window.google.maps.LatLng(destinationLat, destinationLng));
 
   return (
+    // Wrap everything in a single React Fragment
+    <>
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center} // Center might be adjusted by bounds
@@ -76,8 +111,38 @@ const RouteMap: React.FC<RouteMapProps> = ({
           position={{ lat: destinationLat, lng: destinationLng }}
           label="B" // Label for destination
         />
-        {/* Optional: Add DirectionsRenderer here later if needed */}
+
+        {/* Directions Service - Fetches directions */}
+        {/* Only render if origin and destination are valid */}
+        {(origin.lat && origin.lng && destination.lat && destination.lng) && (
+          <DirectionsService
+            options={{
+              destination: destination,
+              origin: origin,
+              travelMode: google.maps.TravelMode.DRIVING // Specify travel mode
+            }}
+            callback={directionsCallback}
+          />
+        )}
+
+        {/* Directions Renderer - Displays the route */}
+        {directionsResponse && (
+          <DirectionsRenderer
+            options={{
+              directions: directionsResponse,
+              suppressMarkers: true // Hide default A/B markers from renderer
+            }}
+          />
+        )}
       </GoogleMap>
+
+      {/* Display Travel Time */}
+      {travelTime && (
+        <div className="mt-2 text-sm text-gray-600">
+          Estimated travel time: {travelTime}
+        </div>
+      )}
+    </> // Wrap in fragment as we now return multiple elements
   );
 };
 
