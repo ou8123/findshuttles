@@ -15,10 +15,11 @@ function generateSlug(name: string): string {
 }
 
 // GET handler to list all countries
-export async function GET(request: Request) {
+export async function GET(_request: Request) { // Prefix request as it might not be strictly needed by session/URL
   // Pass request object to getServerSession for API routes
   const session = await getServerSession(authOptions);
-  console.log("API /api/admin/countries GET session:", JSON.stringify(session, null, 2)); // Log session
+  // Explicitly log URL if needed, otherwise remove request usage
+  // console.log("API /api/admin/countries GET session:", JSON.stringify(session, null, 2)); // Log session
 
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
