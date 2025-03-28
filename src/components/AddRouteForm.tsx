@@ -40,6 +40,8 @@ const AddRouteForm = () => {
   // State for submission status
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [isCreatingLocation, setIsCreatingLocation] = useState<boolean>(false); // State for find-or-create loading
+  const [createLocationError, setCreateLocationError] = useState<string | null>(null); // State for find-or-create error
 
   // Refs for inputs
   const departureInputRef = useRef<HTMLInputElement>(null);
@@ -89,12 +91,74 @@ const AddRouteForm = () => {
       return null;
   };
 
+  // --- Helper to call the find-or-create API ---
+  const handleFindOrCreateLocation = async (
+    place: google.maps.places.PlaceResult,
+    setter: React.Dispatch<React.SetStateAction<CityLookup | null>>
+  ): Promise<CityLookup | null> => {
+    if (!place.address_components || !place.name) {
+      setCreateLocationError("Selected place is missing required details (address components or name).");
+      return null;
+    }
+
+    // Extract city and country names from address_components
+    const cityComponent = place.address_components.find(comp => comp.types.includes('locality') || comp.types.includes('administrative_area_level_3'));
+    const countryComponent = place.address_components.find(comp => comp.types.includes('country'));
+
+    const cityName = cityComponent?.long_name || place.name; // Fallback to place name if locality not found
+    const countryName = countryComponent?.long_name;
+
+    if (!cityName || !countryName) {
+      setCreateLocationError(`Could not extract city or country name for "${place.name}".`);
+      console.error("Missing city/country components:", place.address_components);
+      return null;
+    }
+
+    setIsCreatingLocation(true);
+    setCreateLocationError(null);
+    setSubmitStatus(null); // Clear previous submit status
+
+    try {
+      const response = await fetch('/api/admin/locations/find-or-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cityName, countryName }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to find or create location (HTTP ${response.status})`);
+      }
+
+      const createdCity: CityLookup = result; // API returns CityLookup shape
+      setter(createdCity); // Update the state (departure or destination)
+      console.log(`Successfully found/created and set city: ${createdCity.name}`);
+      // Optionally refresh the locations lookup, though not strictly necessary here
+      // fetchLocationsLookup();
+      return createdCity;
+
+    } catch (error: unknown) {
+      console.error("Error in handleFindOrCreateLocation:", error);
+      let message = "Failed to add the selected location to the database.";
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      setCreateLocationError(message);
+      setter(null); // Ensure selection is cleared on error
+      return null;
+    } finally {
+      setIsCreatingLocation(false);
+    }
+  };
+
+
   // --- Autocomplete Handlers ---
   const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => setDepartureAutocomplete(autocomplete);
   const onDestinationLoad = (autocomplete: google.maps.places.Autocomplete) => setDestinationAutocomplete(autocomplete);
 
-  const onDeparturePlaceChanged = () => {
+  const onDeparturePlaceChanged = async () => {
     setSelectedDepartureCity(null); // Reset match
+    setCreateLocationError(null); // Clear previous errors
     if (departureAutocomplete !== null) {
       const place = departureAutocomplete.getPlace();
       if (place?.name) {
@@ -105,8 +169,9 @@ const AddRouteForm = () => {
             setSelectedDepartureCity(matchedCity);
             console.log("Matched Departure City:", matchedCity);
         } else {
-            console.warn(`Selected departure "${selectedName}" not found in internal data.`);
-            // Optionally show a warning to the user in the UI
+            console.warn(`Selected departure "${selectedName}" not found in internal data. Attempting to find or create...`);
+            // Call the helper to find or create
+            await handleFindOrCreateLocation(place, setSelectedDepartureCity);
         }
       } else {
         setDepartureName(''); // Clear name if selection invalid
@@ -114,8 +179,9 @@ const AddRouteForm = () => {
     }
   };
 
-   const onDestinationPlaceChanged = () => {
+   const onDestinationPlaceChanged = async () => {
     setSelectedDestinationCity(null); // Reset match
+    setCreateLocationError(null); // Clear previous errors
     if (destinationAutocomplete !== null) {
       const place = destinationAutocomplete.getPlace();
        if (place?.name) {
@@ -126,8 +192,9 @@ const AddRouteForm = () => {
             setSelectedDestinationCity(matchedCity);
             console.log("Matched Destination City:", matchedCity);
         } else {
-            console.warn(`Selected destination "${selectedName}" not found in internal data.`);
-             // Optionally show a warning to the user in the UI
+            console.warn(`Selected destination "${selectedName}" not found in internal data. Attempting to find or create...`);
+            // Call the helper to find or create
+            await handleFindOrCreateLocation(place, setSelectedDestinationCity);
         }
       } else {
          setDestinationName(''); // Clear name if selection invalid
@@ -277,8 +344,12 @@ const AddRouteForm = () => {
       </div>
 
        {/* Loading/Error state for internal location data */}
-       {isLoadingLocationsLookup && <p className="text-sm text-gray-500">Loading city data...</p>}
-       {locationLookupError && <p className="text-sm text-red-500">{locationLookupError}</p>}
+       {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-1">Loading existing location data...</p>}
+       {locationLookupError && <p className="text-sm text-red-500 mt-1">{locationLookupError}</p>}
+
+       {/* Loading/Error state for find-or-create process */}
+       {isCreatingLocation && <p className="text-sm text-blue-600 mt-1">Checking/adding selected location to database...</p>}
+       {createLocationError && <p className="text-sm text-red-600 mt-1">{createLocationError}</p>}
 
 
       {/* Viator Widget Code */}
