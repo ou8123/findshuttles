@@ -1,7 +1,8 @@
 // src/app/api/admin/locations/find-or-create/route.ts
+// src/app/api/admin/locations/find-or-create/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from "@/lib/auth"; // Import from new location
 import prisma from '@/lib/prisma';
 import { generateSlug } from '@/lib/utils'; // Import the slug utility
 import { Prisma } from '@prisma/client';
