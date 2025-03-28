@@ -1,11 +1,11 @@
 # netlify.toml
-
 [build]
-  # Use a custom build script to have more control over the build process
-  command = "node netlify-build.js"
+  # Run prisma generate, migrate, seed production DB, then build
+  command = "npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-build.js"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
+[build.environment]
 [build.environment]
   # Set Node.js version (Optional but recommended - use a version supported by Netlify)
   NODE_VERSION = "20"

@@ -1,12 +1,7 @@
 // netlify-build.js
 const { execSync } = require('child_process');
 
-// Run Prisma commands
-console.log('Running Prisma generate...');
-execSync('npx prisma generate', { stdio: 'inherit' });
-
-console.log('Running Prisma migrate deploy...');
-execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+// Prisma commands are now run directly in netlify.toml
 
 // Run Next.js build with environment variables to disable static generation
 console.log('Running Next.js build with static generation disabled...');
