@@ -1,8 +1,8 @@
 # netlify.toml
 
 [build]
-  # Use the --no-mangling flag to avoid URL issues during static generation
-  command = "NEXT_DISABLE_ESLINT=true prisma generate && prisma migrate deploy && next build --no-mangling"
+  # Use a custom build script to have more control over the build process
+  command = "node netlify-build.js"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
