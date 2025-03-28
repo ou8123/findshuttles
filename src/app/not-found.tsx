@@ -1,3 +1,5 @@
+"use client"; // Mark as client component to prevent static generation
+
 import Link from 'next/link';
 
 export default function NotFound() {
