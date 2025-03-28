@@ -20,8 +20,12 @@ interface CountryRouteParams {
   };
 }
 
+// Define the inner params type
+type CountryParams = { countryId: string };
+
 // PUT handler to update a specific country
-export async function PUT(request: Request, { params }: CountryRouteParams) {
+export async function PUT(request: Request, context: { params: CountryParams }) {
+  const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -79,7 +83,8 @@ export async function PUT(request: Request, { params }: CountryRouteParams) {
 }
 
 // DELETE handler to delete a specific country
-export async function DELETE({ params }: CountryRouteParams) { // Removed unused request parameter
+export async function DELETE(context: { params: CountryParams }) { // Correct signature, removed unused request
+  const { params } = context; // Extract params from context
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
