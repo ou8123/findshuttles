@@ -186,13 +186,23 @@ const SearchForm = () => {
 
     const destinationCity = validDestinations.find(city => city.id === selectedDestinationCityId);
 
-    if (selectedDepartureCity.slug && destinationCity?.slug) {
-      const routeSlug = `${selectedDepartureCity.slug}-to-${destinationCity.slug}`;
+    // Find the country slug for the departure city
+    let departureCountrySlug: string | undefined;
+    for (const country of locationsLookup) {
+        if (country.cities.some(city => city.id === selectedDepartureCity.id)) {
+            departureCountrySlug = country.slug;
+            break;
+        }
+    }
+
+    if (departureCountrySlug && selectedDepartureCity.slug && destinationCity?.slug) {
+      // Construct the route slug including the country
+      const routeSlug = `${departureCountrySlug}-${selectedDepartureCity.slug}-to-${destinationCity.slug}`;
       console.log(`Navigating to route: /routes/${routeSlug}`);
       router.push(`/routes/${routeSlug}`);
     } else {
       alert("Could not construct route information. Please re-select departure and destination.");
-      console.error("Slug missing for departure or destination", selectedDepartureCity, destinationCity);
+      console.error("Slug or country slug missing for departure or destination", selectedDepartureCity, destinationCity, departureCountrySlug);
     }
   };
 

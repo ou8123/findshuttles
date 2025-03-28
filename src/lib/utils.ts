@@ -10,13 +10,18 @@
 export function generateSlug(text: string): string {
   if (!text) return ''; // Handle empty input
 
+  const from = "àáâäæãåāçćčèéêëēėęîïíīįìłñńôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;";
+  const to   = "aaaaaaaacccceeeeeeeiiiiilnnoooooooopprrsssssttuuuuuuuuuwxyyzzz------";
+  const p = new RegExp(from.split('').join('|'), 'g');
+
   return text
-    .toString()           // Ensure input is a string
-    .toLowerCase()        // Convert to lowercase
-    .trim()               // Remove leading/trailing whitespace
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/[^\w-]+/g, '') // Remove all non-word chars except hyphens and underscores
-    .replace(/--+/g, '-') // Replace multiple hyphens with a single hyphen
-    .replace(/^-+/, '')   // Trim hyphens from the start
-    .replace(/-+$/, '');  // Trim hyphens from the end
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, '-') // Replace spaces with -
+    .replace(p, c => to.charAt(from.indexOf(c))) // Replace special characters
+    .replace(/&/g, '-and-') // Replace & with 'and'
+    .replace(/[^\w-]+/g, '') // Remove all non-word chars
+    .replace(/--+/g, '-') // Replace multiple - with single -
+    .replace(/^-+/, '') // Trim - from start of text
+    .replace(/-+$/, ''); // Trim - from end of text
 }
