@@ -3,8 +3,8 @@
 [build]
   # Command to build the site: Generate Prisma client, apply migrations, then build Next.js
   # Temporarily disable ESLint to bypass persistent type error during build
-  # Disable static generation to avoid issues with the _not-found page
-  command = "NEXT_DISABLE_ESLINT=true prisma generate && prisma migrate deploy && NEXT_DISABLE_STATIC_GENERATION=true next build"
+  # Skip static generation of 404 page to avoid issues
+  command = "NEXT_DISABLE_ESLINT=true prisma generate && prisma migrate deploy && next build --no-static-404"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
