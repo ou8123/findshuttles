@@ -79,6 +79,9 @@ async function main() {
       destinationCountryId: costaRica.id, // Denormalized
       routeSlug: routeSlugTamarindoMonteverde,
       viatorWidgetCode: '<!-- Placeholder: Viator Widget Code for Tamarindo to Monteverde goes here -->',
+      metaTitle: `Shuttle from ${tamarindo.name} to ${monteverde.name} | Costa Rica Transport`,
+      metaDescription: `Book reliable shuttle service from ${tamarindo.name} to ${monteverde.name}. Safe, comfortable transport through Costa Rica's scenic routes. Reserve now!`,
+      metaKeywords: `shuttle, transport, ${tamarindo.name}, ${monteverde.name}, Costa Rica, travel, bus service`,
       seoDescription: `Book your comfortable and reliable shuttle transfer from ${tamarindo.name} to ${monteverde.name}. Enjoy the scenic views of Costa Rica!`,
     },
   });
