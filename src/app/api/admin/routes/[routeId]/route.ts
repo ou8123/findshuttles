@@ -14,7 +14,10 @@ interface UpdateRouteData {
   departureCityId: string;
   destinationCityId: string;
   viatorWidgetCode: string;
-  seoDescription?: string | null; // Allow null to clear
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  metaKeywords?: string | null;
+  seoDescription?: string | null;
 }
 
 
@@ -72,7 +75,10 @@ export async function PUT(request: Request, context: any) { // Use any for conte
         destinationCountryId: destinationCity.countryId, // Update denormalized
         routeSlug: routeSlug, // Update slug
         viatorWidgetCode: data.viatorWidgetCode,
-        seoDescription: data.seoDescription, // Handles null or string
+        metaTitle: data.metaTitle,
+        metaDescription: data.metaDescription,
+        metaKeywords: data.metaKeywords,
+        seoDescription: data.seoDescription,
       },
     });
     console.log(`Admin Route PUT: Successfully updated route ${updatedRoute.id} by user ${session.user?.email}`);

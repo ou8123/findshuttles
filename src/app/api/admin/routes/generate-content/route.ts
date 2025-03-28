@@ -63,31 +63,31 @@ export async function POST(request: Request) {
     }
 
     // Create prompt for ChatGPT
-    const prompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}. Note: We are a booking platform that partners with local shuttle companies - we do not operate the shuttles directly.
+    const prompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name} to ${destinationCity.name}. We are a booking platform affiliated with local shuttle companies throughout ${destinationCity.country.name}.
 
 Please provide the following in JSON format:
 {
-  "metaTitle": "60-70 character SEO-optimized title",
-  "metaDescription": "150-160 character compelling meta description",
-  "metaKeywords": "comma-separated keywords",
+  "metaTitle": "${departureCity.name} to ${destinationCity.name}, ${destinationCity.country.name} | Shuttle Service",
+  "metaDescription": "150-160 character compelling description focusing on the journey and destination highlights",
+  "metaKeywords": "relevant, comma-separated keywords including city names and attractions",
   "seoDescription": "400-600 word detailed description"
 }
 
-For the seoDescription, write a professional, human-like description that:
-1. Introduces the shuttle service, mentioning we partner with local shuttle companies
+For the seoDescription, write a professional, engaging description that:
+1. Briefly introduces the shuttle service (mention once that we're affiliated with local providers)
 2. Highlights the main tourist attractions in ${destinationCity.name} (museums, beaches, parks, etc.)
-3. Describes what travelers can expect (comfort, amenities, views)
-4. Mentions approximate journey duration and key stops
-5. Explains why this route is popular among tourists
-6. Ends with a call-to-action to book through our platform
+3. Describes the journey experience (comfort, views, amenities)
+4. Mentions approximate duration and any notable stops
+5. Explains what makes this destination special
+6. Ends with a call-to-action to book
 
-Important: Never say "our shuttles" - instead use phrases like:
-- "The shuttle services we partner with..."
-- "Our affiliated shuttle providers..."
-- "Book trusted shuttle services through our platform..."
-- "The local shuttle companies we work with..."
+Writing style:
+- Keep the tone informative and professional
+- Focus on the destination and travel experience
+- Mention partnership/affiliation naturally, without overemphasis
+- Avoid phrases like "our shuttles" - the focus is on the service and destination
 
-Make the content engaging and informative while following SEO best practices. Focus on tourist attractions and travel experiences that make ${destinationCity.name} special.`;
+Make the content engaging while following SEO best practices. Focus on what makes ${destinationCity.name} a compelling destination.`;
 
     console.log('Attempting to generate content with OpenAI...');
     
