@@ -14,16 +14,20 @@ export const authOptions: AuthOptions = {
         email: { label: "Email", type: "email", placeholder: "admin@example.com" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) { // Removed unused _req parameter
+      async authorize(credentials) {
+        console.log("Authorize function called with credentials:", credentials?.email); // Log entry point
+
         if (!credentials?.email || !credentials?.password) {
           console.error("Auth Error: Missing email or password");
           return null;
         }
 
         try {
+          console.log(`Attempting to find user: ${credentials.email}`); // Log before DB call
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
           });
+          console.log(`Prisma findUnique result for ${credentials.email}:`, user ? `User found (ID: ${user.id})` : "User not found"); // Log after DB call
 
           if (!user) {
             console.log(`Auth Attempt Failed: No user found for email ${credentials.email}`);
