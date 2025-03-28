@@ -85,9 +85,9 @@ async function main() {
   console.log(`Created/found route: ${sampleRoute.routeSlug}`);
 
 
-  // --- Seed Admin User (Optional but recommended) ---
-  const adminEmail = 'admin@example.com'; // Use a real email or placeholder
-  const adminPassword = 'password'; // CHANGE THIS IN PRODUCTION!
+  // --- Seed Admin User ---
+  const adminEmail = 'aiaffiliatecom@gmail.com';
+  const adminPassword = 'Sh8#mK9$pL2@vN4'; // Strong password: uppercase, lowercase, numbers, special chars
   const hashedPassword = await bcrypt.hash(adminPassword, 10); // Hash the password
 
   const adminUser = await prisma.user.upsert({

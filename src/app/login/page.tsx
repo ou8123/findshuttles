@@ -40,10 +40,8 @@ export default function SignInPage() {
       }
     } else if (result?.ok) {
       // Successful sign-in, NextAuth should handle the redirect based on callbackUrl
-      // If redirect doesn't happen automatically, force it:
-      const urlParams = new URLSearchParams(window.location.search);
-      const callbackUrl = urlParams.get('callbackUrl') || '/admin'; // Default to /admin if no callbackUrl
-      window.location.href = callbackUrl; 
+      // Always redirect to /admin after successful login
+      window.location.href = '/admin';
     }
   };
 
