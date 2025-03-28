@@ -6,10 +6,10 @@ import { authOptions } from "@/lib/auth"; // Import from the new location
 const handler = NextAuth(authOptions);
 
 // Export named handlers for GET and POST as required by App Router
-export async function GET(request: Request, context: { params: { nextauth: string[] } }) {
+export async function GET(request: Request, context: any) { // Use any for context
   return handler(request, context);
 }
 
-export async function POST(request: Request, context: { params: { nextauth: string[] } }) {
+export async function POST(request: Request, context: any) { // Use any for context
   return handler(request, context);
 }
