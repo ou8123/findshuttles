@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // Use standalone output mode
-  // Disable static generation by setting all pages to be server-side rendered
+  // Use a simpler configuration to avoid regex issues
   experimental: {
-    serverComponentsExternalPackages: ['*'], // Force all packages to be bundled with the server
+    // Empty experimental section to avoid warnings
   },
 };
 
