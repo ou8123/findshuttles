@@ -6,8 +6,8 @@ import { Prisma } from '@prisma/client';
 
 // Removed unused local generateSlug function (assuming it's imported if needed elsewhere, or handled differently)
 
-// Define the inner params type
-type RouteParamsType = { routeId: string };
+// Removed unused RouteParamsType alias
+// type RouteParamsType = { routeId: string };
 
 // Define expected shape of the request body for PUT
 interface UpdateRouteData {
