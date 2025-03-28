@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     // Create prompt for ChatGPT
-    const prompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}.
+    const prompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}. Note: We are a booking platform that partners with local shuttle companies - we do not operate the shuttles directly.
 
 Please provide the following in JSON format:
 {
@@ -74,12 +74,18 @@ Please provide the following in JSON format:
 }
 
 For the seoDescription, write a professional, human-like description that:
-1. Starts with a brief introduction about the shuttle service between the cities
+1. Introduces the shuttle service, mentioning we partner with local shuttle companies
 2. Highlights the main tourist attractions in ${destinationCity.name} (museums, beaches, parks, etc.)
-3. Describes the travel experience (comfort, amenities, views)
+3. Describes what travelers can expect (comfort, amenities, views)
 4. Mentions approximate journey duration and key stops
 5. Explains why this route is popular among tourists
-6. Ends with a call-to-action to book the shuttle
+6. Ends with a call-to-action to book through our platform
+
+Important: Never say "our shuttles" - instead use phrases like:
+- "The shuttle services we partner with..."
+- "Our affiliated shuttle providers..."
+- "Book trusted shuttle services through our platform..."
+- "The local shuttle companies we work with..."
 
 Make the content engaging and informative while following SEO best practices. Focus on tourist attractions and travel experiences that make ${destinationCity.name} special.`;
 
@@ -126,6 +132,10 @@ Make the content engaging and informative while following SEO best practices. Fo
         .replace(/\n/g, '\\n') // Escape newlines
         .replace(/\r/g, '\\r') // Escape carriage returns
         .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+        .replace(/'/g, "'") // Replace smart quotes
+        .replace(/'/g, "'") // Replace other smart quotes
+        .replace(/"/g, '"') // Replace smart double quotes
+        .replace(/"/g, '"') // Replace other smart double quotes
         .trim(); // Remove any trailing whitespace
       
       console.log('Sanitized content:', sanitizedContent);
