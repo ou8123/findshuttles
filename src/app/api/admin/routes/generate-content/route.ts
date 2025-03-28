@@ -9,6 +9,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface GeneratedContent {
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
+  seoDescription: string;
+}
+
 export async function POST(request: Request) {
   try {
     // Check authentication
@@ -112,26 +119,40 @@ Make the content engaging and informative while following SEO best practices. Fo
         throw new Error('No content generated');
       }
 
+      // Sanitize the response before parsing
+      const sanitizedContent = messageContent
+        .replace(/^\s+/gm, '') // Remove leading whitespace (including tabs)
+        .replace(/\t/g, '') // Remove tabs
+        .replace(/\n/g, '\\n') // Escape newlines
+        .replace(/\r/g, '\\r') // Escape carriage returns
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+        .trim(); // Remove any trailing whitespace
+      
+      console.log('Sanitized content:', sanitizedContent);
+      
+      let parsedContent: GeneratedContent;
       try {
-        // Sanitize the response before parsing
-        const sanitizedContent = messageContent
-          .replace(/\n/g, '\\n') // Escape newlines
-          .replace(/\r/g, '\\r') // Escape carriage returns
-          .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters
+        parsedContent = JSON.parse(sanitizedContent);
+      } catch (parseError) {
+        // Try parsing with more lenient cleanup
+        const cleanContent = sanitizedContent
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+          .replace(/\\n/g, ' ')
+          .replace(/\\/g, '\\\\');
         
-        const content = JSON.parse(sanitizedContent);
-        console.log('Generated content:', {
-          metaTitle: content.metaTitle,
-          metaDescription: content.metaDescription?.substring(0, 50) + '...',
-          metaKeywords: content.metaKeywords?.substring(0, 50) + '...',
-          seoDescription: content.seoDescription?.substring(0, 50) + '...'
-        });
-        return NextResponse.json(content);
-      } catch (error) {
-        console.error('Failed to parse OpenAI response:', messageContent);
-        console.error('Parse error:', error);
-        throw new Error('Failed to parse content as JSON');
+        console.log('Cleaned content:', cleanContent);
+        parsedContent = JSON.parse(cleanContent);
       }
+
+      // Log the parsed content
+      console.log('Generated content:', {
+        metaTitle: parsedContent.metaTitle,
+        metaDescription: parsedContent.metaDescription?.substring(0, 50) + '...',
+        metaKeywords: parsedContent.metaKeywords?.substring(0, 50) + '...',
+        seoDescription: parsedContent.seoDescription?.substring(0, 50) + '...'
+      });
+
+      return NextResponse.json(parsedContent);
 
     } catch (error: any) {
       console.error('Error generating content:', {
