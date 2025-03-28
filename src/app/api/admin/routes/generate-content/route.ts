@@ -50,17 +50,22 @@ export async function POST(request: Request) {
     const prompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}.
 
 Please provide the following in JSON format:
-1. metaTitle (60-70 characters): An SEO-optimized title for the route page
-2. metaDescription (150-160 characters): A compelling meta description for search results
-3. metaKeywords: Relevant keywords for the route, separated by commas
-4. seoDescription (400-600 words): A detailed, engaging description that includes:
-   - Brief introduction about the route
-   - Popular tourist attractions in ${destinationCity.name}
-   - Travel experience and approximate duration
-   - Key highlights along the way
-   - Why travelers should choose this route
+{
+  "metaTitle": "60-70 character SEO-optimized title",
+  "metaDescription": "150-160 character compelling meta description",
+  "metaKeywords": "comma-separated keywords",
+  "seoDescription": "400-600 word detailed description"
+}
 
-Make the content natural, informative, and engaging while maintaining SEO best practices.`;
+For the seoDescription, write a professional, human-like description that:
+1. Starts with a brief introduction about the shuttle service between the cities
+2. Highlights the main tourist attractions in ${destinationCity.name} (museums, beaches, parks, etc.)
+3. Describes the travel experience (comfort, amenities, views)
+4. Mentions approximate journey duration and key stops
+5. Explains why this route is popular among tourists
+6. Ends with a call-to-action to book the shuttle
+
+Make the content engaging and informative while following SEO best practices. Focus on tourist attractions and travel experiences that make ${destinationCity.name} special.`;
 
     // Generate content using ChatGPT
     const completion = await openai.chat.completions.create({
@@ -78,24 +83,42 @@ Make the content natural, informative, and engaging while maintaining SEO best p
       temperature: 0.7,
       response_format: { type: "json_object" }
     });
-// Parse the response
-const messageContent = completion.choices[0].message.content;
-if (!messageContent) {
-  return NextResponse.json(
-    { error: 'No content generated' },
-    { status: 500 }
-  );
-}
+      // Parse the response
+      const messageContent = completion.choices[0].message.content;
+      if (!messageContent) {
+        console.error('OpenAI returned empty content');
+        return NextResponse.json(
+          { error: 'No content generated' },
+          { status: 500 }
+        );
+      }
 
-const content = JSON.parse(messageContent);
-return NextResponse.json(content);
-    return NextResponse.json(content);
+      try {
+        const content = JSON.parse(messageContent);
+        console.log('Generated content:', {
+          metaTitle: content.metaTitle,
+          metaDescription: content.metaDescription?.substring(0, 50) + '...',
+          metaKeywords: content.metaKeywords?.substring(0, 50) + '...',
+          seoDescription: content.seoDescription?.substring(0, 50) + '...'
+        });
+        return NextResponse.json(content);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', messageContent);
+        return NextResponse.json(
+          { error: 'Invalid content format returned' },
+          { status: 500 }
+        );
+      }
 
-  } catch (error) {
-    console.error('Error generating content:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate content' },
-      { status: 500 }
-    );
-  }
+    } catch (error: any) {
+      console.error('Error generating content:', {
+        error: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
+      return NextResponse.json(
+        { error: 'Failed to generate content' },
+        { status: 500 }
+      );
+    }
 }
