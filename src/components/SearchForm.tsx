@@ -72,10 +72,11 @@ const SearchForm = () => {
         setLocationsLookup(data);
       } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
-        let message = "Could not load location data for routing.";
-        if (err instanceof Error) {
-            message = err.message;
-        }
+        // Removed unused 'message' variable
+        // let message = "Could not load location data for routing.";
+        // if (err instanceof Error) {
+        //     message = err.message;
+        // }
         // Optionally, keep the generic message or use the specific one
         setLocationLookupError("Could not load location data for routing."); // Keeping generic for user display
       } finally {

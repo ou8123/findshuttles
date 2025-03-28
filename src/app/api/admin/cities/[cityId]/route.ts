@@ -14,11 +14,7 @@ function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-interface CityRouteParams {
-  params: {
-    cityId: string;
-  };
-}
+// Removed unused CityRouteParams interface
 
 // Define the inner params type
 type CityParams = { cityId: string };

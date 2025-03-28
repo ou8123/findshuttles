@@ -14,11 +14,7 @@ function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-interface CountryRouteParams {
-  params: {
-    countryId: string;
-  };
-}
+// Removed unused CountryRouteParams interface
 
 // Define the inner params type
 type CountryParams = { countryId: string };
@@ -36,7 +32,7 @@ export async function PUT(request: Request, context: { params: CountryParams }) 
 
   try {
     data = await request.json();
-  } catch (error) {
+  } catch { // Removed unused error variable
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 

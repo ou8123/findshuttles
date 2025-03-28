@@ -2,13 +2,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// Define the expected shape of the params for the GET request context
-interface Context {
-  params: {
-    routeSlug: string;
-  };
-}
-
 // Re-use or adapt the data fetching logic
 async function getRouteDataForApi(slug: string) {
   try {

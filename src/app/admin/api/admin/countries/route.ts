@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   let data: { name: string };
   try {
     data = await request.json();
-  } catch (error) {
+  } catch { // Removed unused error variable
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 

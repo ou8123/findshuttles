@@ -14,7 +14,7 @@ export const authOptions: AuthOptions = {
         email: { label: "Email", type: "email", placeholder: "admin@example.com" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials, _req) { // Prefix unused req parameter
+      async authorize(credentials) { // Removed unused _req parameter
         if (!credentials?.email || !credentials?.password) {
           console.error("Auth Error: Missing email or password");
           return null;

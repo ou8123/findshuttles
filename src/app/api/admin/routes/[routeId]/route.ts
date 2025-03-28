@@ -9,12 +9,6 @@ import { Prisma } from '@prisma/client';
 // Define the inner params type
 type RouteParamsType = { routeId: string };
 
-interface RouteParams { // Keep this interface if used elsewhere, otherwise remove
-  params: {
-    routeId: string;
-  };
-}
-
 // Define expected shape of the request body for PUT
 interface UpdateRouteData {
   departureCityId: string;
