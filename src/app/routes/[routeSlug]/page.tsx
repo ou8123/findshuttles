@@ -53,6 +53,24 @@ export default async function RoutePage(props: any) {
       </p>
       <p className="mb-4 text-gray-600">Route Slug: {routeData.routeSlug}</p>
 
+      {/* Render the Viator Widget */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
+        {routeData.viatorWidgetCode ? (
+          <ViatorWidgetRenderer widgetCode={routeData.viatorWidgetCode} />
+        ) : (
+          <p>Booking information currently unavailable.</p>
+        )}
+      </div>
+
+      {/* Display SEO Description if available */}
+      {routeData.seoDescription && (
+        <div className="mb-6 p-4 bg-gray-100 rounded">
+          <h2 className="text-xl font-semibold mb-2">Route Description</h2>
+          <p>{routeData.seoDescription}</p>
+        </div>
+      )}
+
       {/* Map Display Section */}
       {routeData.departureCity?.latitude && routeData.departureCity?.longitude &&
        routeData.destinationCity?.latitude && routeData.destinationCity?.longitude && (
@@ -66,24 +84,6 @@ export default async function RoutePage(props: any) {
           />
         </div>
       )}
-
-      {/* Display SEO Description if available */}
-      {routeData.seoDescription && (
-        <div className="mb-6 p-4 bg-gray-100 rounded">
-          <h2 className="text-xl font-semibold mb-2">Route Description</h2>
-          <p>{routeData.seoDescription}</p>
-        </div>
-      )}
-
-      {/* Render the Viator Widget */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
-        {routeData.viatorWidgetCode ? (
-          <ViatorWidgetRenderer widgetCode={routeData.viatorWidgetCode} />
-        ) : (
-          <p>Booking information currently unavailable.</p>
-        )}
-      </div>
 
       {/* Placeholder for future FAQs */}
       {/* <div className="mt-8">
