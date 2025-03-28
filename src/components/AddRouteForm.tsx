@@ -328,11 +328,11 @@ const AddRouteForm = () => {
               className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               onChange={handleDepartureInputChange}
             />
-        </Autocomplete>
-        {departureName && !selectedDepartureCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city "{departureName}" not found in our system.</p>}
-      </div>
+       </Autocomplete>
+       {departureName && !selectedDepartureCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{departureName}&quot; not found in our system.</p>}
+     </div>
 
-      {/* Destination City Autocomplete */}
+     {/* Destination City Autocomplete */}
       <div>
         <label htmlFor="admin-destination" className="block text-sm font-medium text-gray-700 mb-1">
           Destination City *
@@ -351,11 +351,11 @@ const AddRouteForm = () => {
               className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               onChange={handleDestinationInputChange}
             />
-          </Autocomplete>
-          {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city "{destinationName}" not found in our system.</p>}
-      </div>
+         </Autocomplete>
+         {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{destinationName}&quot; not found in our system.</p>}
+     </div>
 
-       {/* Loading/Error state for internal location data */}
+      {/* Loading/Error state for internal location data */}
        {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-1">Loading existing location data...</p>}
        {locationLookupError && <p className="text-sm text-red-500 mt-1">{locationLookupError}</p>}
 

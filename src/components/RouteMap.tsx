@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react'; // Import useState, useEffect, useCallback
+import React, { useState, useCallback } from 'react'; // Removed unused useEffect
 import {
   GoogleMap,
   useJsApiLoader,

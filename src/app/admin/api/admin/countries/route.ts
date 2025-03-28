@@ -15,7 +15,7 @@ function generateSlug(name: string): string {
 }
 
 // GET handler to list all countries
-export async function GET(request: Request) {
+export async function GET() { // Removed unused request parameter
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -67,8 +67,8 @@ export async function POST(request: Request) {
     console.log(`Admin Countries POST: Successfully created country ${newCountry.name} by user ${session.user?.email}`);
     return NextResponse.json(newCountry, { status: 201 });
 
-  } catch (error) {
-    console.error("Admin Countries POST Error:", error);
+  } catch (error: unknown) { // Use unknown type
+    console.error("Admin Countries POST Error:", error); // Log the actual error
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Unique constraint violation (likely name or slug)
       if (error.code === 'P2002') {

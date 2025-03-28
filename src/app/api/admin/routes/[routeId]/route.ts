@@ -4,15 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
-// Re-use or import slug generation function
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+// Removed unused local generateSlug function (assuming it's imported if needed elsewhere, or handled differently)
 
 interface RouteParams {
   params: {
@@ -41,7 +33,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
   try {
     data = await request.json();
-  } catch (error) {
+  } catch { // Removed unused error variable
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
@@ -109,7 +101,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 }
 
 // DELETE handler to delete a specific route
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE({ params }: RouteParams) { // Removed unused request parameter
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

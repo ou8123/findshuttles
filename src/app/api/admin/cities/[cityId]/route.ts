@@ -32,7 +32,7 @@ export async function PUT(request: Request, { params }: CityRouteParams) {
 
   try {
     data = await request.json();
-  } catch (error) {
+  } catch { // Removed unused error variable
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
@@ -100,7 +100,7 @@ export async function PUT(request: Request, { params }: CityRouteParams) {
 }
 
 // DELETE handler to delete a specific city
-export async function DELETE(request: Request, { params }: CityRouteParams) {
+export async function DELETE({ params }: CityRouteParams) { // Removed unused request parameter
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

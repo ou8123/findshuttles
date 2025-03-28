@@ -39,7 +39,7 @@ const SearchForm = () => {
 
   // State for Departure Autocomplete
   const [departureAutocomplete, setDepartureAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
-  const [departureName, setDepartureName] = useState<string>('');
+  // const [departureName, setDepartureName] = useState<string>(''); // Unused state
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
 
   // State for Destination Dropdown
@@ -102,12 +102,12 @@ const SearchForm = () => {
         }
       } catch (err: unknown) {
         console.error("Failed to fetch valid destinations:", err);
-        let message = "Could not load destinations.";
+        // Directly set the error message
         if (err instanceof Error) {
-            message = err.message;
+            setDestinationError(err.message);
+        } else {
+            setDestinationError("Could not load destinations."); // Fallback message
         }
-        // Use the specific error message for more detail, or keep generic
-        setDestinationError(message);
       } finally {
         setIsLoadingDestinations(false);
       }
@@ -134,7 +134,7 @@ const SearchForm = () => {
       const place = departureAutocomplete.getPlace();
       if (place?.name) {
         const selectedName = place.name;
-        setDepartureName(selectedName);
+        // setDepartureName(selectedName); // Removed usage
         console.log("Departure Place Selected:", selectedName);
 
         const nameLower = selectedName.trim().toLowerCase();
@@ -159,7 +159,7 @@ const SearchForm = () => {
 
       } else {
         console.log('Departure Autocomplete: No details available for input');
-        setDepartureName('');
+        // setDepartureName(''); // Removed usage
         setSelectedDepartureCity(null);
       }
     } else {
@@ -171,7 +171,7 @@ const SearchForm = () => {
   const handleDepartureInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       if (value === '') {
-          setDepartureName('');
+          // setDepartureName(''); // Removed usage
           setSelectedDepartureCity(null);
       }
   };

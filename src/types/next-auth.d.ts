@@ -1,5 +1,6 @@
-import NextAuth, { DefaultSession, DefaultUser } from "next-auth";
-import { JWT } from "next-auth/jwt";
+// Removed unused imports: NextAuth, JWT
+import { DefaultSession, DefaultUser } from "next-auth";
+// import { JWT } from "next-auth/jwt"; // JWT type is implicitly used by module augmentation
 
 // Extend the default User type to include the 'role' property
 declare module "next-auth" {

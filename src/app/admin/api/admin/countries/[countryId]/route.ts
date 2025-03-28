@@ -79,7 +79,7 @@ export async function PUT(request: Request, { params }: CountryRouteParams) {
 }
 
 // DELETE handler to delete a specific country
-export async function DELETE(request: Request, { params }: CountryRouteParams) {
+export async function DELETE({ params }: CountryRouteParams) { // Removed unused request parameter
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -97,8 +97,8 @@ export async function DELETE(request: Request, { params }: CountryRouteParams) {
     // Return No Content on successful deletion
     return new NextResponse(null, { status: 204 });
 
-  } catch (error) {
-    console.error(`Admin Country DELETE Error (ID: ${countryId}):`, error);
+  } catch (error: unknown) { // Use unknown type
+    console.error(`Admin Country DELETE Error (ID: ${countryId}):`, error); // Log the actual error
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Record not found for delete
       if (error.code === 'P2025') {
