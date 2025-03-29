@@ -67,7 +67,11 @@ const SearchForm = () => {
         setDepartureCities(allCities);
       } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
-        setLocationLookupError("Could not load location data for routing.");
+        let message = "Could not load location data.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setLocationLookupError(message);
       } finally {
         setIsLoadingLocationsLookup(false);
       }

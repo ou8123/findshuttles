@@ -8,9 +8,7 @@ interface CityLookup {
   id: string;
   name: string;
   slug: string;
-  country: {
-    name: string;
-  };
+  countryName: string; // Changed from nested country object to flat countryName
 }
 
 interface CountryWithCitiesLookup {
@@ -515,7 +513,7 @@ const AddRouteForm = () => {
                   body: JSON.stringify({
                     departureCityName: selectedDepartureCity.name,
                     destinationCityName: selectedDestinationCity.name,
-                    destinationCountryName: selectedDestinationCity.country.name,
+                    destinationCountryName: selectedDestinationCity.countryName,
                     viatorWidgetCode
                   }),
                 });

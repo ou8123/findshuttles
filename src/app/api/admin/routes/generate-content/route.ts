@@ -10,24 +10,39 @@ export async function POST(request: Request) {
     const { departureCityName, destinationCityName, destinationCountryName } = await request.json();
 
     // Prepare prompt for OpenAI
-    const systemMessage = `You are a travel content writer who specializes in professional, SEO-optimized descriptions for shuttle routes. Return a JSON object with exactly these fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include any additional text or formatting.`;
+    const systemMessage = `You are a professional travel writer creating SEO-optimized descriptions for shuttle transport services. Your task is to produce clear, neutral, and helpful content suitable for travelers using point-to-point shuttles, such as airport transfers or intercity transport. Always return a valid JSON object with the following fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown, code formatting, or any additional commentary.`;
 
-    const userMessage = `Generate an SEO-optimized description for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a point-to-point transport service, not a sightseeing tour.
+    const userMessage = `Generate a professional, SEO-optimized description for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a point-to-point transfer used primarily by travelers, not commuters. Our platform partners with local shuttle providers.
 
-Required format:
+Return the response as a JSON object in the following format:
+
 {
-  "metaTitle": "50-60 character SEO title",
-  "metaDescription": "150-160 character summary focusing on transport service",
-  "metaKeywords": "comma-separated keywords",
-  "seoDescription": "400-600 word description in two paragraphs: 1) transport service overview, 2) destination highlights"
+  "metaTitle": "${departureCityName} to ${destinationCityName}, ${destinationCountryName} | Shuttle & Transfer Service",
+  "metaDescription": "150–160 character summary focused on the transport route and destination city, written in a neutral tone.",
+  "metaKeywords": "${departureCityName}, ${destinationCityName}, ${destinationCountryName} shuttle, airport transfer, transport service",
+  "seoDescription": "[200–400 word description, divided into two simple paragraphs as described below]"
 }
 
-Guidelines:
-- Keep it professional and informative
-- Focus on the transport service
-- Avoid marketing buzzwords
-- No HTML or special characters
-- Use plain text only`;
+🔹 seoDescription Writing Instructions:
+Paragraph 1 – Transport Summary
+Briefly describe the shuttle service as a practical option for travelers needing reliable point-to-point transport. Mention the partnership with local providers in natural, varied language (e.g., "we work with local operators," "through partnerships with regional transport companies," etc.). Focus on the efficiency and simplicity of getting from one place to another.
+Avoid:
+- Vehicle descriptions
+- Driver mentions
+- Sensational or promotional language
+- Any suggestion this is a daily commuter service
+
+Paragraph 2 – Destination Overview
+Include one short reference to visiting or spending time in the destination. Use varied phrasing (e.g., "If you're spending time in ${destinationCityName}…" or "For those planning a stay in ${destinationCityName}…").
+Mention 1–2 key attractions or areas of interest, such as parks, beaches, or local highlights—written in a clean, matter-of-fact tone.
+End with a simple sentence noting that the shuttle offers easy access to the destination.
+
+✅ Style Guidelines:
+- Tone: Neutral, professional, and concise
+- Audience: Travelers using intercity or airport shuttle services
+- Avoid: Promotional wording, emotional or exaggerated language
+- Do not mention vehicles or drivers
+- Keep everything focused, factual, and practical`;
 
     // Generate content with OpenAI
     const completion = await openai.chat.completions.create({
