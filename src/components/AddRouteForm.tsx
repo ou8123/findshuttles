@@ -499,18 +499,31 @@ const AddRouteForm = () => {
                 return;
               }
 
+              if (!viatorWidgetCode) {
+                setSubmitStatus({
+                  success: false,
+                  message: 'Please enter the Viator Widget Code first.'
+                });
+                return;
+              }
+
               setIsGenerating(true);
               try {
                 const response = await fetch('/api/admin/routes/generate-content', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    departureCityId: selectedDepartureCity.id,
-                    destinationCityId: selectedDestinationCity.id
+                    departureCityName: selectedDepartureCity.name,
+                    destinationCityName: selectedDestinationCity.name,
+                    destinationCountryName: selectedDestinationCity.country.name,
+                    viatorWidgetCode
                   }),
                 });
 
-                if (!response.ok) throw new Error('Failed to generate content');
+                if (!response.ok) {
+                  const error = await response.json();
+                  throw new Error(error.error || 'Failed to generate content');
+                }
 
                 const data = await response.json();
                 setMetaTitle(data.metaTitle || '');
@@ -525,7 +538,7 @@ const AddRouteForm = () => {
                 console.error('Error generating content:', error);
                 setSubmitStatus({
                   success: false,
-                  message: 'Failed to generate content. Please try again.'
+                  message: error instanceof Error ? error.message : 'Failed to generate content. Please try again.'
                 });
               } finally {
                 setIsGenerating(false);

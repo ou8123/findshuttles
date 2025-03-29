@@ -98,10 +98,7 @@ const SearchForm = () => {
 
     const filtered = departureCities.filter(city => {
       const searchStr = departureInput.toLowerCase();
-      return (
-        city.name.toLowerCase().includes(searchStr) ||
-        city.countryName.toLowerCase().includes(searchStr)
-      );
+      return city.name.toLowerCase().includes(searchStr);
     });
     setFilteredDepartureCities(filtered);
   }, [departureInput, departureCities]);
@@ -152,7 +149,7 @@ const SearchForm = () => {
 
   const handleDepartureCitySelect = (city: CityLookup) => {
     setSelectedDepartureCity(city);
-    setDepartureInput(`${city.name}, ${city.countryName}`);
+    setDepartureInput(city.name);
     setFilteredDepartureCities([]);
   };
 
@@ -165,7 +162,6 @@ const SearchForm = () => {
 
     const destinationCity = validDestinations.find(city => city.id === selectedDestinationCityId);
     if (selectedDepartureCity.slug && destinationCity?.slug) {
-      // Construct the route slug without country
       const routeSlug = `${selectedDepartureCity.slug}-to-${destinationCity.slug}`;
       console.log(`Navigating to route: /routes/${routeSlug}`);
       router.push(`/routes/${routeSlug}`);
@@ -215,7 +211,7 @@ const SearchForm = () => {
               >
                 <div className="flex items-center">
                   <span className="font-normal block truncate">
-                    {city.name}, {city.countryName}
+                    {city.name}
                   </span>
                 </div>
               </div>
@@ -248,7 +244,7 @@ const SearchForm = () => {
           </option>
           {validDestinations.map((city) => (
             <option key={city.id} value={city.id}>
-              {city.name} {city.country ? `(${city.country.name})` : ''}
+              {city.name}
             </option>
           ))}
         </select>

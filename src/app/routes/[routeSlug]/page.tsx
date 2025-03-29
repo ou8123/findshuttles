@@ -65,10 +65,13 @@ async function getRouteData(slug: string): Promise<RouteWithRelations | null> {
   }
 }
 
-export default async function RoutePage(props: any) {
-  const params = props.params as { routeSlug: string };
-  const currentSlug = params.routeSlug;
-  const routeData = await getRouteData(currentSlug);
+interface PageProps {
+  params: Promise<{ routeSlug: string }>;
+}
+
+export default async function RoutePage({ params }: PageProps) {
+  const { routeSlug } = await params;
+  const routeData = await getRouteData(routeSlug);
 
   if (!routeData) {
     notFound();
