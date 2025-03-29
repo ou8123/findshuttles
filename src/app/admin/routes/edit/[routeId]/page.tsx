@@ -25,6 +25,8 @@ interface RouteData {
     metaDescription?: string | null;
     metaKeywords?: string | null;
     seoDescription?: string | null;
+    departureCity: { name: string };
+    destinationCity: { name: string };
 }
 
 const EditRoutePage = () => {
@@ -43,7 +45,7 @@ const EditRoutePage = () => {
   const [metaKeywords, setMetaKeywords] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
-  const [originalData, setOriginalData] = useState<Partial<RouteData>>({});
+  const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDisplayNameCustomized, setIsDisplayNameCustomized] = useState(false);
 
@@ -84,27 +86,27 @@ const EditRoutePage = () => {
 
   // Update route slug when cities change
   useEffect(() => {
-    if (departureCityId && destinationCityId) {
-      const departureCity = cities.find(c => c.id === departureCityId);
-      const destinationCity = cities.find(c => c.id === destinationCityId);
-      
-      if (departureCity && destinationCity) {
-        // Remove country slug from route slug
-        const defaultSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
-        
-        // Only update if not manually edited
-        if (!routeSlug || routeSlug === originalData.routeSlug) {
-          setRouteSlug(defaultSlug);
-        }
+    if (!departureCityId || !destinationCityId || !cities.length) return;
 
-        // Only update display name if not customized and cities changed
-        if (!isDisplayNameCustomized) {
-          const defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
-          setDisplayName(defaultDisplayName);
-        }
+    const departureCity = cities.find(c => c.id === departureCityId);
+    const destinationCity = cities.find(c => c.id === destinationCityId);
+    
+    if (departureCity && destinationCity) {
+      // Remove country slug from route slug
+      const defaultSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
+      
+      // Only update if not manually edited
+      if (!routeSlug || routeSlug === originalData?.routeSlug) {
+        setRouteSlug(defaultSlug);
+      }
+
+      // Only update display name if not customized and cities changed
+      if (!isDisplayNameCustomized) {
+        const defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
+        setDisplayName(defaultDisplayName);
       }
     }
-  }, [departureCityId, destinationCityId, cities, routeSlug, originalData.routeSlug, isDisplayNameCustomized]);
+  }, [departureCityId, destinationCityId, cities, routeSlug, originalData?.routeSlug, isDisplayNameCustomized]);
 
   // Fetch the specific route data
   useEffect(() => {
@@ -125,6 +127,9 @@ const EditRoutePage = () => {
 
         if (!routeData) throw new Error('Route not found');
 
+        // Store original data
+        setOriginalData(routeData);
+
         // Populate form state
         setDepartureCityId(routeData.departureCityId);
         setDestinationCityId(routeData.destinationCityId);
@@ -135,7 +140,10 @@ const EditRoutePage = () => {
         setMetaDescription(routeData.metaDescription ?? '');
         setMetaKeywords(routeData.metaKeywords ?? '');
         setSeoDescription(routeData.seoDescription ?? '');
-        setOriginalData(routeData);
+
+        // Check if display name is customized
+        const defaultDisplayName = `Shuttles from ${routeData.departureCity.name} to ${routeData.destinationCity.name}`;
+        setIsDisplayNameCustomized(routeData.displayName !== defaultDisplayName);
 
       } catch (err: unknown) {
         console.error("Failed to fetch route data:", err);
@@ -168,6 +176,11 @@ const EditRoutePage = () => {
     const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
     const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
+
+    if (!originalData) {
+      setSubmitStatus({ success: false, message: 'Original route data not found.' });
+      return;
+    }
 
     if (departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
@@ -206,6 +219,22 @@ const EditRoutePage = () => {
       if (!response.ok) throw new Error(result.error || `HTTP error! status: ${response.status}`);
 
       setSubmitStatus({ success: true, message: `Route updated successfully!` });
+      
+      // Update original data to reflect changes
+      setOriginalData({
+        ...originalData,
+        departureCityId,
+        destinationCityId,
+        routeSlug,
+        displayName,
+        viatorWidgetCode,
+        metaTitle: currentMetaTitle,
+        metaDescription: currentMetaDesc,
+        metaKeywords: currentMetaKeywords,
+        seoDescription: currentSeoDesc
+      });
+
+      // Navigate back to routes list
       router.push('/admin/routes');
 
     } catch (error: unknown) {
