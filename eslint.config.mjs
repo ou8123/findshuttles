@@ -1,25 +1,55 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextPlugin from '@next/eslint-plugin-next';
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  // Add custom rule modifications here
+export default [
   {
+    ignores: [
+      '.next/**/*',
+      'node_modules/**/*',
+      'netlify-build.js',
+      'seed-production.js'
+    ]
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+      '@next': nextPlugin,
+    },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
     rules: {
-      // Disable the rule causing build failures with 'any' type for context
-      "@typescript-eslint/no-explicit-any": "off",
-      // Optionally, you could set it to "warn" instead of "off"
-      // "@typescript-eslint/no-explicit-any": "warn",
+      // TypeScript specific rules
+      '@typescript-eslint/no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_'
+      }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-empty-interface': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+
+      // Next.js specific rules
+      '@next/next/no-html-link-for-pages': 'error',
+      '@next/next/no-img-element': 'error',
+      '@next/next/no-unwanted-polyfillio': 'error',
+
+      // React specific rules
+      'react/prop-types': 'off',
+      'react/react-in-jsx-scope': 'off',
+
+      // General rules
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-unused-expressions': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off'
     }
   }
 ];
-
-export default eslintConfig;
