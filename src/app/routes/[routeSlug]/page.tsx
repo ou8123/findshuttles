@@ -90,37 +90,39 @@ export default function RoutePage({ params }: any) {
           {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
         </h1>
 
-        {/* Render the Viator Widget */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
-          {route.viatorWidgetCode ? (
-            <ViatorWidgetRenderer key={`${route.routeSlug}-${hasScrolled}`} widgetCode={route.viatorWidgetCode} />
-          ) : (
-            <p>Booking information currently unavailable.</p>
+        <div className="space-y-6">
+          {/* Render the Viator Widget */}
+          <div>
+            <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
+            {route.viatorWidgetCode ? (
+              <ViatorWidgetRenderer key={`${route.routeSlug}-${hasScrolled}`} widgetCode={route.viatorWidgetCode} />
+            ) : (
+              <p>Booking information currently unavailable.</p>
+            )}
+          </div>
+
+          {/* Display SEO Description if available */}
+          {route.seoDescription && (
+            <div className="p-4 bg-white rounded shadow-sm">
+              <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
+              <p className="text-black">{route.seoDescription}</p>
+            </div>
+          )}
+
+          {/* Map Display Section */}
+          {route.departureCity?.latitude && route.departureCity?.longitude &&
+          route.destinationCity?.latitude && route.destinationCity?.longitude && (
+            <div>
+              <h2 className="text-xl font-semibold mb-3">Route Map</h2>
+              <RouteMap
+                departureLat={route.departureCity.latitude}
+                departureLng={route.departureCity.longitude}
+                destinationLat={route.destinationCity.latitude}
+                destinationLng={route.destinationCity.longitude}
+              />
+            </div>
           )}
         </div>
-
-        {/* Display SEO Description if available */}
-        {route.seoDescription && (
-          <div className="mb-6 p-4 bg-white rounded shadow-sm">
-            <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
-            <p className="text-black">{route.seoDescription}</p>
-          </div>
-        )}
-
-        {/* Map Display Section */}
-        {route.departureCity?.latitude && route.departureCity?.longitude &&
-         route.destinationCity?.latitude && route.destinationCity?.longitude && (
-          <div className="my-8">
-            <h2 className="text-xl font-semibold mb-3">Route Map</h2>
-            <RouteMap
-              departureLat={route.departureCity.latitude}
-              departureLng={route.departureCity.longitude}
-              destinationLat={route.destinationCity.latitude}
-              destinationLng={route.destinationCity.longitude}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

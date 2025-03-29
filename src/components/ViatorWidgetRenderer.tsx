@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -8,78 +8,119 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
 
-    // Create a temporary div to parse the widget code
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = widgetCode;
+    const loadWidget = async () => {
+      try {
+        const container = containerRef.current;
+        if (!container) return;
 
-    // Find all script tags
-    const scripts = tempDiv.getElementsByTagName('script');
-    const scriptElements = Array.from(scripts);
+        // Clear any existing content
+        container.innerHTML = '';
 
-    // Remove scripts from the temp div
-    scriptElements.forEach(script => script.remove());
+        // Create a temporary div to parse the widget code
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = widgetCode;
 
-    // Set the HTML content first (without scripts)
-    containerRef.current.innerHTML = tempDiv.innerHTML;
+        // Find all script tags
+        const scripts = tempDiv.getElementsByTagName('script');
+        const scriptElements = Array.from(scripts);
 
-    // Function to load a script
-    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
+        // Remove scripts from the temp div
+        scriptElements.forEach(script => script.remove());
 
-        // Copy all attributes
-        Array.from(scriptElement.attributes).forEach(attr => {
-          script.setAttribute(attr.name, attr.value);
-        });
+        // Set the HTML content first (without scripts)
+        container.innerHTML = tempDiv.innerHTML;
 
-        // Handle external scripts
-        if (scriptElement.src) {
-          script.onload = () => resolve();
-          script.onerror = () => reject();
+        // Function to load a script
+        const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+          return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+
+            // Copy all attributes
+            Array.from(scriptElement.attributes).forEach(attr => {
+              script.setAttribute(attr.name, attr.value);
+            });
+
+            // Handle external scripts
+            if (scriptElement.src) {
+              script.onload = () => resolve();
+              script.onerror = () => reject();
+            }
+
+            // Copy inline script content
+            if (scriptElement.textContent) {
+              script.textContent = scriptElement.textContent;
+            }
+
+            // For inline scripts, resolve immediately
+            if (!scriptElement.src) {
+              script.onload = () => resolve();
+            }
+
+            // Add to document
+            document.head.appendChild(script);
+          });
+        };
+
+        // Load scripts sequentially
+        for (const script of scriptElements) {
+          try {
+            await loadScript(script);
+            // Add a longer delay between scripts on mobile
+            if (isMobile) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          } catch (error) {
+            console.error('Error loading script:', error);
+            // On mobile, retry once after a delay if script fails
+            if (isMobile) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              try {
+                await loadScript(script);
+              } catch (retryError) {
+                console.error('Retry failed:', retryError);
+              }
+            }
+          }
         }
 
-        // Copy inline script content
-        if (scriptElement.textContent) {
-          script.textContent = scriptElement.textContent;
+        // On mobile, add a final delay and trigger a resize event
+        if (isMobile) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          window.dispatchEvent(new Event('resize'));
         }
-
-        // For inline scripts, resolve immediately
-        if (!scriptElement.src) {
-          script.onload = () => resolve();
-        }
-
-        // Add to document
-        document.head.appendChild(script);
-      });
-    };
-
-    // Load scripts sequentially
-    const loadScripts = async () => {
-      for (const script of scriptElements) {
-        try {
-          await loadScript(script);
-          // Add a small delay between scripts
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error('Error loading script:', error);
-        }
+      } catch (error) {
+        console.error('Error loading widget:', error);
       }
     };
 
-    // Start loading scripts with a delay
-    setTimeout(loadScripts, 500);
+    // Add a longer initial delay on mobile
+    const initialDelay = isMobile ? 1000 : 500;
+    const timer = setTimeout(loadWidget, initialDelay);
 
-    // Cleanup function
     return () => {
+      clearTimeout(timer);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [widgetCode]);
+  }, [widgetCode, isMobile]);
 
   return (
     <div 
