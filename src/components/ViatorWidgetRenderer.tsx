@@ -13,6 +13,42 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     if (!containerRef.current || !widgetCode) return;
 
     const container = containerRef.current;
+    let scriptQueue: HTMLScriptElement[] = [];
+    let currentScriptIndex = 0;
+
+    const loadNextScript = () => {
+      if (currentScriptIndex >= scriptQueue.length) {
+        scriptQueue = [];
+        currentScriptIndex = 0;
+        return;
+      }
+
+      const oldScript = scriptQueue[currentScriptIndex];
+      const script = document.createElement('script');
+      
+      // Copy attributes
+      Array.from(oldScript.attributes).forEach(attr => {
+        script.setAttribute(attr.name, attr.value);
+      });
+
+      // Set content
+      script.textContent = oldScript.textContent;
+
+      // Add load handler
+      script.onload = () => {
+        currentScriptIndex++;
+        setTimeout(loadNextScript, 100);
+      };
+
+      // Add error handler
+      script.onerror = () => {
+        currentScriptIndex++;
+        setTimeout(loadNextScript, 100);
+      };
+
+      // Add to document
+      document.head.appendChild(script);
+    };
 
     // Function to load widget
     const loadWidget = () => {
@@ -22,29 +58,15 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         tempDiv.innerHTML = widgetCode;
 
         // Extract scripts
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-        scripts.forEach(script => script.remove());
+        scriptQueue = Array.from(tempDiv.getElementsByTagName('script'));
+        scriptQueue.forEach(script => script.remove());
 
         // Add non-script content
         container.innerHTML = tempDiv.innerHTML;
 
-        // Add scripts back with delay
-        setTimeout(() => {
-          scripts.forEach(oldScript => {
-            const script = document.createElement('script');
-            
-            // Copy attributes
-            Array.from(oldScript.attributes).forEach(attr => {
-              script.setAttribute(attr.name, attr.value);
-            });
-
-            // Set content
-            script.textContent = oldScript.textContent;
-
-            // Add to document
-            document.head.appendChild(script);
-          });
-        }, 500);
+        // Start loading scripts
+        currentScriptIndex = 0;
+        loadNextScript();
       } catch (error) {
         console.error('Error loading widget:', error);
       }
@@ -65,6 +87,8 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           script.remove();
         }
       });
+      scriptQueue = [];
+      currentScriptIndex = 0;
     };
   }, [widgetCode]);
 
