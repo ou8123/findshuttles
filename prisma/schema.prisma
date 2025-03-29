@@ -41,6 +41,7 @@ model City {
   routesTo   Route[]  @relation("DestinationCity")
 
   @@unique([name, countryId])
+  @@unique([slug, countryId])
 }
 
 model Route {
