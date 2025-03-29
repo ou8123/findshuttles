@@ -13,67 +13,66 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     if (!containerRef.current || !widgetCode) return;
 
     const container = containerRef.current;
-    let scriptQueue: HTMLScriptElement[] = [];
-    let currentScriptIndex = 0;
-
-    const loadNextScript = () => {
-      if (currentScriptIndex >= scriptQueue.length) {
-        scriptQueue = [];
-        currentScriptIndex = 0;
-        return;
-      }
-
-      const script = scriptQueue[currentScriptIndex];
-      const newScript = document.createElement('script');
-
-      // Copy attributes
-      Array.from(script.attributes).forEach(attr => {
-        newScript.setAttribute(attr.name, attr.value);
-      });
-
-      // Copy content
-      if (script.src) {
-        newScript.src = script.src;
-        newScript.async = false;
-      } else {
-        newScript.textContent = script.textContent;
-      }
-
-      // Add load handlers
-      newScript.onload = () => {
-        currentScriptIndex++;
-        setTimeout(loadNextScript, 500); // 500ms delay between scripts
-      };
-
-      newScript.onerror = () => {
-        console.error('Failed to load script:', script.src || 'inline script');
-        currentScriptIndex++;
-        setTimeout(loadNextScript, 500);
-      };
-
-      // Add to document
-      document.head.appendChild(newScript);
-    };
+    let observer: MutationObserver | null = null;
 
     const initWidget = () => {
       try {
-        // Parse widget code
+        // Clear previous content
+        container.innerHTML = '';
+
+        // Create a temporary div to parse the widget code
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = widgetCode;
 
         // Extract scripts
-        scriptQueue = Array.from(tempDiv.getElementsByTagName('script'));
-        scriptQueue.forEach(script => script.remove());
+        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        scripts.forEach(script => script.remove());
 
         // Add non-script content
         container.innerHTML = tempDiv.innerHTML;
 
-        // Start loading scripts
-        currentScriptIndex = 0;
-        loadNextScript();
+        // Create mutation observer to watch for widget initialization
+        observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              // Check if any added nodes are the widget's iframe or container
+              const hasWidget = Array.from(mutation.addedNodes).some(node => {
+                if (node instanceof HTMLElement) {
+                  return node.classList.contains('viator-embedded') ||
+                         node.tagName.toLowerCase() === 'iframe';
+                }
+                return false;
+              });
+
+              if (hasWidget) {
+                // Widget has been added, now add scripts
+                scripts.forEach((oldScript, index) => {
+                  setTimeout(() => {
+                    const script = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => {
+                      script.setAttribute(attr.name, attr.value);
+                    });
+                    script.textContent = oldScript.textContent;
+                    document.head.appendChild(script);
+                  }, index * 500); // 500ms delay between scripts
+                });
+
+                // Stop observing
+                observer?.disconnect();
+              }
+            }
+          }
+        });
+
+        // Start observing
+        observer.observe(container, {
+          childList: true,
+          subtree: true
+        });
 
       } catch (error) {
         console.error('Error initializing widget:', error);
+        observer?.disconnect();
       }
     };
 
@@ -83,6 +82,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     // Cleanup function
     return () => {
       clearTimeout(initTimeout);
+      observer?.disconnect();
       if (container) {
         container.innerHTML = '';
       }
@@ -92,8 +92,6 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           script.remove();
         }
       });
-      scriptQueue = [];
-      currentScriptIndex = 0;
     };
   }, [widgetCode]);
 
