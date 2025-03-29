@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
+// Route handler for city operations
 export async function DELETE(
   request: Request,
   { params }: { params: { cityId: string } }
