@@ -127,10 +127,25 @@ export async function DELETE(request: Request, context: any) {
   const { routeId } = params;
 
   try {
-    const deletedRoute = await prisma.route.delete({
+    // First check if the route exists
+    const route = await prisma.route.findUnique({
+      where: { id: routeId },
+      include: {
+        departureCity: true,
+        destinationCity: true
+      }
+    });
+
+    if (!route) {
+      return NextResponse.json({ error: 'Route not found' }, { status: 404 });
+    }
+
+    // Delete the route
+    await prisma.route.delete({
       where: { id: routeId },
     });
-    console.log(`Admin Route DELETE: Successfully deleted route ${deletedRoute.id} by user ${session.user?.email}`);
+
+    console.log(`Admin Route DELETE: Successfully deleted route ${routeId} (${route.departureCity.name} to ${route.destinationCity.name}) by user ${session.user?.email}`);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
@@ -146,6 +161,9 @@ export async function DELETE(request: Request, context: any) {
         );
       }
     }
-    return NextResponse.json({ error: 'Failed to delete route' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to delete route',
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }
