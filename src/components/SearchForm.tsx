@@ -40,7 +40,6 @@ const SearchForm = () => {
   const [departureInput, setDepartureInput] = useState('');
   const [filteredDepartureCities, setFilteredDepartureCities] = useState<CityLookup[]>([]);
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
   const departureAutocompleteRef = useRef<HTMLDivElement>(null);
 
   // State for destination city
@@ -82,7 +81,7 @@ const SearchForm = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (departureAutocompleteRef.current && !departureAutocompleteRef.current.contains(event.target as Node)) {
-        setIsTyping(false);
+        setFilteredDepartureCities([]);
       }
     };
 
@@ -94,8 +93,11 @@ const SearchForm = () => {
 
   // Filter departure cities based on input
   useEffect(() => {
-    if (!isTyping) return;
-    
+    if (!departureInput.trim()) {
+      setFilteredDepartureCities([]);
+      return;
+    }
+
     const filtered = departureCities.filter(city => {
       const searchStr = departureInput.toLowerCase();
       return (
@@ -104,7 +106,7 @@ const SearchForm = () => {
       );
     });
     setFilteredDepartureCities(filtered);
-  }, [departureInput, departureCities, isTyping]);
+  }, [departureInput, departureCities]);
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
@@ -145,14 +147,16 @@ const SearchForm = () => {
   const handleDepartureInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setDepartureInput(value);
-    setIsTyping(true);
-    setSelectedDepartureCity(null);
+    if (!value) {
+      setSelectedDepartureCity(null);
+      setFilteredDepartureCities([]);
+    }
   };
 
   const handleDepartureCitySelect = (city: CityLookup) => {
     setSelectedDepartureCity(city);
     setDepartureInput(`${city.name}, ${city.countryName}`);
-    setIsTyping(false);
+    setFilteredDepartureCities([]);
   };
 
   const handleSearch = (event: React.FormEvent) => {
@@ -198,7 +202,6 @@ const SearchForm = () => {
           type="text"
           value={departureInput}
           onChange={handleDepartureInputChange}
-          onFocus={() => setIsTyping(true)}
           placeholder="Enter departure city"
           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
           required
@@ -208,25 +211,21 @@ const SearchForm = () => {
         {locationLookupError && <p className="text-xs text-red-500 mt-1">{locationLookupError}</p>}
         
         {/* Departure Suggestions Dropdown */}
-        {isTyping && departureInput && (
+        {filteredDepartureCities.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
-            {filteredDepartureCities.length > 0 ? (
-              filteredDepartureCities.map((city) => (
-                <div
-                  key={city.id}
-                  onClick={() => handleDepartureCitySelect(city)}
-                  className="cursor-pointer select-none relative py-2 px-3 hover:bg-indigo-50"
-                >
-                  <div className="flex items-center">
-                    <span className="font-normal block truncate">
-                      {city.name}, {city.countryName}
-                    </span>
-                  </div>
+            {filteredDepartureCities.map((city) => (
+              <div
+                key={city.id}
+                onClick={() => handleDepartureCitySelect(city)}
+                className="cursor-pointer select-none relative py-2 px-3 hover:bg-indigo-50"
+              >
+                <div className="flex items-center">
+                  <span className="font-normal block truncate">
+                    {city.name}, {city.countryName}
+                  </span>
                 </div>
-              ))
-            ) : (
-              <div className="text-gray-500 py-2 px-3">No cities found</div>
-            )}
+              </div>
+            ))}
           </div>
         )}
       </div>
