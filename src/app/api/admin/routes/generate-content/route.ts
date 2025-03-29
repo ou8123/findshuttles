@@ -61,31 +61,31 @@ export async function POST(request: Request) {
     }
 
     // Create prompt for ChatGPT
-    const basePrompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name} to ${destinationCity.name}. We are a booking platform affiliated with local shuttle companies throughout ${destinationCity.country.name}.
+    const basePrompt = `Generate an SEO-optimized description for a shuttle route from ${departureCity.name} to ${destinationCity.name} in ${destinationCity.country.name}. This is a transport service connecting travelers efficiently between destinations. We are a booking platform partnered with reputable local shuttle providers.
 
-Please provide the following in JSON format:
+Return the response in JSON format as follows:
+
 {
-  "metaTitle": "${departureCity.name} to ${destinationCity.name}, ${destinationCity.country.name} | Shuttle Service",
-  "metaDescription": "150-160 character compelling description focusing on the journey and destination highlights",
-  "metaKeywords": "relevant, comma-separated keywords including city names and attractions",
-  "seoDescription": "400-600 word detailed description"
+  "metaTitle": "${departureCity.name} to ${destinationCity.name}, ${destinationCity.country.name} | Shuttle & Transfer Service",
+  "metaDescription": "Convenient shuttle service from ${departureCity.name} to ${destinationCity.name}. Easy online booking with reliable local providers.",
+  "metaKeywords": "${departureCity.name}, ${destinationCity.name}, ${destinationCity.country.name} shuttle, airport transfer, private shuttle, ${destinationCity.name} attractions",
+  "seoDescription": "[Generated detailed description]"
 }
 
-For the seoDescription, write a professional, engaging description that:
-1. Briefly introduces the shuttle service (mention once that we're affiliated with local providers)
-2. Highlights the main tourist attractions in ${destinationCity.name} (museums, beaches, parks, etc.)
-3. Describes the journey experience (comfort, views, amenities)
-4. Mentions approximate duration and any notable stops
-5. Explains what makes this destination special
-6. Ends with a call-to-action to book
+For the seoDescription, craft a compelling, professional narrative that:
 
-Writing style:
-- Keep the tone informative and professional
-- Focus on the destination and travel experience
-- Mention partnership/affiliation naturally, without overemphasis
-- Avoid phrases like "our shuttles" - the focus is on the service and destination
+1. Introduces the shuttle service (mentioning that we connect travelers with local transport providers naturally).
+2. Describes the ease and efficiency of the journey.
+3. Briefly highlights key destination attractions (without overloading on sightseeing details).
+4. Mentions estimated travel time and any notable stops if applicable.
+5. Ends with a natural call-to-action, encouraging travelers to book.
 
-Make the content engaging while following SEO best practices. Focus on what makes ${destinationCity.name} a compelling destination.`;
+Writing Style Guidelines:
+- Professional and engaging—make it feel naturally written by a human.
+- Clear and concise, balancing useful travel information without unnecessary fluff.
+- SEO-focused without keyword stuffing—ensure readability comes first.
+- No first-person language (avoid "our shuttles"; focus on the service).
+- No mentions of vehicle types or driver details, as these may vary.`;
 
     // Add additional instructions if provided
     const prompt = additionalInstructions 
@@ -106,7 +106,7 @@ Make the content engaging while following SEO best practices. Focus on what make
         messages: [
           {
             role: "system",
-            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond with a valid JSON object containing these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown code blocks or any other formatting."
+            content: "You are a travel content expert specializing in SEO-optimized content for transportation services. Your task is to generate high-quality, professional descriptions for shuttle routes. Always respond with a valid JSON object containing these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown code blocks or any other formatting."
           },
           {
             role: "user",
