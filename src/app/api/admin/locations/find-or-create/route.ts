@@ -1,24 +1,26 @@
 // src/app/api/admin/locations/find-or-create/route.ts
-// src/app/api/admin/locations/find-or-create/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from "@/lib/auth"; // Import from new location
+import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
-import { generateSlug } from '@/lib/utils'; // Import the slug utility
+import { generateSlug } from '@/lib/utils';
 import { Prisma } from '@prisma/client';
 
 interface RequestBody {
   cityName: string;
   countryName: string;
-  latitude?: number | null;  // Add optional coordinates
-  longitude?: number | null; // Add optional coordinates
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
-// Define the expected return type (matching CityLookup in AddRouteForm)
+// Update return type to match CityLookup in AddRouteForm
 interface FoundOrCreatedCity {
     id: string;
     name: string;
     slug: string;
+    country: {
+        name: string;
+    };
 }
 
 export async function POST(request: Request) {
@@ -41,7 +43,6 @@ export async function POST(request: Request) {
   }
 
   // 3. Validate Incoming Data
-  // Extract all potential fields from the body
   const { cityName, countryName, latitude, longitude } = body;
   if (!cityName?.trim() || !countryName?.trim()) {
     return NextResponse.json(
@@ -77,42 +78,47 @@ export async function POST(request: Request) {
     // Upsert City within the Country
     const city = await prisma.city.upsert({
       where: {
-        // Use the unique constraint defined in schema.prisma
         name_countryId: {
           name: trimmedCityName,
           countryId: country.id,
         }
       },
-      update: {}, // No updates needed if found - could add coordinate update here if desired
+      update: {}, // No updates needed if found
       create: {
         name: trimmedCityName,
         slug: citySlug,
         countryId: country.id,
-        // Use coordinates from request body, defaulting to null if not provided
         latitude: latitude ?? null,
         longitude: longitude ?? null,
       },
+      include: {
+        country: {
+          select: {
+            name: true
+          }
+        }
+      }
     });
     console.log(`Find-or-create Location: Found/Created city ${city.name} (ID: ${city.id}) with coords (${latitude}, ${longitude}) in ${country.name}`);
 
-    // 6. Return the found/created city data (matching CityLookup)
+    // 6. Return the found/created city data with country info
     const result: FoundOrCreatedCity = {
         id: city.id,
         name: city.name,
         slug: city.slug,
+        country: {
+            name: city.country.name
+        }
     };
-    return NextResponse.json(result, { status: 200 }); // 200 OK as it could be find or create
+    return NextResponse.json(result, { status: 200 });
 
   } catch (error) {
     console.error("Find-or-create Location POST: Error during upsert.", error);
 
-    // Handle potential Prisma errors specifically if needed
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        // Example: Log specific Prisma error codes
         console.error(`Prisma Error Code: ${error.code}`);
     }
 
-    // Generic server error
     return NextResponse.json(
       { error: 'Failed to find or create location in database' },
       { status: 500 }
