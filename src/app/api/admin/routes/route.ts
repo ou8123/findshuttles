@@ -106,8 +106,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid departure/destination city ID' }, { status: 400 });
     }
 
-    // Create route slug with country names
-    const routeSlug = `${departureCity.slug}-${departureCity.country.slug}-to-${destinationCity.slug}-${destinationCity.country.slug}`;
+    // Create route slug without duplicating country names
+    const routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
     const displayName = `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
 
     const newRoute = await prisma.route.create({

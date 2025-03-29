@@ -176,12 +176,12 @@ const SearchForm = () => {
   };
 
   return (
-    <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md space-y-4">
-      <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttles</h2>
+    <form onSubmit={handleSearch} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
+      <h2 className="text-2xl font-semibold mb-6 text-gray-700">Find Your Shuttles</h2>
 
       {/* Departure City Autocomplete */}
-      <div ref={departureAutocompleteRef} className="relative">
-        <label htmlFor="departure" className="block text-sm font-medium text-gray-700 mb-1">
+      <div ref={departureAutocompleteRef} className="relative mb-8">
+        <label htmlFor="departure" className="block text-lg font-medium text-gray-700 mb-2">
           From:
         </label>
         <input
@@ -196,22 +196,22 @@ const SearchForm = () => {
             }
           }}
           placeholder="Enter departure city"
-          className="w-full h-10 px-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-black"
+          className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black"
           required
           disabled={isLoadingLocationsLookup}
           autoComplete="off"
         />
-        {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
-        {locationLookupError && <p className="text-xs text-red-600 mt-1">{locationLookupError}</p>}
+        {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-2">Loading cities...</p>}
+        {locationLookupError && <p className="text-sm text-red-600 mt-2">{locationLookupError}</p>}
         
         {/* Departure Suggestions Dropdown */}
         {filteredDepartureCities.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+          <div className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
             {filteredDepartureCities.map((city) => (
               <div
                 key={city.id}
                 onClick={() => handleDepartureCitySelect(city)}
-                className="cursor-pointer select-none relative py-2 px-3 hover:bg-indigo-50 text-black"
+                className="cursor-pointer select-none relative py-3 px-4 hover:bg-indigo-50 text-black"
               >
                 <div className="flex items-center">
                   <span className="font-normal block truncate">
@@ -225,8 +225,8 @@ const SearchForm = () => {
       </div>
 
       {/* Destination Dropdown */}
-      <div>
-        <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="mb-8">
+        <label htmlFor="destination" className="block text-lg font-medium text-gray-700 mb-2">
           To:
         </label>
         <select
@@ -235,7 +235,7 @@ const SearchForm = () => {
           onChange={(e) => setSelectedDestinationCityId(e.target.value)}
           required
           disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
-          className="w-full h-10 px-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
           <option value="">
             {selectedDepartureCity 
@@ -253,14 +253,14 @@ const SearchForm = () => {
           ))}
         </select>
         {destinationError && !isLoadingDestinations && (
-          <p className="text-xs text-red-600 mt-1">{destinationError}</p>
+          <p className="text-sm text-red-600 mt-2">{destinationError}</p>
         )}
       </div>
 
       <button
         type="submit"
         disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
-        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-indigo-600 text-white py-4 px-6 text-lg rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
       >
         Find Shuttles
       </button>
