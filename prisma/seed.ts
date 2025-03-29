@@ -5,89 +5,89 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Start seeding ...');
 
-  // Create Costa Rica
-  const costaRica = await prisma.country.upsert({
-    where: { slug: 'costa-rica' },
+  // Create North Korea
+  const northKorea = await prisma.country.upsert({
+    where: { slug: 'north-korea' },
     update: {},
     create: {
-      name: 'Costa Rica',
-      slug: 'costa-rica',
+      name: 'North Korea',
+      slug: 'north-korea',
     },
   });
-  console.log('Created/found country:', costaRica.name);
+  console.log('Created/found country:', northKorea.name);
 
-  // Create San Jose
-  const sanJose = await prisma.city.upsert({
+  // Create Pyongyang
+  const pyongyang = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'San Jose',
-        countryId: costaRica.id
+        name: 'Pyongyang',
+        countryId: northKorea.id
       }
     },
     update: {},
     create: {
-      name: 'San Jose',
-      slug: 'san-jose',
-      countryId: costaRica.id,
-      latitude: 9.9281,
-      longitude: -84.0907,
+      name: 'Pyongyang',
+      slug: 'pyongyang',
+      countryId: northKorea.id,
+      latitude: 39.0392,
+      longitude: 125.7625,
     },
   });
-  console.log('Created/found city:', sanJose.name, 'in', costaRica.name);
+  console.log('Created/found city:', pyongyang.name, 'in', northKorea.name);
 
-  // Create Manuel Antonio
-  const manuelAntonio = await prisma.city.upsert({
+  // Create Wonsan
+  const wonsan = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Manuel Antonio',
-        countryId: costaRica.id
+        name: 'Wonsan',
+        countryId: northKorea.id
       }
     },
     update: {},
     create: {
-      name: 'Manuel Antonio',
-      slug: 'manuel-antonio',
-      countryId: costaRica.id,
-      latitude: 9.3920,
-      longitude: -84.1365,
+      name: 'Wonsan',
+      slug: 'wonsan',
+      countryId: northKorea.id,
+      latitude: 39.1538,
+      longitude: 127.4438,
     },
   });
-  console.log('Created/found city:', manuelAntonio.name, 'in', costaRica.name);
+  console.log('Created/found city:', wonsan.name, 'in', northKorea.name);
 
-  // Create Jaco
-  const jaco = await prisma.city.upsert({
+  // Create Hamhung
+  const hamhung = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Jaco',
-        countryId: costaRica.id
+        name: 'Hamhung',
+        countryId: northKorea.id
       }
     },
     update: {},
     create: {
-      name: 'Jaco',
-      slug: 'jaco',
-      countryId: costaRica.id,
-      latitude: 9.6167,
-      longitude: -84.6333,
+      name: 'Hamhung',
+      slug: 'hamhung',
+      countryId: northKorea.id,
+      latitude: 39.9167,
+      longitude: 127.5333,
     },
   });
-  console.log('Created/found city:', jaco.name, 'in', costaRica.name);
+  console.log('Created/found city:', hamhung.name, 'in', northKorea.name);
 
-  // Create San Jose to Manuel Antonio route
+  // Create Pyongyang to Wonsan route
   const route = await prisma.route.upsert({
-    where: { routeSlug: 'costa-rica-san-jose-to-manuel-antonio' },
+    where: { routeSlug: 'pyongyang-to-wonsan' },
     update: {},
     create: {
-      departureCityId: sanJose.id,
-      destinationCityId: manuelAntonio.id,
-      departureCountryId: costaRica.id,
-      destinationCountryId: costaRica.id,
-      routeSlug: 'costa-rica-san-jose-to-manuel-antonio',
-      displayName: 'Shuttles from San Jose to Manuel Antonio',
+      departureCityId: pyongyang.id,
+      destinationCityId: wonsan.id,
+      departureCountryId: northKorea.id,
+      destinationCountryId: northKorea.id,
+      routeSlug: 'pyongyang-to-wonsan',
+      displayName: 'Shuttles from Pyongyang to Wonsan',
       viatorWidgetCode: '<div class="viator-widget">Sample widget code</div>',
-      metaTitle: 'San Jose to Manuel Antonio, Costa Rica | Shuttle & Transfer Service',
-      metaDescription: 'Convenient shuttle service from San Jose to Manuel Antonio. Easy online booking with reliable local providers.',
-      metaKeywords: 'San Jose, Manuel Antonio, Costa Rica shuttle, transfer service',
+      metaTitle: 'Pyongyang to Wonsan | Shuttle & Transfer Service',
+      metaDescription: 'Convenient shuttle service from Pyongyang to Wonsan. Easy online booking with reliable local providers.',
+      metaKeywords: 'Pyongyang, Wonsan, North Korea shuttle, transfer service',
       seoDescription: 'Sample SEO description for the route.',
     },
   });
