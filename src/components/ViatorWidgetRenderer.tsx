@@ -4,17 +4,41 @@ import { useEffect, useRef } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
+  routeSlug: string;
 }
 
-const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
+const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode, routeSlug }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode) return;
+    if (!containerRef.current || !widgetCode || !routeSlug) return;
 
     try {
-      // Set the widget HTML
-      containerRef.current.innerHTML = widgetCode;
+      // Create a temporary div to parse the widget code
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = widgetCode;
+
+      // Find the widget div
+      const widgetDiv = tempDiv.querySelector('div[id^="viator-"]');
+      if (!widgetDiv) {
+        console.error('No widget div found in code');
+        return;
+      }
+
+      // Create our widget container with the correct ID format
+      const widgetContainer = document.createElement('div');
+      widgetContainer.id = `viator-${routeSlug}`;
+
+      // Copy any data attributes from the original widget
+      Array.from(widgetDiv.attributes).forEach(attr => {
+        if (attr.name.startsWith('data-')) {
+          widgetContainer.setAttribute(attr.name, attr.value);
+        }
+      });
+
+      // Set the container's HTML
+      containerRef.current.innerHTML = '';
+      containerRef.current.appendChild(widgetContainer);
 
       // Give a moment for the widget to initialize
       setTimeout(() => {
@@ -32,7 +56,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         containerRef.current.innerHTML = '';
       }
     };
-  }, [widgetCode]);
+  }, [widgetCode, routeSlug]);
 
   return (
     <div>
