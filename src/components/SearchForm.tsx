@@ -31,7 +31,6 @@ const SearchForm = () => {
   const router = useRouter();
 
   // State for our internal locations data
-  const [locationsLookup, setLocationsLookup] = useState<CountryWithCitiesLookup[]>([]);
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
@@ -57,7 +56,6 @@ const SearchForm = () => {
         const response = await fetch('/api/locations');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: CountryWithCitiesLookup[] = await response.json();
-        setLocationsLookup(data);
         
         // Create flat list of cities with country names
         const allCities = data.flatMap(country => 
