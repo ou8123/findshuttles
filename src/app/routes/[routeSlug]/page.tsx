@@ -96,9 +96,9 @@ export default async function RoutePage(props: any) {
 
       {/* Display SEO Description if available */}
       {routeData.seoDescription && (
-        <div className="mb-6 p-4 bg-gray-100 rounded">
-          <h2 className="text-xl font-semibold mb-2">Route Description</h2>
-          <p>{routeData.seoDescription}</p>
+        <div className="mb-6 p-4 bg-white rounded shadow-sm">
+          <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
+          <p className="text-black">{routeData.seoDescription}</p>
         </div>
       )}
 

@@ -208,7 +208,7 @@ const SearchForm = () => {
             }
           }}
           placeholder="Enter departure city"
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-black"
+          className="w-full h-10 px-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-black"
           required
           disabled={isLoadingLocationsLookup}
           autoComplete="off"
@@ -247,7 +247,7 @@ const SearchForm = () => {
           onChange={(e) => setSelectedDestinationCityId(e.target.value)}
           required
           disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full h-10 px-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
           <option value="">
             {selectedDepartureCity 
