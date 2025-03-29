@@ -7,161 +7,118 @@ interface ViatorWidgetRendererProps {
 }
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [loadAttempts, setLoadAttempts] = useState(0);
-  const maxAttempts = 3;
-  const [widgetLoaded, setWidgetLoaded] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Add a delay before initializing the widget
-    const readyTimer = setTimeout(() => {
-      setIsReady(true);
-    }, 2000); // 2 second delay
+    if (!widgetCode) return;
 
-    return () => clearTimeout(readyTimer);
-  }, []);
+    const setupWidget = () => {
+      const iframe = iframeRef.current;
+      if (!iframe) return;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !widgetCode || !isReady) return;
-
-    // Function to load a script and track its status
-    const loadScript = (src: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        // Check if script already exists
-        const existingScript = document.querySelector(`script[src="${src}"]`);
-        if (existingScript) {
-          resolve();
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject();
-        document.head.appendChild(script);
-      });
-    };
-
-    // Function to load inline script
-    const loadInlineScript = (content: string): void => {
-      // Check if script already exists
-      const scripts = Array.from(document.getElementsByTagName('script'));
-      const exists = scripts.some(s => s.textContent === content);
-      if (exists) return;
-
-      const script = document.createElement('script');
-      script.textContent = content;
-      document.head.appendChild(script);
-    };
-
-    // Function to initialize widget
-    const initWidget = async () => {
       try {
-        // Clear container
-        container.innerHTML = '';
+        // Create a minimal HTML document with necessary styles
+        const html = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body {
+                  margin: 0;
+                  padding: 0;
+                  font-family: system-ui, -apple-system, sans-serif;
+                }
+                .widget-container {
+                  min-height: 300px;
+                  width: 100%;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="widget-container">
+                ${widgetCode}
+              </div>
+              <script>
+                // Listen for widget load
+                window.addEventListener('load', function() {
+                  // Send message to parent when loaded
+                  window.parent.postMessage('widget-loaded', '*');
+                });
 
-        // Parse widget code
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = widgetCode;
+                // Listen for widget errors
+                window.addEventListener('error', function(e) {
+                  // Send error to parent
+                  window.parent.postMessage({ type: 'widget-error', error: e.message }, '*');
+                });
+              </script>
+            </body>
+          </html>
+        `;
 
-        // Extract scripts
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-        const externalScripts = scripts.filter(script => script.src);
-        const inlineScripts = scripts.filter(script => !script.src);
-
-        // Remove scripts from temp div
-        scripts.forEach(script => script.remove());
-
-        // Add non-script content to container
-        container.innerHTML = tempDiv.innerHTML;
-
-        // Load external scripts sequentially
-        for (const script of externalScripts) {
-          await loadScript(script.src);
-          // Add a small delay between scripts
-          await new Promise(resolve => setTimeout(resolve, 500));
+        // Write the HTML to the iframe
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(html);
+          doc.close();
         }
 
-        // Load inline scripts with delay
-        inlineScripts.forEach((script, index) => {
-          setTimeout(() => {
-            loadInlineScript(script.textContent || '');
-          }, index * 500); // 500ms delay between each inline script
-        });
-
-        // Check for Viator object and widget content
-        const checkWidget = setInterval(() => {
-          const hasViator = !!(window as any).viator;
-          const hasContent = container.querySelector('.viator-embedded');
-          
-          if (hasViator && hasContent) {
-            clearInterval(checkWidget);
-            setWidgetLoaded(true);
-            console.log('Viator widget loaded successfully');
-          }
-        }, 500);
-
-        // Clear interval after 15 seconds
-        setTimeout(() => {
-          clearInterval(checkWidget);
-          if (!widgetLoaded && loadAttempts < maxAttempts) {
-            console.log(`Attempt ${loadAttempts + 1} failed, retrying...`);
-            setLoadAttempts(prev => prev + 1);
-          }
-        }, 15000);
-
-      } catch (error) {
-        console.error('Error loading widget:', error);
-        if (loadAttempts < maxAttempts) {
-          console.log(`Attempt ${loadAttempts + 1} failed, retrying...`);
-          setLoadAttempts(prev => prev + 1);
-        }
+      } catch (err) {
+        console.error('Error setting up widget:', err);
+        setError('Failed to load widget');
+        setIsLoading(false);
       }
     };
 
-    // Initialize widget
-    initWidget();
+    // Handle messages from iframe
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data === 'widget-loaded') {
+        setIsLoading(false);
+        setError(null);
+      } else if (event.data?.type === 'widget-error') {
+        console.error('Widget error:', event.data.error);
+        setError('Widget failed to load');
+        setIsLoading(false);
+      }
+    };
 
-    // Cleanup function
+    window.addEventListener('message', handleMessage);
+    setupWidget();
+
+    // Set a timeout for loading
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+        setError('Widget took too long to load');
+      }
+    }, 10000);
+
     return () => {
-      if (container) {
-        container.innerHTML = '';
-      }
-      setWidgetLoaded(false);
-      // Remove all scripts we added
-      document.querySelectorAll('script').forEach(script => {
-        if (script.textContent?.includes('viator') || script.src.includes('viator')) {
-          script.remove();
-        }
-      });
+      window.removeEventListener('message', handleMessage);
+      clearTimeout(timeout);
     };
-  }, [widgetCode, isReady, loadAttempts, widgetLoaded]);
-
-  // Reset load attempts when widget code changes
-  useEffect(() => {
-    setLoadAttempts(0);
-    setWidgetLoaded(false);
-  }, [widgetCode]);
+  }, [widgetCode, isLoading]);
 
   return (
     <div className="viator-widget-container mt-2">
-      {!isReady ? (
-        <div className="flex items-center justify-center min-h-[300px] bg-gray-50">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
           <div className="text-gray-500">Loading booking widget...</div>
         </div>
-      ) : (
-        <div 
-          ref={containerRef}
-          style={{ minHeight: '300px', margin: '0 auto' }}
-          className={widgetLoaded ? '' : 'opacity-0'}
-        />
       )}
-      {loadAttempts >= maxAttempts && !widgetLoaded && (
+      <iframe
+        ref={iframeRef}
+        className={`w-full min-h-[300px] border-0 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+        style={{ transition: 'opacity 0.3s ease-in-out' }}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      />
+      {error && (
         <div className="text-red-500 text-sm mt-2 text-center">
-          Widget failed to load. Please refresh the page to try again.
+          {error}. Please refresh the page to try again.
         </div>
       )}
     </div>
