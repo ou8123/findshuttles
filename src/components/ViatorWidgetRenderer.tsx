@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { extractScripts, loadScript, loadScriptContent } from '@/lib/scriptLoader';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -11,36 +10,68 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const loadWidget = async () => {
-      if (!containerRef.current || !widgetCode) return;
+    if (!containerRef.current || !widgetCode) return;
 
+    // Clear any existing content
+    containerRef.current.innerHTML = '';
+
+    // Create a temporary div to parse the widget code
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = widgetCode;
+
+    // Find all script tags
+    const scripts = tempDiv.getElementsByTagName('script');
+    const scriptContents: string[] = [];
+    const scriptSrcs: string[] = [];
+
+    // Extract script contents and sources
+    Array.from(scripts).forEach(script => {
+      if (script.src) {
+        scriptSrcs.push(script.src);
+      }
+      if (script.textContent) {
+        scriptContents.push(script.textContent);
+      }
+      script.remove();
+    });
+
+    // Add the HTML content first
+    containerRef.current.innerHTML = tempDiv.innerHTML;
+
+    // Function to load a script by source
+    const loadScript = (src: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject();
+        document.body.appendChild(script);
+      });
+    };
+
+    // Function to execute inline script
+    const executeScript = (content: string): void => {
+      const script = document.createElement('script');
+      script.text = content;
+      document.body.appendChild(script);
+    };
+
+    // Load all external scripts sequentially
+    const loadScripts = async () => {
       try {
-        // Clear any existing content
-        containerRef.current.innerHTML = '';
-
-        // Extract scripts and remaining HTML
-        const { scripts, inlineScripts, remainingHtml } = extractScripts(widgetCode);
-
-        // Set the HTML content first
-        containerRef.current.innerHTML = remainingHtml;
-
-        // Load external scripts sequentially
-        for (const src of scripts) {
+        for (const src of scriptSrcs) {
           await loadScript(src);
         }
-
-        // Load inline scripts sequentially
-        for (const content of inlineScripts) {
-          await loadScriptContent(content);
-        }
-
+        // After all external scripts are loaded, execute inline scripts
+        scriptContents.forEach(content => {
+          executeScript(content);
+        });
       } catch (error) {
-        console.error('Error loading widget:', error);
-        containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
+        console.error('Error loading widget scripts:', error);
       }
     };
 
-    loadWidget();
+    loadScripts();
 
     // Cleanup function
     return () => {
@@ -53,9 +84,9 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   return (
     <div 
       ref={containerRef}
-      className="w-full min-h-[400px] relative"
+      className="w-full min-h-[400px]"
       style={{ 
-        height: 'fit-content',
+        height: 'auto',
         overflow: 'visible'
       }}
     />
