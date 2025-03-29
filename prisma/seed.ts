@@ -5,89 +5,89 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Start seeding ...');
 
-  // Create North Korea
-  const northKorea = await prisma.country.upsert({
-    where: { slug: 'north-korea' },
+  // Create Costa Rica
+  const costaRica = await prisma.country.upsert({
+    where: { slug: 'costa-rica' },
     update: {},
     create: {
-      name: 'North Korea',
-      slug: 'north-korea',
+      name: 'Costa Rica',
+      slug: 'costa-rica',
     },
   });
-  console.log('Created/found country:', northKorea.name);
+  console.log('Created/found country:', costaRica.name);
 
-  // Create Pyongyang
-  const pyongyang = await prisma.city.upsert({
+  // Create Palmares (fictional)
+  const palmares = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Pyongyang',
-        countryId: northKorea.id
+        name: 'Palmares',
+        countryId: costaRica.id
       }
     },
     update: {},
     create: {
-      name: 'Pyongyang',
-      slug: 'pyongyang',
-      countryId: northKorea.id,
-      latitude: 39.0392,
-      longitude: 125.7625,
+      name: 'Palmares',
+      slug: 'palmares',
+      countryId: costaRica.id,
+      latitude: 10.0589,
+      longitude: -84.4334,
     },
   });
-  console.log('Created/found city:', pyongyang.name, 'in', northKorea.name);
+  console.log('Created/found city:', palmares.name, 'in', costaRica.name);
 
-  // Create Wonsan
-  const wonsan = await prisma.city.upsert({
+  // Create Esmeralda (fictional)
+  const esmeralda = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Wonsan',
-        countryId: northKorea.id
+        name: 'Esmeralda',
+        countryId: costaRica.id
       }
     },
     update: {},
     create: {
-      name: 'Wonsan',
-      slug: 'wonsan',
-      countryId: northKorea.id,
-      latitude: 39.1538,
-      longitude: 127.4438,
+      name: 'Esmeralda',
+      slug: 'esmeralda',
+      countryId: costaRica.id,
+      latitude: 9.8567,
+      longitude: -84.3456,
     },
   });
-  console.log('Created/found city:', wonsan.name, 'in', northKorea.name);
+  console.log('Created/found city:', esmeralda.name, 'in', costaRica.name);
 
-  // Create Hamhung
-  const hamhung = await prisma.city.upsert({
+  // Create Dorado (fictional)
+  const dorado = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Hamhung',
-        countryId: northKorea.id
+        name: 'Dorado',
+        countryId: costaRica.id
       }
     },
     update: {},
     create: {
-      name: 'Hamhung',
-      slug: 'hamhung',
-      countryId: northKorea.id,
-      latitude: 39.9167,
-      longitude: 127.5333,
+      name: 'Dorado',
+      slug: 'dorado',
+      countryId: costaRica.id,
+      latitude: 9.7456,
+      longitude: -84.2345,
     },
   });
-  console.log('Created/found city:', hamhung.name, 'in', northKorea.name);
+  console.log('Created/found city:', dorado.name, 'in', costaRica.name);
 
-  // Create Pyongyang to Wonsan route
+  // Create Palmares to Esmeralda route
   const route = await prisma.route.upsert({
-    where: { routeSlug: 'pyongyang-to-wonsan' },
+    where: { routeSlug: 'palmares-to-esmeralda' },
     update: {},
     create: {
-      departureCityId: pyongyang.id,
-      destinationCityId: wonsan.id,
-      departureCountryId: northKorea.id,
-      destinationCountryId: northKorea.id,
-      routeSlug: 'pyongyang-to-wonsan',
-      displayName: 'Shuttles from Pyongyang to Wonsan',
+      departureCityId: palmares.id,
+      destinationCityId: esmeralda.id,
+      departureCountryId: costaRica.id,
+      destinationCountryId: costaRica.id,
+      routeSlug: 'palmares-to-esmeralda',
+      displayName: 'Shuttles from Palmares to Esmeralda',
       viatorWidgetCode: '<div class="viator-widget">Sample widget code</div>',
-      metaTitle: 'Pyongyang to Wonsan | Shuttle & Transfer Service',
-      metaDescription: 'Convenient shuttle service from Pyongyang to Wonsan. Easy online booking with reliable local providers.',
-      metaKeywords: 'Pyongyang, Wonsan, North Korea shuttle, transfer service',
+      metaTitle: 'Palmares to Esmeralda | Shuttle & Transfer Service',
+      metaDescription: 'Convenient shuttle service from Palmares to Esmeralda. Easy online booking with reliable local providers.',
+      metaKeywords: 'Palmares, Esmeralda, Costa Rica shuttle, transfer service',
       seoDescription: 'Sample SEO description for the route.',
     },
   });
