@@ -9,7 +9,6 @@ interface ViatorWidgetRendererProps {
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
@@ -17,7 +16,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     const container = containerRef.current;
     let loadTimeout: NodeJS.Timeout;
 
-    const loadWidgetDirect = () => {
+    const loadWidget = async () => {
       try {
         // Clear previous content
         container.innerHTML = '';
@@ -33,82 +32,57 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         // Add non-script content
         container.innerHTML = tempDiv.innerHTML;
 
-        // Add scripts to head
-        scripts.forEach(oldScript => {
-          const script = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => {
-            script.setAttribute(attr.name, attr.value);
+        // Function to load a script
+        const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+          return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            
+            // Copy attributes
+            Array.from(scriptElement.attributes).forEach(attr => {
+              script.setAttribute(attr.name, attr.value);
+            });
+
+            // Set content
+            if (scriptElement.src) {
+              script.src = scriptElement.src;
+              script.async = true;
+              script.onload = () => resolve();
+              script.onerror = () => reject();
+            } else {
+              script.textContent = scriptElement.textContent;
+              resolve();
+            }
+
+            // Add to document
+            document.head.appendChild(script);
           });
-          script.textContent = oldScript.textContent;
-          document.head.appendChild(script);
-        });
+        };
 
-        // Hide loading after delay
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 3000);
-      } catch (error) {
-        console.error('Error in direct loading:', error);
-        setUseFallback(true);
-      }
-    };
-
-    const loadWidgetFallback = () => {
-      try {
-        // Clear previous content
-        container.innerHTML = '';
-
-        // Create an iframe
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '100%';
-        iframe.style.height = '400px';
-        iframe.style.border = 'none';
-        iframe.style.overflow = 'hidden';
-
-        // Create HTML content
-        const html = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <style>
-                body { margin: 0; padding: 0; }
-                .widget-container { min-height: 400px; width: 100%; }
-              </style>
-            </head>
-            <body>
-              <div class="widget-container">${widgetCode}</div>
-            </body>
-          </html>
-        `;
-
-        // Set iframe content
-        container.appendChild(iframe);
-        const doc = iframe.contentWindow?.document;
-        if (doc) {
-          doc.open();
-          doc.write(html);
-          doc.close();
+        // Load scripts sequentially
+        for (const script of scripts) {
+          try {
+            await loadScript(script);
+            // Add a small delay between scripts
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (error) {
+            console.error('Error loading script:', error);
+          }
         }
 
         // Hide loading after delay
         setTimeout(() => {
           setIsLoading(false);
         }, 3000);
+
       } catch (error) {
-        console.error('Error in fallback loading:', error);
+        console.error('Error loading widget:', error);
         setIsLoading(false);
       }
     };
 
     // Start loading with delay
     loadTimeout = setTimeout(() => {
-      if (useFallback) {
-        loadWidgetFallback();
-      } else {
-        loadWidgetDirect();
-      }
+      loadWidget();
     }, 2000);
 
     // Cleanup function
@@ -118,23 +92,19 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         container.innerHTML = '';
       }
       // Remove any scripts we added
-      if (!useFallback) {
-        document.querySelectorAll('script').forEach(script => {
-          if (script.textContent?.includes('viator')) {
-            script.remove();
-          }
-        });
-      }
+      document.querySelectorAll('script').forEach(script => {
+        if (script.textContent?.includes('viator')) {
+          script.remove();
+        }
+      });
     };
-  }, [widgetCode, useFallback]);
+  }, [widgetCode]);
 
   return (
     <div className="relative">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-          <div className="text-gray-500">
-            {useFallback ? 'Trying alternative loading method...' : 'Loading booking widget...'}
-          </div>
+          <div className="text-gray-500">Loading booking widget...</div>
         </div>
       )}
       <div 
