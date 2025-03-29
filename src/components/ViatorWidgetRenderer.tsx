@@ -17,37 +17,79 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     const container = containerRef.current;
     let loadTimeout: NodeJS.Timeout;
 
-    const loadWidget = async () => {
+    const loadWidget = () => {
       try {
         // Clear previous content
         container.innerHTML = '';
 
-        // Create a blob URL for the widget code
-        const blob = new Blob([widgetCode], { type: 'text/html' });
-        const blobUrl = URL.createObjectURL(blob);
+        // Create a complete HTML document for the iframe
+        const html = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body {
+                  margin: 0;
+                  padding: 0;
+                  font-family: system-ui, -apple-system, sans-serif;
+                }
+                .widget-container {
+                  min-height: 400px;
+                  width: 100%;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="widget-container">
+                ${widgetCode}
+              </div>
+              <script>
+                // Listen for widget load
+                window.addEventListener('load', function() {
+                  // Send message to parent when loaded
+                  window.parent.postMessage('widget-loaded', '*');
+                });
 
-        // Create an iframe to load the widget
+                // Listen for widget errors
+                window.addEventListener('error', function(e) {
+                  // Send error to parent
+                  window.parent.postMessage({ type: 'widget-error', error: e.message }, '*');
+                });
+              </script>
+            </body>
+          </html>
+        `;
+
+        // Create iframe with data URL
         const iframe = document.createElement('iframe');
         iframe.style.width = '100%';
         iframe.style.height = '400px';
         iframe.style.border = 'none';
         iframe.style.overflow = 'hidden';
+        iframe.sandbox.add('allow-scripts', 'allow-same-origin', 'allow-forms', 'allow-popups');
 
-        // Add load handler
-        iframe.onload = () => {
-          setIsLoading(false);
-          setError(null);
-        };
+        // Convert HTML to data URL
+        const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+        iframe.src = dataUrl;
 
-        // Add error handler
-        iframe.onerror = () => {
-          setError('Failed to load widget');
-          setIsLoading(false);
-        };
-
-        // Set the src and append the iframe
-        iframe.src = blobUrl;
+        // Add iframe to container
         container.appendChild(iframe);
+
+        // Listen for messages from iframe
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data === 'widget-loaded') {
+            setIsLoading(false);
+            setError(null);
+          } else if (event.data?.type === 'widget-error') {
+            console.error('Widget error:', event.data.error);
+            setError('Widget failed to load');
+            setIsLoading(false);
+          }
+        };
+
+        window.addEventListener('message', handleMessage);
 
         // Set timeout for load
         loadTimeout = setTimeout(() => {
@@ -57,8 +99,10 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           }
         }, 10000);
 
-        // Cleanup blob URL
-        return () => URL.revokeObjectURL(blobUrl);
+        // Return cleanup function
+        return () => {
+          window.removeEventListener('message', handleMessage);
+        };
       } catch (err) {
         console.error('Error loading widget:', err);
         setError('Failed to load widget');
