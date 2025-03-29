@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface DestinationCity {
@@ -17,6 +17,7 @@ interface CityLookup {
   id: string;
   name: string;
   slug: string;
+  countryName: string;
 }
 
 interface CountryWithCitiesLookup {
@@ -34,9 +35,13 @@ const SearchForm = () => {
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
-  // State for departure city
-  const [selectedDepartureCityId, setSelectedDepartureCityId] = useState<string>('');
+  // State for departure city autocomplete
+  const [departureCities, setDepartureCities] = useState<CityLookup[]>([]);
+  const [departureInput, setDepartureInput] = useState('');
+  const [showDepartureSuggestions, setShowDepartureSuggestions] = useState(false);
+  const [filteredDepartureCities, setFilteredDepartureCities] = useState<CityLookup[]>([]);
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
+  const departureAutocompleteRef = useRef<HTMLDivElement>(null);
 
   // State for destination city
   const [validDestinations, setValidDestinations] = useState<DestinationCity[]>([]);
@@ -54,6 +59,15 @@ const SearchForm = () => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: CountryWithCitiesLookup[] = await response.json();
         setLocationsLookup(data);
+        
+        // Create flat list of cities with country names
+        const allCities = data.flatMap(country => 
+          country.cities.map(city => ({
+            ...city,
+            countryName: country.name
+          }))
+        );
+        setDepartureCities(allCities);
       } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
         setLocationLookupError("Could not load location data for routing.");
@@ -64,20 +78,31 @@ const SearchForm = () => {
     fetchLocationsLookup();
   }, []);
 
-  // Update selected departure city when ID changes
+  // Handle clicks outside of departure autocomplete
   useEffect(() => {
-    if (selectedDepartureCityId) {
-      for (const country of locationsLookup) {
-        const city = country.cities.find(c => c.id === selectedDepartureCityId);
-        if (city) {
-          setSelectedDepartureCity(city);
-          return;
-        }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (departureAutocompleteRef.current && !departureAutocompleteRef.current.contains(event.target as Node)) {
+        setShowDepartureSuggestions(false);
       }
-    } else {
-      setSelectedDepartureCity(null);
-    }
-  }, [selectedDepartureCityId, locationsLookup]);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Filter departure cities based on input
+  useEffect(() => {
+    const filtered = departureCities.filter(city => {
+      const searchStr = departureInput.toLowerCase();
+      return (
+        city.name.toLowerCase().includes(searchStr) ||
+        city.countryName.toLowerCase().includes(searchStr)
+      );
+    });
+    setFilteredDepartureCities(filtered);
+  }, [departureInput, departureCities]);
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
@@ -106,14 +131,29 @@ const SearchForm = () => {
       }
     };
 
-    if (selectedDepartureCityId) {
-      fetchValidDestinations(selectedDepartureCityId);
+    if (selectedDepartureCity) {
+      fetchValidDestinations(selectedDepartureCity.id);
     } else {
       setValidDestinations([]);
       setSelectedDestinationCityId('');
       setDestinationError(null);
     }
-  }, [selectedDepartureCityId]);
+  }, [selectedDepartureCity]);
+
+  const handleDepartureInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDepartureInput(value);
+    setShowDepartureSuggestions(true);
+    if (!value) {
+      setSelectedDepartureCity(null);
+    }
+  };
+
+  const handleDepartureCitySelect = (city: CityLookup) => {
+    setSelectedDepartureCity(city);
+    setDepartureInput(`${city.name}, ${city.countryName}`);
+    setShowDepartureSuggestions(false);
+  };
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -144,46 +184,51 @@ const SearchForm = () => {
     }
   };
 
-  // Group cities by country for the departure dropdown
-  const groupedCities = locationsLookup.map(country => ({
-    country: country.name,
-    cities: country.cities.map(city => ({
-      id: city.id,
-      name: city.name,
-      label: `${city.name}, ${country.name}`
-    }))
-  }));
-
   return (
     <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md space-y-4">
       <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttles</h2>
 
-      {/* Departure City Dropdown */}
-      <div>
+      {/* Departure City Autocomplete */}
+      <div ref={departureAutocompleteRef} className="relative">
         <label htmlFor="departure" className="block text-sm font-medium text-gray-700 mb-1">
           From:
         </label>
-        <select
+        <input
           id="departure"
-          value={selectedDepartureCityId}
-          onChange={(e) => setSelectedDepartureCityId(e.target.value)}
+          type="text"
+          value={departureInput}
+          onChange={handleDepartureInputChange}
+          onFocus={() => setShowDepartureSuggestions(true)}
+          placeholder="Enter departure city"
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
           required
           disabled={isLoadingLocationsLookup}
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
-        >
-          <option value="">Select departure city</option>
-          {groupedCities.map(group => (
-            <optgroup key={group.country} label={group.country}>
-              {group.cities.map(city => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        />
         {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
         {locationLookupError && <p className="text-xs text-red-500 mt-1">{locationLookupError}</p>}
+        
+        {/* Departure Suggestions Dropdown */}
+        {showDepartureSuggestions && departureInput && (
+          <div className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+            {filteredDepartureCities.length > 0 ? (
+              filteredDepartureCities.map((city) => (
+                <div
+                  key={city.id}
+                  onClick={() => handleDepartureCitySelect(city)}
+                  className="cursor-pointer select-none relative py-2 px-3 hover:bg-indigo-50"
+                >
+                  <div className="flex items-center">
+                    <span className="font-normal block truncate">
+                      {city.name}, {city.countryName}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-gray-500 py-2 px-3">No cities found</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Destination Dropdown */}
@@ -196,11 +241,11 @@ const SearchForm = () => {
           value={selectedDestinationCityId}
           onChange={(e) => setSelectedDestinationCityId(e.target.value)}
           required
-          disabled={!selectedDepartureCityId || isLoadingDestinations || validDestinations.length === 0}
+          disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
           <option value="">
-            {selectedDepartureCityId 
+            {selectedDepartureCity 
               ? (isLoadingDestinations 
                 ? 'Loading destinations...' 
                 : (validDestinations.length === 0 
@@ -221,7 +266,7 @@ const SearchForm = () => {
 
       <button
         type="submit"
-        disabled={!selectedDepartureCityId || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
+        disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
         className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Find Shuttles
