@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { cityId: string } }
+  context: any
 ) {
   try {
     // Check authentication
@@ -14,7 +14,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cityId = params.cityId;
+    const { cityId } = context.params;
     if (!cityId) {
       return NextResponse.json({ error: 'City ID is required' }, { status: 400 });
     }
@@ -59,7 +59,7 @@ export async function DELETE(
 
 export async function GET(
   request: Request,
-  { params }: { params: { cityId: string } }
+  context: any
 ) {
   try {
     // Check authentication
@@ -68,7 +68,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cityId = params.cityId;
+    const { cityId } = context.params;
     if (!cityId) {
       return NextResponse.json({ error: 'City ID is required' }, { status: 400 });
     }
@@ -100,7 +100,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { cityId: string } }
+  context: any
 ) {
   try {
     // Check authentication
@@ -109,7 +109,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cityId = params.cityId;
+    const { cityId } = context.params;
     if (!cityId) {
       return NextResponse.json({ error: 'City ID is required' }, { status: 400 });
     }
