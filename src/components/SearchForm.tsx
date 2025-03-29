@@ -39,6 +39,7 @@ const SearchForm = () => {
   const [departureInput, setDepartureInput] = useState('');
   const [filteredDepartureCities, setFilteredDepartureCities] = useState<CityLookup[]>([]);
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
+  const [showDepartureSuggestions, setShowDepartureSuggestions] = useState(false);
   const departureAutocompleteRef = useRef<HTMLDivElement>(null);
 
   // State for destination city
@@ -83,7 +84,7 @@ const SearchForm = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (departureAutocompleteRef.current && !departureAutocompleteRef.current.contains(event.target as Node)) {
-        setFilteredDepartureCities([]);
+        setShowDepartureSuggestions(false);
       }
     };
 
@@ -97,6 +98,7 @@ const SearchForm = () => {
   useEffect(() => {
     if (!departureInput.trim()) {
       setFilteredDepartureCities([]);
+      setShowDepartureSuggestions(false);
       return;
     }
 
@@ -105,6 +107,7 @@ const SearchForm = () => {
       return city.name.toLowerCase().includes(searchStr);
     });
     setFilteredDepartureCities(filtered);
+    setShowDepartureSuggestions(true);
   }, [departureInput, departureCities]);
 
   // Fetch valid destinations when a valid departure city is selected
@@ -148,12 +151,16 @@ const SearchForm = () => {
     setDepartureInput(value);
     if (!value) {
       setSelectedDepartureCity(null);
+      setShowDepartureSuggestions(false);
+    } else {
+      setShowDepartureSuggestions(true);
     }
   };
 
   const handleDepartureCitySelect = (city: CityLookup) => {
     setSelectedDepartureCity(city);
     setDepartureInput(city.name);
+    setShowDepartureSuggestions(false);
     setFilteredDepartureCities([]);
   };
 
@@ -193,6 +200,7 @@ const SearchForm = () => {
             if (selectedDepartureCity) {
               setDepartureInput('');
               setSelectedDepartureCity(null);
+              setShowDepartureSuggestions(true);
             }
           }}
           placeholder="Enter departure city"
@@ -205,7 +213,7 @@ const SearchForm = () => {
         {locationLookupError && <p className="text-sm text-red-600 mt-2">{locationLookupError}</p>}
         
         {/* Departure Suggestions Dropdown */}
-        {filteredDepartureCities.length > 0 && (
+        {showDepartureSuggestions && filteredDepartureCities.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
             {filteredDepartureCities.map((city) => (
               <div

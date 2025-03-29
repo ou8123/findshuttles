@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -8,6 +8,7 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState<number>(400);
 
   useEffect(() => {
     if (!iframeRef.current || !widgetCode) return;
@@ -29,23 +30,12 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
               min-height: 100%;
               font-family: system-ui, -apple-system, sans-serif;
               background: transparent;
-              overflow: hidden;
             }
-            .widget-container {
+            #widget-container {
               width: 100%;
               height: auto;
               min-height: 400px;
               position: relative;
-              display: flex;
-              flex-direction: column;
-            }
-            /* Hide scrollbars but allow scrolling */
-            ::-webkit-scrollbar {
-              display: none;
-            }
-            * {
-              -ms-overflow-style: none;
-              scrollbar-width: none;
             }
             /* Ensure Viator widget content is fully visible */
             iframe, .viator-widget {
@@ -56,65 +46,68 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           </style>
         </head>
         <body>
-          <div class="widget-container">
+          <div id="widget-container">
             ${widgetCode}
           </div>
           <script>
             // Function to update iframe height
             function updateHeight() {
-              const container = document.querySelector('.widget-container');
+              const container = document.getElementById('widget-container');
               const widgets = document.querySelectorAll('iframe, .viator-widget');
-              let maxHeight = 400; // minimum height
+              let maxHeight = 400;
 
-              // Check container height
-              if (container) {
-                maxHeight = Math.max(maxHeight, container.scrollHeight);
+              // Get all elements in the document
+              const allElements = document.getElementsByTagName('*');
+              for (let element of allElements) {
+                const rect = element.getBoundingClientRect();
+                if (rect.bottom > maxHeight) {
+                  maxHeight = Math.ceil(rect.bottom);
+                }
               }
 
-              // Check individual widget heights
-              widgets.forEach(widget => {
-                if (widget.scrollHeight > maxHeight) {
-                  maxHeight = widget.scrollHeight;
-                }
-              });
-
-              // Add some padding to ensure everything is visible
+              // Add padding
               maxHeight += 20;
 
               // Send height to parent
-              window.parent.postMessage({ type: 'resize', height: maxHeight }, '*');
+              window.parent.postMessage({ type: 'setHeight', height: maxHeight }, '*');
             }
 
-            // Listen for widget load
-            window.addEventListener('load', function() {
-              window.parent.postMessage('widget-loaded', '*');
-              // Initial height update
-              setTimeout(updateHeight, 1000); // Delay to ensure content is loaded
+            // Initial height update
+            setTimeout(updateHeight, 1000);
+
+            // Update height when content changes
+            const observer = new ResizeObserver(() => {
+              setTimeout(updateHeight, 100);
             });
 
-            // Listen for DOM changes
-            const observer = new MutationObserver(function(mutations) {
-              // Delay height update to ensure content is fully rendered
-              setTimeout(updateHeight, 500);
-            });
+            // Observe the widget container and any dynamically added content
+            observer.observe(document.body);
 
-            observer.observe(document.body, {
+            // Listen for dynamic content changes
+            new MutationObserver(() => {
+              setTimeout(updateHeight, 100);
+            }).observe(document.body, {
               childList: true,
               subtree: true,
               attributes: true,
               characterData: true
             });
 
-            // Listen for widget errors
-            window.addEventListener('error', function(e) {
-              window.parent.postMessage({ type: 'widget-error', error: e.message }, '*');
+            // Listen for load events on all iframes and images
+            document.addEventListener('load', function(e) {
+              if (e.target.tagName === 'IFRAME' || e.target.tagName === 'IMG') {
+                setTimeout(updateHeight, 100);
+              }
+            }, true);
+
+            // Listen for window resize
+            window.addEventListener('resize', function() {
+              setTimeout(updateHeight, 100);
             });
 
-            // Listen for resize events
-            window.addEventListener('resize', function() {
-              // Debounce resize events
-              clearTimeout(window.resizeTimer);
-              window.resizeTimer = setTimeout(updateHeight, 250);
+            // Listen for any errors
+            window.addEventListener('error', function(e) {
+              window.parent.postMessage({ type: 'error', message: e.message }, '*');
             });
           </script>
         </body>
@@ -126,22 +119,15 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
 
     // Listen for messages from iframe
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'resize' && typeof event.data.height === 'number') {
-        iframe.style.height = `${event.data.height}px`;
+      if (event.data?.type === 'setHeight' && typeof event.data.height === 'number') {
+        setHeight(event.data.height);
       }
     };
 
     window.addEventListener('message', handleMessage);
 
-    // Set timeout for loading
-    const timeoutDuration = 10000; // 10 seconds
-    const timeoutId = setTimeout(() => {
-      console.log('Widget load timeout');
-    }, timeoutDuration);
-
     // Cleanup function
     return () => {
-      clearTimeout(timeoutId);
       window.removeEventListener('message', handleMessage);
     };
   }, [widgetCode]);
@@ -151,9 +137,8 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       ref={iframeRef}
       className="w-full border-0"
       style={{ 
-        minHeight: '400px',
-        height: 'auto',
-        overflow: 'hidden'
+        height: `${height}px`,
+        minHeight: '400px'
       }}
       sandbox="allow-scripts allow-popups allow-forms"
       loading="lazy"
