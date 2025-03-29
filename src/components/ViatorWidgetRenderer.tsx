@@ -14,36 +14,62 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
 
     const container = containerRef.current;
 
-    // Function to load widget with delay
-    const loadWidget = () => {
-      // Parse the widget code
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = widgetCode;
+    // Function to load a script and return a promise
+    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        
+        // Copy attributes
+        Array.from(scriptElement.attributes).forEach(attr => {
+          script.setAttribute(attr.name, attr.value);
+        });
 
-      // Extract scripts
-      const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-      scripts.forEach(script => script.remove());
+        // Set content
+        if (scriptElement.src) {
+          script.src = scriptElement.src;
+          script.async = true;
+        } else {
+          script.textContent = scriptElement.textContent;
+        }
 
-      // Add non-script content
-      container.innerHTML = tempDiv.innerHTML;
+        // Add load handlers
+        script.onload = () => resolve();
+        script.onerror = () => reject();
 
-      // Add scripts back with delay
-      scripts.forEach((oldScript, index) => {
-        setTimeout(() => {
-          const script = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => {
-            script.setAttribute(attr.name, attr.value);
-          });
-          script.textContent = oldScript.textContent;
-          document.head.appendChild(script);
-        }, index * 500); // 500ms delay between each script
+        // Add to document
+        document.head.appendChild(script);
       });
     };
 
-    // Initial delay before loading widget
+    // Function to load widget
+    const loadWidget = async () => {
+      try {
+        // Parse widget code
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = widgetCode;
+
+        // Extract scripts
+        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        scripts.forEach(script => script.remove());
+
+        // Add non-script content
+        container.innerHTML = tempDiv.innerHTML;
+
+        // Load scripts sequentially
+        for (const script of scripts) {
+          await loadScript(script);
+          // Add a small delay between scripts
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error('Error loading widget:', error);
+      }
+    };
+
+    // Start loading with delay
     const initTimeout = setTimeout(() => {
       loadWidget();
-    }, 2000); // 2 second initial delay
+    }, 2000);
 
     // Cleanup function
     return () => {
