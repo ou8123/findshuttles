@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -8,74 +8,124 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scriptLoadedRef = useRef<boolean>(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode) return;
+    // Add a delay before initializing the widget
+    const readyTimer = setTimeout(() => {
+      setIsReady(true);
+    }, 1000); // 1 second delay
 
-    // Create a temporary container
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = widgetCode;
+    return () => clearTimeout(readyTimer);
+  }, []);
 
-    // First, append all non-script content
-    const nonScriptNodes = Array.from(tempDiv.childNodes).filter(
-      node => !(node instanceof HTMLScriptElement)
-    );
-    containerRef.current.innerHTML = '';
-    nonScriptNodes.forEach(node => {
-      containerRef.current?.appendChild(node.cloneNode(true));
-    });
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !widgetCode || !isReady) return;
 
-    // Then handle scripts
-    const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-    scripts.forEach(oldScript => {
-      const newScript = document.createElement('script');
-      
-      // Copy all attributes
-      Array.from(oldScript.attributes).forEach(attr => {
-        newScript.setAttribute(attr.name, attr.value);
+    // Reset script loaded flag
+    scriptLoadedRef.current = false;
+
+    // Function to load a script
+    const loadScript = (src: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject();
+        document.head.appendChild(script);
       });
-      
-      // Copy the content/src
-      if (oldScript.src) {
-        newScript.src = oldScript.src;
-      } else {
-        newScript.textContent = oldScript.textContent;
-      }
-      
-      // Append the script to the document head
-      document.head.appendChild(newScript);
-    });
+    };
 
-    // Store the current ref value for cleanup
-    const currentContainer = containerRef.current;
+    // Function to load inline script
+    const loadInlineScript = (content: string): void => {
+      const script = document.createElement('script');
+      script.textContent = content;
+      document.head.appendChild(script);
+    };
+
+    // Function to initialize widget
+    const initWidget = async () => {
+      try {
+        // Clear container
+        container.innerHTML = '';
+
+        // Parse widget code
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = widgetCode;
+
+        // Extract scripts
+        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        const externalScripts = scripts.filter(script => script.src);
+        const inlineScripts = scripts.filter(script => !script.src);
+
+        // Remove scripts from temp div
+        scripts.forEach(script => script.remove());
+
+        // Add non-script content to container
+        container.innerHTML = tempDiv.innerHTML;
+
+        // Load external scripts sequentially
+        for (const script of externalScripts) {
+          await loadScript(script.src);
+        }
+
+        // Load inline scripts
+        inlineScripts.forEach(script => {
+          loadInlineScript(script.textContent || '');
+        });
+
+        scriptLoadedRef.current = true;
+
+        // Check for Viator object
+        const checkViator = setInterval(() => {
+          if ((window as any).viator) {
+            clearInterval(checkViator);
+          }
+        }, 100);
+
+        // Clear interval after 5 seconds
+        setTimeout(() => clearInterval(checkViator), 5000);
+
+      } catch (error) {
+        console.error('Error loading widget:', error);
+        // Try to reinitialize after a delay
+        setTimeout(initWidget, 1000);
+      }
+    };
+
+    // Initialize widget
+    initWidget();
 
     // Cleanup function
     return () => {
-      if (currentContainer) {
-        currentContainer.innerHTML = '';
+      if (container) {
+        container.innerHTML = '';
       }
-      // Remove any scripts we added to the head
-      scripts.forEach(oldScript => {
-        const scriptSrc = oldScript.src;
-        const scriptContent = oldScript.textContent;
-        document.querySelectorAll('script').forEach(script => {
-          if (
-            (scriptSrc && script.src === scriptSrc) ||
-            (scriptContent && script.textContent === scriptContent)
-          ) {
-            script.remove();
-          }
-        });
+      // Remove all scripts we added
+      document.querySelectorAll('script').forEach(script => {
+        if (script.textContent?.includes('viator')) {
+          script.remove();
+        }
       });
     };
-  }, [widgetCode]); // Re-run when widgetCode changes
+  }, [widgetCode, isReady]); // Added isReady to dependencies
 
   return (
-    <div 
-      ref={containerRef}
-      className="viator-widget-container mt-4"
-      style={{ minHeight: '300px' }}
-    />
+    <div className="viator-widget-container mt-2">
+      {!isReady ? (
+        <div className="flex items-center justify-center min-h-[300px] bg-gray-50">
+          <div className="text-gray-500">Loading booking widget...</div>
+        </div>
+      ) : (
+        <div 
+          ref={containerRef}
+          style={{ minHeight: '300px', margin: '0 auto' }}
+        />
+      )}
+    </div>
   );
 };
 
