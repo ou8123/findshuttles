@@ -10,65 +10,24 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Load Viator script only once
-    const loadViatorScript = () => {
-      return new Promise<void>((resolve) => {
-        if (document.querySelector('script[src*="viator.com"]')) {
-          resolve();
-          return;
-        }
+    if (!containerRef.current || !widgetCode) return;
 
-        const script = document.createElement('script');
-        script.src = "https://www.viator.com/orion/partner/widget.js";
-        script.async = true;
-        script.onload = () => resolve();
-        document.head.appendChild(script);
-      });
-    };
+    try {
+      // Set the widget HTML
+      containerRef.current.innerHTML = widgetCode;
 
-    const loadWidget = async () => {
-      if (!containerRef.current || !widgetCode) return;
-
-      try {
-        // Load Viator script first
-        await loadViatorScript();
-
-        // Clear container
-        containerRef.current.innerHTML = '';
-
-        // Create a temporary div to parse the widget code
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = widgetCode;
-
-        // Find the widget div and get its ID
-        const widgetDiv = tempDiv.querySelector('div[id^="viator-"]');
-        if (!widgetDiv) {
-          console.error('No widget div found in code');
-          return;
-        }
-
-        // Set the container's HTML to just the widget div
-        containerRef.current.innerHTML = widgetDiv.outerHTML;
-
-        // Give the script a moment to initialize
-        setTimeout(() => {
-          // Trigger a resize event to help the widget render
-          window.dispatchEvent(new Event('resize'));
-        }, 500);
-
-      } catch (error) {
-        console.error('Error loading widget:', error);
-        if (containerRef.current) {
-          containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
-        }
+      // Give a moment for the widget to initialize
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 500);
+    } catch (error) {
+      console.error('Error setting widget:', error);
+      if (containerRef.current) {
+        containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
       }
-    };
-
-    // Add a small delay before loading
-    const timer = setTimeout(loadWidget, 100);
+    }
 
     return () => {
-      clearTimeout(timer);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
