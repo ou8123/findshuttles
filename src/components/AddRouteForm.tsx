@@ -105,6 +105,10 @@ const AddRouteForm = () => {
     place: google.maps.places.PlaceResult,
     setter: (city: CityLookup | null) => void
   ): Promise<CityLookup | null> => {
+    console.log("Full place object:", place);
+    console.log("Address components:", place.address_components);
+    console.log("Geometry:", place.geometry);
+
     if (!place.address_components) {
       setCreateLocationError('Selected place is missing required details (address components).');
       return null;
@@ -113,17 +117,46 @@ const AddRouteForm = () => {
     // Extract city and country from address components
     let cityName = '';
     let countryName = '';
+    
+    // Log each component for debugging
+    place.address_components.forEach(component => {
+      console.log("Component:", {
+        long_name: component.long_name,
+        short_name: component.short_name,
+        types: component.types
+      });
+    });
+
+    // Try multiple component types for city name
     for (const component of place.address_components) {
       if (component.types.includes('locality')) {
         cityName = component.long_name;
-      } else if (component.types.includes('country')) {
+      } else if (!cityName && component.types.includes('administrative_area_level_1')) {
+        // Use administrative_area_level_1 as fallback for city name
+        cityName = component.long_name;
+      }
+      
+      if (component.types.includes('country')) {
         countryName = component.long_name;
       }
+    }
+
+    // If still no city name, try using the place name
+    if (!cityName && place.name) {
+      console.log("Using place name as city name:", place.name);
+      cityName = place.name;
     }
 
     // Extract coordinates if available
     const latitude = place.geometry?.location?.lat();
     const longitude = place.geometry?.location?.lng();
+
+    console.log("Extracted data:", {
+      cityName,
+      countryName,
+      latitude,
+      longitude
+    });
 
     if (!cityName || !countryName) {
       setCreateLocationError(`Could not extract city or country name for "${place.name}".`);
@@ -143,6 +176,8 @@ const AddRouteForm = () => {
       longitude: longitude ?? null
     };
 
+    console.log("Sending payload to API:", payload);
+
     try {
       const response = await fetch('/api/admin/locations/find-or-create', {
         method: 'POST',
@@ -151,6 +186,8 @@ const AddRouteForm = () => {
       });
 
       const result = await response.json();
+      console.log("API response:", result);
+
       if (!response.ok) {
         throw new Error(result.error || `Failed to find or create location (HTTP ${response.status})`);
       }
@@ -175,14 +212,22 @@ const AddRouteForm = () => {
   };
 
   // --- Autocomplete Handlers ---
-  const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => setDepartureAutocomplete(autocomplete);
-  const onDestinationLoad = (autocomplete: google.maps.places.Autocomplete) => setDestinationAutocomplete(autocomplete);
+  const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    console.log("Departure autocomplete loaded");
+    setDepartureAutocomplete(autocomplete);
+  };
+
+  const onDestinationLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    console.log("Destination autocomplete loaded");
+    setDestinationAutocomplete(autocomplete);
+  };
 
   const onDeparturePlaceChanged = async () => {
     setSelectedDepartureCity(null);
     setCreateLocationError(null);
     if (departureAutocomplete !== null) {
       const place = departureAutocomplete.getPlace();
+      console.log("Departure place selected:", place);
       if (place?.name) {
         const selectedName = place.name;
         setDepartureName(selectedName);
@@ -205,6 +250,7 @@ const AddRouteForm = () => {
     setCreateLocationError(null);
     if (destinationAutocomplete !== null) {
       const place = destinationAutocomplete.getPlace();
+      console.log("Destination place selected:", place);
       if (place?.name) {
         const selectedName = place.name;
         setDestinationName(selectedName);
