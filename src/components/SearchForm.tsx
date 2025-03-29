@@ -81,9 +81,13 @@ const SearchForm = () => {
   // Filter departure cities based on query
   const filteredDepartureCities = departureQuery === ''
     ? []
-    : departureCities.filter(city => 
-        city.name.toLowerCase().includes(departureQuery.toLowerCase())
-      );
+    : departureCities.filter(city => {
+        const searchStr = departureQuery.toLowerCase();
+        return (
+          city.name.toLowerCase().includes(searchStr) ||
+          city.countryName.toLowerCase().includes(searchStr)
+        );
+      });
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
@@ -141,7 +145,7 @@ const SearchForm = () => {
 
   return (
     <form onSubmit={handleSearch} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
-      <h2 className="text-2xl font-semibold mb-6 text-gray-700">Find Your Shuttles</h2>
+      <h2 className="text-2xl font-semibold mb-6 text-gray-700">Find Your Shuttle Route</h2>
 
       {/* Departure City Combobox */}
       <div className="mb-8">
@@ -152,9 +156,9 @@ const SearchForm = () => {
           <div className="relative">
             <Combobox.Input<CityLookup>
               className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black"
-              displayValue={(city) => city?.name ?? ''}
+              displayValue={(city) => city ? `${city.name}, ${city.countryName}` : ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
-              placeholder="Enter departure city"
+              placeholder="Enter city or country name"
             />
             <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
               {filteredDepartureCities.map((city) => (
@@ -167,7 +171,7 @@ const SearchForm = () => {
                     }`
                   }
                 >
-                  {city.name}
+                  {`${city.name}, ${city.countryName}`}
                 </Combobox.Option>
               ))}
               {filteredDepartureCities.length === 0 && departureQuery !== '' && (
@@ -204,7 +208,7 @@ const SearchForm = () => {
           </option>
           {validDestinations.map((city) => (
             <option key={city.id} value={city.id}>
-              {city.name}
+              {`${city.name}, ${city.country?.name}`}
             </option>
           ))}
         </select>
