@@ -66,6 +66,17 @@ export default function RoutePage({ params }: any) {
     }
   }, [route, hasScrolled]);
 
+  const getRouteTitle = (route: RouteWithRelations) => {
+    if (route.displayName) return route.displayName;
+
+    const sameCountry = route.departureCountry.name === route.destinationCountry.name;
+    if (sameCountry) {
+      return `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.departureCountry.name}`;
+    } else {
+      return `Shuttles from ${route.departureCity.name}, ${route.departureCountry.name} to ${route.destinationCity.name}, ${route.destinationCountry.name}`;
+    }
+  };
+
   if (!route) {
     return (
       <div>
@@ -87,7 +98,7 @@ export default function RoutePage({ params }: any) {
       
       <div ref={contentRef} className="scroll-mt-4">
         <h1 className="text-3xl font-bold mb-4">
-          {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
+          {getRouteTitle(route)}
         </h1>
 
         <div className="space-y-6">

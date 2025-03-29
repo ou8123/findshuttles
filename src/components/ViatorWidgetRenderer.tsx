@@ -8,17 +8,7 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Check if device is mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const [showReloadLink, setShowReloadLink] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
@@ -30,6 +20,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
 
         // Clear any existing content
         container.innerHTML = '';
+        setShowReloadLink(false);
 
         // Create a temporary div to parse the widget code
         const tempDiv = document.createElement('div');
@@ -80,39 +71,33 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         for (const script of scriptElements) {
           try {
             await loadScript(script);
-            // Add a longer delay between scripts on mobile
-            if (isMobile) {
-              await new Promise(resolve => setTimeout(resolve, 300));
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
+            // Add a small delay between scripts
+            await new Promise(resolve => setTimeout(resolve, 200));
           } catch (error) {
             console.error('Error loading script:', error);
-            // On mobile, retry once after a delay if script fails
-            if (isMobile) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-              try {
-                await loadScript(script);
-              } catch (retryError) {
-                console.error('Retry failed:', retryError);
-              }
-            }
+            setShowReloadLink(true);
           }
         }
 
-        // On mobile, add a final delay and trigger a resize event
-        if (isMobile) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          window.dispatchEvent(new Event('resize'));
-        }
+        // Add a final delay and trigger resize
+        await new Promise(resolve => setTimeout(resolve, 500));
+        window.dispatchEvent(new Event('resize'));
+
+        // Show reload link after a delay if widget might not be visible
+        setTimeout(() => {
+          if (container.querySelector('iframe')?.clientHeight === 0) {
+            setShowReloadLink(true);
+          }
+        }, 2000);
+
       } catch (error) {
         console.error('Error loading widget:', error);
+        setShowReloadLink(true);
       }
     };
 
-    // Add a longer initial delay on mobile
-    const initialDelay = isMobile ? 1000 : 500;
-    const timer = setTimeout(loadWidget, initialDelay);
+    // Add initial delay
+    const timer = setTimeout(loadWidget, 500);
 
     return () => {
       clearTimeout(timer);
@@ -120,17 +105,33 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         containerRef.current.innerHTML = '';
       }
     };
-  }, [widgetCode, isMobile]);
+  }, [widgetCode]);
+
+  const handleReload = () => {
+    window.location.reload();
+  };
 
   return (
-    <div 
-      ref={containerRef}
-      className="w-full min-h-[400px]"
-      style={{ 
-        height: 'auto',
-        overflow: 'visible'
-      }}
-    />
+    <div>
+      <div 
+        ref={containerRef}
+        className="w-full min-h-[400px]"
+        style={{ 
+          height: 'auto',
+          overflow: 'visible'
+        }}
+      />
+      {showReloadLink && (
+        <div className="text-center mt-4">
+          <button
+            onClick={handleReload}
+            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+          >
+            Shuttle Options not loading? Click here
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
