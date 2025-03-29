@@ -7,8 +7,8 @@ import { Prisma } from '@prisma/client';
 interface UpdateRouteData {
   departureCityId: string;
   destinationCityId: string;
-  routeSlug: string;
-  displayName: string;
+  routeSlug?: string;
+  displayName?: string;
   viatorWidgetCode: string;
   metaTitle?: string | null;
   metaDescription?: string | null;
@@ -33,9 +33,9 @@ export async function PUT(request: Request, context: any) {
   }
 
   // Validate required fields
-  if (!data.departureCityId || !data.destinationCityId || !data.viatorWidgetCode || !data.routeSlug || !data.displayName) {
+  if (!data.departureCityId || !data.destinationCityId || !data.viatorWidgetCode) {
     return NextResponse.json(
-      { error: 'Missing required fields: departureCityId, destinationCityId, viatorWidgetCode, routeSlug, displayName' },
+      { error: 'Missing required fields: departureCityId, destinationCityId, viatorWidgetCode' },
       { status: 400 }
     );
   }
@@ -48,11 +48,35 @@ export async function PUT(request: Request, context: any) {
     const [departureCity, destinationCity] = await Promise.all([
       prisma.city.findUnique({
         where: { id: data.departureCityId },
-        include: { country: true }
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          countryId: true,
+          country: {
+            select: { 
+              id: true,
+              name: true,
+              slug: true 
+            }
+          }
+        }
       }),
       prisma.city.findUnique({
         where: { id: data.destinationCityId },
-        include: { country: true }
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          countryId: true,
+          country: {
+            select: { 
+              id: true,
+              name: true,
+              slug: true 
+            }
+          }
+        }
       })
     ]);
 
@@ -60,10 +84,16 @@ export async function PUT(request: Request, context: any) {
       return NextResponse.json({ error: 'Invalid departure or destination city ID' }, { status: 400 });
     }
 
+    // Generate route slug with country names if not provided
+    const routeSlug = data.routeSlug || `${departureCity.slug}-${departureCity.country.slug}-to-${destinationCity.slug}-${destinationCity.country.slug}`;
+    
+    // Generate display name if not provided
+    const displayName = data.displayName || `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
+
     // Check if the route already exists with this slug, excluding the current route
     const existingRoute = await prisma.route.findFirst({
       where: {
-        routeSlug: data.routeSlug,
+        routeSlug: routeSlug,
         NOT: {
           id: routeId
         }
@@ -82,8 +112,8 @@ export async function PUT(request: Request, context: any) {
       destinationCityId: data.destinationCityId,
       departureCountryId: departureCity.country.id,
       destinationCountryId: destinationCity.country.id,
-      routeSlug: data.routeSlug,
-      displayName: data.displayName,
+      routeSlug: routeSlug,
+      displayName: displayName,
       viatorWidgetCode: data.viatorWidgetCode,
       metaTitle: data.metaTitle || null,
       metaDescription: data.metaDescription || null,

@@ -11,6 +11,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   const [isReady, setIsReady] = useState(false);
   const [loadAttempts, setLoadAttempts] = useState(0);
   const maxAttempts = 3;
+  const [widgetLoaded, setWidgetLoaded] = useState(false);
 
   useEffect(() => {
     // Add a delay before initializing the widget
@@ -91,22 +92,26 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           }, index * 500); // 500ms delay between each inline script
         });
 
-        // Check for Viator object
-        const checkViator = setInterval(() => {
-          if ((window as any).viator) {
-            clearInterval(checkViator);
+        // Check for Viator object and widget content
+        const checkWidget = setInterval(() => {
+          const hasViator = !!(window as any).viator;
+          const hasContent = container.querySelector('.viator-embedded');
+          
+          if (hasViator && hasContent) {
+            clearInterval(checkWidget);
+            setWidgetLoaded(true);
             console.log('Viator widget loaded successfully');
           }
-        }, 100);
+        }, 500);
 
-        // Clear interval after 10 seconds
+        // Clear interval after 15 seconds
         setTimeout(() => {
-          clearInterval(checkViator);
-          if (!(window as any).viator && loadAttempts < maxAttempts) {
+          clearInterval(checkWidget);
+          if (!widgetLoaded && loadAttempts < maxAttempts) {
             console.log(`Attempt ${loadAttempts + 1} failed, retrying...`);
             setLoadAttempts(prev => prev + 1);
           }
-        }, 10000);
+        }, 15000);
 
       } catch (error) {
         console.error('Error loading widget:', error);
@@ -125,6 +130,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       if (container) {
         container.innerHTML = '';
       }
+      setWidgetLoaded(false);
       // Remove all scripts we added
       document.querySelectorAll('script').forEach(script => {
         if (script.textContent?.includes('viator') || script.src.includes('viator')) {
@@ -132,11 +138,12 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         }
       });
     };
-  }, [widgetCode, isReady, loadAttempts]);
+  }, [widgetCode, isReady, loadAttempts, widgetLoaded]);
 
   // Reset load attempts when widget code changes
   useEffect(() => {
     setLoadAttempts(0);
+    setWidgetLoaded(false);
   }, [widgetCode]);
 
   return (
@@ -149,9 +156,10 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         <div 
           ref={containerRef}
           style={{ minHeight: '300px', margin: '0 auto' }}
+          className={widgetLoaded ? '' : 'opacity-0'}
         />
       )}
-      {loadAttempts >= maxAttempts && (
+      {loadAttempts >= maxAttempts && !widgetLoaded && (
         <div className="text-red-500 text-sm mt-2 text-center">
           Widget failed to load. Please refresh the page to try again.
         </div>
