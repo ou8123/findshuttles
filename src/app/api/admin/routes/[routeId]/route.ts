@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 interface UpdateRouteData {
   departureCityId: string;
   destinationCityId: string;
+  routeSlug: string;
+  displayName: string;
   viatorWidgetCode: string;
   metaTitle?: string | null;
   metaDescription?: string | null;
@@ -31,9 +33,9 @@ export async function PUT(request: Request, context: any) {
   }
 
   // Validate required fields
-  if (!data.departureCityId || !data.destinationCityId || !data.viatorWidgetCode) {
+  if (!data.departureCityId || !data.destinationCityId || !data.viatorWidgetCode || !data.routeSlug || !data.displayName) {
     return NextResponse.json(
-      { error: 'Missing required fields: departureCityId, destinationCityId, viatorWidgetCode' },
+      { error: 'Missing required fields: departureCityId, destinationCityId, viatorWidgetCode, routeSlug, displayName' },
       { status: 400 }
     );
   }
@@ -42,7 +44,7 @@ export async function PUT(request: Request, context: any) {
   }
 
   try {
-    // Fetch cities with their countries for the slug
+    // Fetch cities with their countries for validation
     const [departureCity, destinationCity] = await Promise.all([
       prisma.city.findUnique({
         where: { id: data.departureCityId },
@@ -59,10 +61,9 @@ export async function PUT(request: Request, context: any) {
     }
 
     // Check if the route already exists with this slug, excluding the current route
-    const routeSlug = `${departureCity.country.slug}-${departureCity.slug}-to-${destinationCity.slug}`;
     const existingRoute = await prisma.route.findFirst({
       where: {
-        routeSlug: routeSlug,
+        routeSlug: data.routeSlug,
         NOT: {
           id: routeId
         }
@@ -71,7 +72,7 @@ export async function PUT(request: Request, context: any) {
 
     if (existingRoute) {
       return NextResponse.json(
-        { error: `A route from ${departureCity.name} to ${destinationCity.name} already exists.` },
+        { error: `A route with this URL slug already exists.` },
         { status: 409 }
       );
     }
@@ -83,12 +84,13 @@ export async function PUT(request: Request, context: any) {
         destinationCityId: data.destinationCityId,
         departureCountryId: departureCity.country.id,
         destinationCountryId: destinationCity.country.id,
-        routeSlug: routeSlug,
+        routeSlug: data.routeSlug,
+        displayName: data.displayName,
         viatorWidgetCode: data.viatorWidgetCode,
-        metaTitle: data.metaTitle,
-        metaDescription: data.metaDescription,
-        metaKeywords: data.metaKeywords,
-        seoDescription: data.seoDescription,
+        metaTitle: data.metaTitle || null,
+        metaDescription: data.metaDescription || null,
+        metaKeywords: data.metaKeywords || null,
+        seoDescription: data.seoDescription || null,
       },
     });
     console.log(`Admin Route PUT: Successfully updated route ${updatedRoute.id} by user ${session.user?.email}`);

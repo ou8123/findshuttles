@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from "@/lib/auth"; // Import from new location
+import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client'; // Import Prisma types for validation/error handling
+import { Prisma } from '@prisma/client';
 
-// Define expected shape of the request body for POST
 interface NewRouteData {
   departureCityId: string;
   destinationCityId: string;
   viatorWidgetCode: string;
-  seoDescription?: string;
-  // Add other fields as needed
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  metaKeywords?: string | null;
+  seoDescription?: string | null;
 }
 
-// --- GET Handler ---
-export async function GET() { // Removed unused _request parameter
-  // 1. Check Authentication and Authorization
+export async function GET() {
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role;
 
@@ -24,29 +23,24 @@ export async function GET() { // Removed unused _request parameter
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // 2. Fetch Routes from Database
   try {
     const routes = await prisma.route.findMany({
       include: {
-        departureCity: { select: { name: true } },      // Include departure city name
-        destinationCity: { select: { name: true } },    // Include destination city name
-        departureCountry: { select: { name: true } },   // Include departure country name
-        destinationCountry: { select: { name: true } }, // Include destination country name
+        departureCity: { select: { name: true } },
+        destinationCity: { select: { name: true } },
+        departureCountry: { select: { name: true } },
+        destinationCountry: { select: { name: true } },
       },
       orderBy: {
-        // Optional: Order routes, e.g., by creation date or slug
         createdAt: 'desc',
       }
     });
 
     console.log(`Admin Route GET: Fetched ${routes.length} routes for user ${session.user?.email}`);
-
-    // 3. Return Success Response
     return NextResponse.json(routes, { status: 200 });
 
   } catch (error) {
     console.error("Admin Route GET: Error fetching routes.", error);
-    // Generic server error
     return NextResponse.json(
       { error: 'Failed to fetch routes' },
       { status: 500 }
@@ -54,20 +48,8 @@ export async function GET() { // Removed unused _request parameter
   }
 }
 
-// --- POST Handler ---
-interface NewRouteData {
-  departureCityId: string;
-  destinationCityId: string;
-  viatorWidgetCode: string;
-  seoDescription?: string;
-  // Add other fields as needed
-}
-
 export async function POST(request: Request) {
-  // 1. Check Authentication and Authorization
   const session = await getServerSession(authOptions);
-
-  // Use type assertion or check if user exists and has role
   const userRole = session?.user?.role;
 
   if (!session || userRole !== 'ADMIN') {
@@ -75,7 +57,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // 2. Parse Request Body
   let data: NewRouteData;
   try {
     data = await request.json();
@@ -84,7 +65,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  // 3. Validate Incoming Data (Basic)
   if (!data.departureCityId || !data.destinationCityId || !data.viatorWidgetCode) {
     return NextResponse.json(
       { error: 'Missing required fields: departureCityId, destinationCityId, viatorWidgetCode' },
@@ -92,69 +72,72 @@ export async function POST(request: Request) {
     );
   }
 
-  // 4. Create Route using Prisma
   try {
-    // Fetch departure city with its country slug, and destination city
     const departureCity = await prisma.city.findUnique({
         where: { id: data.departureCityId },
         select: {
+            name: true,
             slug: true,
             countryId: true,
-            country: { // Include country relation
-                select: { slug: true } // Select country slug
+            country: {
+                select: { 
+                    slug: true,
+                    name: true
+                }
             }
         }
     });
     const destinationCity = await prisma.city.findUnique({
         where: { id: data.destinationCityId },
-        select: { slug: true, countryId: true } // Destination country ID is enough for denormalization
+        select: {
+            name: true,
+            slug: true,
+            countryId: true,
+            country: {
+                select: { name: true }
+            }
+        }
     });
 
-    // Validate fetched data
-    if (!departureCity || !destinationCity || !departureCity.country?.slug) { // Check country slug existence
+    if (!departureCity || !destinationCity || !departureCity.country?.slug) {
         return NextResponse.json({ error: 'Invalid departure/destination city ID or missing country data' }, { status: 400 });
     }
 
-    // Construct the new route slug format
     const routeSlug = `${departureCity.country.slug}-${departureCity.slug}-to-${destinationCity.slug}`;
+    const displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
 
     const newRoute = await prisma.route.create({
       data: {
         departureCityId: data.departureCityId,
         destinationCityId: data.destinationCityId,
-        departureCountryId: departureCity.countryId, // Denormalized
-        destinationCountryId: destinationCity.countryId, // Denormalized
+        departureCountryId: departureCity.countryId,
+        destinationCountryId: destinationCity.countryId,
         routeSlug: routeSlug,
+        displayName: displayName,
         viatorWidgetCode: data.viatorWidgetCode,
-        seoDescription: data.seoDescription, // Optional
+        metaTitle: data.metaTitle || null,
+        metaDescription: data.metaDescription || null,
+        metaKeywords: data.metaKeywords || null,
+        seoDescription: data.seoDescription || null,
       },
     });
 
     console.log(`Admin Route POST: Successfully created route ${newRoute.routeSlug} by user ${session.user?.email}`);
-
-    // TODO: Implement revalidation for the created route page
-    // Example: revalidatePath(`/routes/${newRoute.routeSlug}`);
-
-    // 5. Return Success Response
-    return NextResponse.json(newRoute, { status: 201 }); // 201 Created
+    return NextResponse.json(newRoute, { status: 201 });
 
   } catch (error) {
     console.error("Admin Route POST: Error creating route.", error);
 
-    // Handle potential unique constraint violation (e.g., routeSlug already exists)
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'A route with this departure and destination already exists.' },
-        { status: 409 } // 409 Conflict
+        { status: 409 }
       );
     }
 
-    // Generic server error
     return NextResponse.json(
       { error: 'Failed to create route' },
       { status: 500 }
     );
   }
 }
-
-// You might add GET, PUT, DELETE handlers here later for full CRUD
