@@ -80,10 +80,7 @@ export async function POST(request: Request) {
             slug: true,
             countryId: true,
             country: {
-                select: { 
-                    slug: true,
-                    name: true
-                }
+                select: { name: true }
             }
         }
     });
@@ -99,11 +96,12 @@ export async function POST(request: Request) {
         }
     });
 
-    if (!departureCity || !destinationCity || !departureCity.country?.slug) {
-        return NextResponse.json({ error: 'Invalid departure/destination city ID or missing country data' }, { status: 400 });
+    if (!departureCity || !destinationCity) {
+        return NextResponse.json({ error: 'Invalid departure/destination city ID' }, { status: 400 });
     }
 
-    const routeSlug = `${departureCity.country.slug}-${departureCity.slug}-to-${destinationCity.slug}`;
+    // Remove country slug from route slug
+    const routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
     const displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
 
     const newRoute = await prisma.route.create({
