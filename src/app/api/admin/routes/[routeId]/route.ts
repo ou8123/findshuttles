@@ -78,10 +78,10 @@ export async function PUT(request: Request, context: any) {
     }
 
     const updateData = {
-      departureCity: { connect: { id: data.departureCityId } },
-      destinationCity: { connect: { id: data.destinationCityId } },
-      departureCountry: { connect: { id: departureCity.country.id } },
-      destinationCountry: { connect: { id: destinationCity.country.id } },
+      departureCityId: data.departureCityId,
+      destinationCityId: data.destinationCityId,
+      departureCountryId: departureCity.country.id,
+      destinationCountryId: destinationCity.country.id,
       routeSlug: data.routeSlug,
       displayName: data.displayName,
       viatorWidgetCode: data.viatorWidgetCode,
@@ -94,6 +94,12 @@ export async function PUT(request: Request, context: any) {
     const updatedRoute = await prisma.route.update({
       where: { id: routeId },
       data: updateData,
+      include: {
+        departureCity: true,
+        destinationCity: true,
+        departureCountry: true,
+        destinationCountry: true,
+      }
     });
 
     console.log(`Admin Route PUT: Successfully updated route ${updatedRoute.id} by user ${session.user?.email}`);
