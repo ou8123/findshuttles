@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+import React, { useState, useEffect } from 'react';
 
 // Define the expected structure of the location data from the API (for lookup)
 interface CityLookup {
   id: string;
   name: string;
   slug: string;
+  country: {
+    name: string;
+  };
 }
+
 interface CountryWithCitiesLookup {
   id: string;
   name: string;
@@ -16,22 +19,15 @@ interface CountryWithCitiesLookup {
   cities: CityLookup[];
 }
 
-// Define libraries for Google Maps API
-const libraries: ("places")[] = ['places'];
-
 const AddRouteForm = () => {
   // State for internal locations lookup data
   const [locationsLookup, setLocationsLookup] = useState<CountryWithCitiesLookup[]>([]);
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
-  // State for Autocomplete instances and selected place names/matched cities
-  const [departureAutocomplete, setDepartureAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
-  const [destinationAutocomplete, setDestinationAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
-  const [departureName, setDepartureName] = useState<string>('');
-  const [destinationName, setDestinationName] = useState<string>('');
-  const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
-  const [selectedDestinationCity, setSelectedDestinationCity] = useState<CityLookup | null>(null);
+  // State for selected cities
+  const [selectedDepartureCity, setSelectedDepartureCity] = useState<string>('');
+  const [selectedDestinationCity, setSelectedDestinationCity] = useState<string>('');
 
   // State for form fields
   const [viatorWidgetCode, setViatorWidgetCode] = useState<string>('');
@@ -46,19 +42,6 @@ const AddRouteForm = () => {
   // State for submission status
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
-  const [isCreatingLocation, setIsCreatingLocation] = useState<boolean>(false);
-  const [createLocationError, setCreateLocationError] = useState<string | null>(null);
-
-  // Refs for inputs
-  const departureInputRef = useRef<HTMLInputElement>(null);
-  const destinationInputRef = useRef<HTMLInputElement>(null);
-
-  // --- Load Google Maps API ---
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || "",
-    libraries: libraries,
-  });
 
   // Fetch internal locations data on mount
   useEffect(() => {
@@ -84,193 +67,24 @@ const AddRouteForm = () => {
     fetchLocationsLookup();
   }, []);
 
-  // --- Autocomplete Helper ---
-  const findMatchingCity = (placeName: string): CityLookup | null => {
-      const nameLower = placeName.trim().toLowerCase();
-      for (const country of locationsLookup) {
-          const cityMatch = country.cities.find(city => city.name.trim().toLowerCase() === nameLower);
-          if (cityMatch) {
-              return cityMatch;
-          }
-      }
-      return null;
-  };
-
-  // --- Helper to call the find-or-create API ---
-  const handleFindOrCreateLocation = async (
-    place: google.maps.places.PlaceResult,
-    setter: React.Dispatch<React.SetStateAction<CityLookup | null>>
-  ): Promise<CityLookup | null> => {
-    if (!place.address_components || !place.name) {
-      setCreateLocationError("Selected place is missing required details (address components or name).");
-      return null;
-    }
-
-    // Debug logging
-    console.log("Place details:", {
-      name: place.name,
-      formatted_address: place.formatted_address,
-      address_components: place.address_components.map(comp => ({
-        long_name: comp.long_name,
-        types: comp.types
-      }))
-    });
-
-    // Extract city and country names from address_components
-    const cityComponent = place.address_components.find(comp => 
-      comp.types.includes('locality') || 
-      comp.types.includes('administrative_area_level_3') ||
-      comp.types.includes('sublocality') ||
-      comp.types.includes('sublocality_level_1')
-    );
-
-    // If no city component found, try to find it in the formatted address
-    const countryComponent = place.address_components.find(comp => comp.types.includes('country'));
-    const addressParts = place.formatted_address?.split(',').map(part => part.trim());
-    
-    // Try to get city name from various sources
-    let cityName = cityComponent?.long_name;
-    if (!cityName && addressParts && addressParts.length > 1) {
-      // Usually the city is the second-to-last part before the country
-      cityName = addressParts[addressParts.length - 2];
-    }
-    cityName = cityName || place.name;
-    
-    const countryName = countryComponent?.long_name;
-
-    // Extract coordinates if available
-    const latitude = place.geometry?.location?.lat();
-    const longitude = place.geometry?.location?.lng();
-
-    if (!cityName || !countryName) {
-      setCreateLocationError(`Could not extract city or country name for "${place.name}".`);
-      console.error("Missing city/country components:", place.address_components);
-      return null;
-    }
-
-    setIsCreatingLocation(true);
-    setCreateLocationError(null);
-    setSubmitStatus(null);
-
-    // Prepare payload including coordinates
-    const payload = {
-        cityName,
-        countryName,
-        latitude: latitude ?? null,
-        longitude: longitude ?? null
-    };
-
-    try {
-      const response = await fetch('/api/admin/locations/find-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || `Failed to find or create location (HTTP ${response.status})`);
-      }
-
-      const createdCity: CityLookup = result;
-      setter(createdCity);
-      console.log(`Successfully found/created and set city: ${createdCity.name}`);
-      return createdCity;
-
-    } catch (error: unknown) {
-      console.error("Error in handleFindOrCreateLocation:", error);
-      let message = "Failed to add the selected location to the database.";
-      if (error instanceof Error) {
-        message = error.message;
-      }
-      setCreateLocationError(message);
-      setter(null);
-      return null;
-    } finally {
-      setIsCreatingLocation(false);
-    }
-  };
-
-  // --- Autocomplete Handlers ---
-  const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => setDepartureAutocomplete(autocomplete);
-  const onDestinationLoad = (autocomplete: google.maps.places.Autocomplete) => setDestinationAutocomplete(autocomplete);
-
-  const onDeparturePlaceChanged = async () => {
-    setSelectedDepartureCity(null);
-    setCreateLocationError(null);
-    if (departureAutocomplete !== null) {
-      const place = departureAutocomplete.getPlace();
-      if (place?.name) {
-        const selectedName = place.name;
-        setDepartureName(selectedName);
-        const matchedCity = findMatchingCity(selectedName);
-        if (matchedCity) {
-            setSelectedDepartureCity(matchedCity);
-            console.log("Matched Departure City:", matchedCity);
-        } else {
-            console.warn(`Selected departure "${selectedName}" not found in internal data. Attempting to find or create...`);
-            await handleFindOrCreateLocation(place, setSelectedDepartureCity);
-        }
-      } else {
-        setDepartureName('');
-      }
-    }
-  };
-
-   const onDestinationPlaceChanged = async () => {
-    setSelectedDestinationCity(null);
-    setCreateLocationError(null);
-    if (destinationAutocomplete !== null) {
-      const place = destinationAutocomplete.getPlace();
-       if (place?.name) {
-        const selectedName = place.name;
-        setDestinationName(selectedName);
-         const matchedCity = findMatchingCity(selectedName);
-        if (matchedCity) {
-            setSelectedDestinationCity(matchedCity);
-            console.log("Matched Destination City:", matchedCity);
-        } else {
-            console.warn(`Selected destination "${selectedName}" not found in internal data. Attempting to find or create...`);
-            await handleFindOrCreateLocation(place, setSelectedDestinationCity);
-        }
-      } else {
-         setDestinationName('');
-      }
-    }
-  };
-
-  // Handle manual input clearing
-   const handleDepartureInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (event.target.value === '') {
-          setDepartureName('');
-          setSelectedDepartureCity(null);
-      }
-  };
-   const handleDestinationInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-       if (event.target.value === '') {
-          setDestinationName('');
-          setSelectedDestinationCity(null);
-      }
-  };
-
   // Handle form submission
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
 
-    // Validate that cities were selected AND matched in our DB
+    // Validate that cities were selected
     if (!selectedDepartureCity || !selectedDestinationCity) {
-        setSubmitStatus({ success: false, message: 'Please select valid departure and destination cities from the suggestions that match cities in our system.' });
+        setSubmitStatus({ success: false, message: 'Please select both departure and destination cities.' });
         setIsSubmitting(false);
         return;
     }
-     if (selectedDepartureCity.id === selectedDestinationCity.id) {
+    if (selectedDepartureCity === selectedDestinationCity) {
         setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same.' });
         setIsSubmitting(false);
         return;
     }
-     if (!viatorWidgetCode) {
+    if (!viatorWidgetCode) {
         setSubmitStatus({ success: false, message: 'Viator Widget Code is required.' });
         setIsSubmitting(false);
         return;
@@ -281,8 +95,8 @@ const AddRouteForm = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          departureCityId: selectedDepartureCity.id,
-          destinationCityId: selectedDestinationCity.id,
+          departureCityId: selectedDepartureCity,
+          destinationCityId: selectedDestinationCity,
           viatorWidgetCode,
           metaTitle: metaTitle || undefined,
           metaDescription: metaDescription || undefined,
@@ -297,17 +111,13 @@ const AddRouteForm = () => {
       // Success
       setSubmitStatus({ success: true, message: `Route created successfully! Slug: ${result.routeSlug}` });
       // Clear form
-      setDepartureName('');
-      setDestinationName('');
-      setSelectedDepartureCity(null);
-      setSelectedDestinationCity(null);
+      setSelectedDepartureCity('');
+      setSelectedDestinationCity('');
       setViatorWidgetCode('');
       setMetaTitle('');
       setMetaDescription('');
       setMetaKeywords('');
       setSeoDescription('');
-      if (departureInputRef.current) departureInputRef.current.value = '';
-      if (destinationInputRef.current) destinationInputRef.current.value = '';
 
     } catch (error: unknown) {
       console.error("Failed to submit new route:", error);
@@ -321,75 +131,61 @@ const AddRouteForm = () => {
     }
   };
 
-  // --- Render Logic ---
-   if (loadError) {
-      console.error("Google Maps API load error:", loadError);
-      return <div className="text-center p-4 text-red-600">Error loading Google Maps services.</div>;
-  }
-
-  if (!isLoaded) {
-      return <div className="text-center p-4">Loading Map Services...</div>;
-  }
-
-   if (!apiKey) {
-      return <div className="text-center p-4 text-red-600">Configuration error: Google Maps API Key is missing.</div>;
-  }
+  // Create a flat list of all cities with their country names
+  const allCities = locationsLookup.flatMap(country => 
+    country.cities.map(city => ({
+      ...city,
+      countryName: country.name
+    }))
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Departure City Autocomplete */}
+      {/* Departure City Select */}
       <div>
         <label htmlFor="admin-departure" className="block text-sm font-medium text-gray-700 mb-1">
           Departure City *
         </label>
-        <Autocomplete
-            onLoad={onDepartureLoad}
-            onPlaceChanged={onDeparturePlaceChanged}
-            options={{ types: ['(cities)'] }}
-          >
-            <input
-              id="admin-departure"
-              type="text"
-              ref={departureInputRef}
-              required={!selectedDepartureCity}
-              placeholder="Enter departure city"
-              className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-              onChange={handleDepartureInputChange}
-            />
-       </Autocomplete>
-       {departureName && !selectedDepartureCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{departureName}&quot; not found in our system.</p>}
-     </div>
+        <select
+          id="admin-departure"
+          value={selectedDepartureCity}
+          onChange={(e) => setSelectedDepartureCity(e.target.value)}
+          required
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+        >
+          <option value="">Select departure city</option>
+          {allCities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}, {city.country.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-     {/* Destination City Autocomplete */}
+      {/* Destination City Select */}
       <div>
         <label htmlFor="admin-destination" className="block text-sm font-medium text-gray-700 mb-1">
           Destination City *
         </label>
-         <Autocomplete
-            onLoad={onDestinationLoad}
-            onPlaceChanged={onDestinationPlaceChanged}
-            options={{ types: ['(cities)'] }}
-          >
-            <input
-              id="admin-destination"
-              type="text"
-              ref={destinationInputRef}
-              required={!selectedDestinationCity}
-              placeholder="Enter destination city"
-              className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-              onChange={handleDestinationInputChange}
-            />
-         </Autocomplete>
-         {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{destinationName}&quot; not found in our system.</p>}
-     </div>
+        <select
+          id="admin-destination"
+          value={selectedDestinationCity}
+          onChange={(e) => setSelectedDestinationCity(e.target.value)}
+          required
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+        >
+          <option value="">Select destination city</option>
+          {allCities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}, {city.country.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Loading/Error state for internal location data */}
-       {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-1">Loading existing location data...</p>}
-       {locationLookupError && <p className="text-sm text-red-500 mt-1">{locationLookupError}</p>}
-
-       {/* Loading/Error state for find-or-create process */}
-       {isCreatingLocation && <p className="text-sm text-blue-600 mt-1">Checking/adding selected location to database...</p>}
-       {createLocationError && <p className="text-sm text-red-600 mt-1">{createLocationError}</p>}
+      {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-1">Loading existing location data...</p>}
+      {locationLookupError && <p className="text-sm text-red-500 mt-1">{locationLookupError}</p>}
 
       {/* Viator Widget Code */}
       <div>
@@ -475,8 +271,8 @@ const AddRouteForm = () => {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    departureCityId: selectedDepartureCity.id,
-                    destinationCityId: selectedDestinationCity.id
+                    departureCityId: selectedDepartureCity,
+                    destinationCityId: selectedDestinationCity
                   }),
                 });
 
@@ -519,14 +315,14 @@ const AddRouteForm = () => {
 
       {/* Submit Button & Status Message */}
       <div className="pt-2">
-         {submitStatus && (
-            <p className={`mb-3 text-sm ${submitStatus.success ? 'text-green-600' : 'text-red-600'}`}>
-                {submitStatus.message}
-            </p>
-         )}
+        {submitStatus && (
+          <p className={`mb-3 text-sm ${submitStatus.success ? 'text-green-600' : 'text-red-600'}`}>
+            {submitStatus.message}
+          </p>
+        )}
         <button
           type="submit"
-          disabled={isSubmitting || isLoadingLocationsLookup || !isLoaded}
+          disabled={isSubmitting || isLoadingLocationsLookup}
           className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? 'Adding Route...' : 'Add Route'}
