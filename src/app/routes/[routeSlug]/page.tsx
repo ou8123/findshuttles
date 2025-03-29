@@ -1,8 +1,10 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 import SearchForm from '@/components/SearchForm';
-import prisma from '@/lib/prisma';
 
 interface RouteWithRelations {
   routeSlug: string;
@@ -27,39 +29,48 @@ interface RouteWithRelations {
   };
 }
 
-export default async function RoutePage({ params }: any) {
-  const route = await prisma.route.findUnique({
-    where: { routeSlug: params.routeSlug },
-    select: {
-      routeSlug: true,
-      displayName: true,
-      viatorWidgetCode: true,
-      seoDescription: true,
-      departureCity: {
-        select: { 
-          name: true, 
-          latitude: true, 
-          longitude: true 
+export default function RoutePage({ params }: any) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [route, setRoute] = useState<RouteWithRelations | null>(null);
+
+  useEffect(() => {
+    const fetchRoute = async () => {
+      try {
+        const response = await fetch(`/api/routes/${params.routeSlug}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            notFound();
+          }
+          throw new Error('Failed to fetch route data');
         }
-      },
-      departureCountry: { 
-        select: { name: true } 
-      },
-      destinationCity: {
-        select: { 
-          name: true, 
-          latitude: true, 
-          longitude: true 
+        const data = await response.json();
+        setRoute(data);
+
+        // Scroll to content after data is loaded
+        if (contentRef.current) {
+          setTimeout(() => {
+            contentRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         }
-      },
-      destinationCountry: { 
-        select: { name: true } 
-      },
-    },
-  });
+      } catch (error) {
+        console.error('Error fetching route:', error);
+      }
+    };
+
+    fetchRoute();
+  }, [params.routeSlug]);
 
   if (!route) {
-    notFound();
+    return (
+      <div>
+        <div className="mb-8">
+          <SearchForm />
+        </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-lg text-gray-600">Loading route information...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -68,7 +79,7 @@ export default async function RoutePage({ params }: any) {
         <SearchForm />
       </div>
       
-      <div>
+      <div ref={contentRef}>
         <h1 className="text-3xl font-bold mb-4">
           {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
         </h1>
