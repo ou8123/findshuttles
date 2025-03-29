@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -8,67 +8,54 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
 
     const container = containerRef.current;
-    let scriptQueue: HTMLScriptElement[] = [];
-    let currentScriptIndex = 0;
-
-    const loadNextScript = () => {
-      if (currentScriptIndex >= scriptQueue.length) {
-        scriptQueue = [];
-        currentScriptIndex = 0;
-        return;
-      }
-
-      const oldScript = scriptQueue[currentScriptIndex];
-      const script = document.createElement('script');
-      
-      // Copy attributes
-      Array.from(oldScript.attributes).forEach(attr => {
-        script.setAttribute(attr.name, attr.value);
-      });
-
-      // Set content
-      script.textContent = oldScript.textContent;
-
-      // Add load handler
-      script.onload = () => {
-        currentScriptIndex++;
-        setTimeout(loadNextScript, 100);
-      };
-
-      // Add error handler
-      script.onerror = () => {
-        currentScriptIndex++;
-        setTimeout(loadNextScript, 100);
-      };
-
-      // Add to document
-      document.head.appendChild(script);
-    };
+    let loadTimeout: NodeJS.Timeout;
 
     // Function to load widget
     const loadWidget = () => {
       try {
+        setIsLoading(true);
+
         // Parse widget code
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = widgetCode;
 
         // Extract scripts
-        scriptQueue = Array.from(tempDiv.getElementsByTagName('script'));
-        scriptQueue.forEach(script => script.remove());
+        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        scripts.forEach(script => script.remove());
 
         // Add non-script content
         container.innerHTML = tempDiv.innerHTML;
 
-        // Start loading scripts
-        currentScriptIndex = 0;
-        loadNextScript();
+        // Add scripts back directly
+        scripts.forEach(oldScript => {
+          const script = document.createElement('script');
+          
+          // Copy attributes
+          Array.from(oldScript.attributes).forEach(attr => {
+            script.setAttribute(attr.name, attr.value);
+          });
+
+          // Set content
+          script.textContent = oldScript.textContent;
+
+          // Add to container directly
+          container.appendChild(script);
+        });
+
+        // Hide loading after a delay
+        loadTimeout = setTimeout(() => {
+          setIsLoading(false);
+        }, 2000);
+
       } catch (error) {
         console.error('Error loading widget:', error);
+        setIsLoading(false);
       }
     };
 
@@ -78,25 +65,26 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     // Cleanup function
     return () => {
       clearTimeout(initTimeout);
+      clearTimeout(loadTimeout);
       if (container) {
         container.innerHTML = '';
       }
-      // Remove any scripts we added
-      document.querySelectorAll('script').forEach(script => {
-        if (script.textContent?.includes('viator')) {
-          script.remove();
-        }
-      });
-      scriptQueue = [];
-      currentScriptIndex = 0;
+      setIsLoading(true);
     };
   }, [widgetCode]);
 
   return (
-    <div 
-      ref={containerRef}
-      className="min-h-[400px]"
-    />
+    <div className="relative">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+          <div className="text-gray-500">Loading booking widget...</div>
+        </div>
+      )}
+      <div 
+        ref={containerRef}
+        className={`min-h-[400px] transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+      />
+    </div>
   );
 };
 
