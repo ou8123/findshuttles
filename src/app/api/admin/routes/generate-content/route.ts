@@ -17,6 +17,7 @@ function extractViatorInfo(html: string) {
     dropoffPoints?: string[];
     routeDescription?: string;
     duration?: string;
+    attractions?: string[];
   } = {};
 
   if (!html) return info;
@@ -25,13 +26,6 @@ function extractViatorInfo(html: string) {
     // Create a temporary div to parse HTML
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-
-    // Extract vehicle/driver info from class names or IDs that might contain this info
-    const vehicleInfo = doc.querySelector('.vehicle-info, #vehicle-details');
-    if (vehicleInfo) info.vehicle = vehicleInfo.textContent?.trim();
-
-    const driverInfo = doc.querySelector('.driver-info, #driver-details');
-    if (driverInfo) info.driver = driverInfo.textContent?.trim();
 
     // Extract pickup/dropoff points
     const pickupPoints = Array.from(doc.querySelectorAll('.pickup-point, .departure-point'));
@@ -51,6 +45,12 @@ function extractViatorInfo(html: string) {
     // Extract duration
     const duration = doc.querySelector('.duration-info, #tour-duration');
     if (duration) info.duration = duration.textContent?.trim();
+
+    // Extract attractions
+    const attractions = Array.from(doc.querySelectorAll('.attraction, .point-of-interest'));
+    if (attractions.length > 0) {
+      info.attractions = attractions.map(attr => attr.textContent?.trim()).filter(Boolean) as string[];
+    }
 
     return info;
   } catch (error) {
@@ -89,26 +89,35 @@ export async function POST(request: Request) {
     const viatorInfo = viatorHtml ? extractViatorInfo(viatorHtml) : {};
 
     // Construct the system message
-    const systemMessage = `You are a travel content expert who specializes in writing professional, SEO-optimized content for shuttle transportation routes. Always return a valid JSON object with the following exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown, code formatting, or additional commentary.`;
+    const systemMessage = `You are a professional travel writer who creates SEO-optimized content for transportation routes. Always return a valid JSON object with the following exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown, code blocks, or any additional formatting.`;
 
     // Construct the user message
-    let userMessage = `Generate professional, SEO-friendly content for a shuttle route from ${departureCity.name} to ${destinationCity.name} in ${destinationCity.country.name}. This is a point-to-point transport service for travelers (not a sightseeing tour). We are a booking platform that works with established local shuttle providers.`;
+    let userMessage = `Generate a professional, SEO-friendly description for a shuttle route from ${departureCity.name} to ${destinationCity.name} in ${destinationCity.country.name}. This is a point-to-point transfer, not a guided tour. Our platform connects travelers with established local shuttle providers.`;
 
     // Add Viator info if available
     if (Object.keys(viatorInfo).length > 0) {
-      userMessage += '\n\nSpecific route details from provider:';
-      if (viatorInfo.vehicle) userMessage += `\nVehicle: ${viatorInfo.vehicle}`;
-      if (viatorInfo.driver) userMessage += `\nDriver: ${viatorInfo.driver}`;
+      userMessage += '\n\nSpecific route details:';
       if (viatorInfo.pickupPoints?.length) userMessage += `\nPickup points: ${viatorInfo.pickupPoints.join(', ')}`;
       if (viatorInfo.dropoffPoints?.length) userMessage += `\nDropoff points: ${viatorInfo.dropoffPoints.join(', ')}`;
-      if (viatorInfo.routeDescription) userMessage += `\nRoute description: ${viatorInfo.routeDescription}`;
       if (viatorInfo.duration) userMessage += `\nDuration: ${viatorInfo.duration}`;
+      if (viatorInfo.routeDescription) userMessage += `\nRoute description: ${viatorInfo.routeDescription}`;
+      if (viatorInfo.attractions?.length) userMessage += `\nNearby attractions: ${viatorInfo.attractions.join(', ')}`;
     }
 
     // Add any additional info
     if (additionalInfo) {
       userMessage += `\n\nAdditional route information: ${additionalInfo}`;
     }
+
+    // Add writing guidelines
+    userMessage += `\n\nTone & Writing Guidelines:
+- Use a professional, informative tone that reads like a human wrote it.
+- Avoid all overly promotional phrases.
+- Do not refer to vehicles or drivers.
+- Avoid first-person phrases like "our shuttles" or "we provide."
+- Focus on destination appeal and useful travel context.
+- Include 1-3 top attractions in the destination.
+- End with a natural call-to-action encouraging booking.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
