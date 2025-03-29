@@ -1,19 +1,25 @@
-"use client"; // Needs client-side interactivity
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
-// Interfaces for data
 interface City {
     id: string;
     name: string;
-    country: { name: string }; // Include country for display
+    country: { 
+        name: string;
+        slug: string;
+    };
+    slug: string;
 }
+
 interface RouteData {
     id: string;
     departureCityId: string;
     destinationCityId: string;
+    routeSlug: string;
+    displayName: string;
     viatorWidgetCode: string;
     metaTitle?: string | null;
     metaDescription?: string | null;
@@ -29,6 +35,8 @@ const EditRoutePage = () => {
   // Form state
   const [departureCityId, setDepartureCityId] = useState('');
   const [destinationCityId, setDestinationCityId] = useState('');
+  const [routeSlug, setRouteSlug] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [viatorWidgetCode, setViatorWidgetCode] = useState('');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
@@ -54,11 +62,10 @@ const EditRoutePage = () => {
       setIsLoadingCities(true);
       setCityError(null);
       try {
-        // Use the city API which includes country name
         const response = await fetch('/api/admin/cities');
         if (!response.ok) throw new Error('Failed to fetch cities');
         const data: City[] = await response.json();
-        setCities(data); // Assumes API returns cities sorted appropriately
+        setCities(data);
       } catch (err: unknown) {
         console.error("Failed to fetch cities for dropdown:", err);
         let message = "Could not load cities.";
@@ -73,6 +80,27 @@ const EditRoutePage = () => {
     fetchCities();
   }, []);
 
+  // Update route slug and display name when cities change
+  useEffect(() => {
+    if (departureCityId && destinationCityId) {
+      const departureCity = cities.find(c => c.id === departureCityId);
+      const destinationCity = cities.find(c => c.id === destinationCityId);
+      
+      if (departureCity && destinationCity) {
+        const defaultSlug = `${departureCity.country.slug}-${departureCity.slug}-to-${destinationCity.slug}`;
+        const defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
+        
+        // Only update if not manually edited
+        if (!routeSlug || routeSlug === originalData.routeSlug) {
+          setRouteSlug(defaultSlug);
+        }
+        if (!displayName || displayName === originalData.displayName) {
+          setDisplayName(defaultDisplayName);
+        }
+      }
+    }
+  }, [departureCityId, destinationCityId, cities]);
+
   // Fetch the specific route data
   useEffect(() => {
     if (!routeId) {
@@ -85,11 +113,9 @@ const EditRoutePage = () => {
       setIsLoadingRoute(true);
       setError(null);
       try {
-        // Fetching all routes and filtering client-side for simplicity
-        // A dedicated GET /api/admin/routes/[routeId] would be better
         const response = await fetch(`/api/admin/routes`);
         if (!response.ok) throw new Error('Failed to fetch routes list');
-        const routes: RouteData[] = await response.json(); // Assuming API returns this shape
+        const routes: RouteData[] = await response.json();
         const routeData = routes.find(r => r.id === routeId);
 
         if (!routeData) throw new Error('Route not found');
@@ -97,20 +123,14 @@ const EditRoutePage = () => {
         // Populate form state
         setDepartureCityId(routeData.departureCityId);
         setDestinationCityId(routeData.destinationCityId);
+        setRouteSlug(routeData.routeSlug);
+        setDisplayName(routeData.displayName);
         setViatorWidgetCode(routeData.viatorWidgetCode);
         setMetaTitle(routeData.metaTitle ?? '');
         setMetaDescription(routeData.metaDescription ?? '');
         setMetaKeywords(routeData.metaKeywords ?? '');
         setSeoDescription(routeData.seoDescription ?? '');
-        setOriginalData({ // Store original values
-            departureCityId: routeData.departureCityId,
-            destinationCityId: routeData.destinationCityId,
-            viatorWidgetCode: routeData.viatorWidgetCode,
-            metaTitle: routeData.metaTitle,
-            metaDescription: routeData.metaDescription,
-            metaKeywords: routeData.metaKeywords,
-            seoDescription: routeData.seoDescription
-        });
+        setOriginalData(routeData);
 
       } catch (err: unknown) {
         console.error("Failed to fetch route data:", err);
@@ -130,25 +150,24 @@ const EditRoutePage = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    // Basic validation
-    if (!departureCityId || !destinationCityId || !viatorWidgetCode) {
-      setSubmitStatus({ success: false, message: 'Departure, Destination, and Viator Code are required.' });
+    if (!departureCityId || !destinationCityId || !viatorWidgetCode || !routeSlug || !displayName) {
+      setSubmitStatus({ success: false, message: 'All required fields must be filled out.' });
       return;
     }
-     if (departureCityId === destinationCityId) {
-        setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same.' });
-        return;
+    if (departureCityId === destinationCityId) {
+      setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same.' });
+      return;
     }
 
-    // Prepare current values, converting empty strings to null
     const currentMetaTitle = metaTitle.trim() === '' ? null : metaTitle.trim();
     const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
     const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
 
-    // Check if anything actually changed
     if (departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
+        routeSlug === originalData.routeSlug &&
+        displayName === originalData.displayName &&
         viatorWidgetCode === originalData.viatorWidgetCode &&
         currentMetaTitle === originalData.metaTitle &&
         currentMetaDesc === originalData.metaDescription &&
@@ -162,12 +181,14 @@ const EditRoutePage = () => {
     setSubmitStatus(null);
 
     try {
-      const response = await fetch(`/api/admin/routes/${routeId}`, { // PUT request
+      const response = await fetch(`/api/admin/routes/${routeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             departureCityId,
             destinationCityId,
+            routeSlug,
+            displayName,
             viatorWidgetCode,
             metaTitle: currentMetaTitle,
             metaDescription: currentMetaDesc,
@@ -180,7 +201,7 @@ const EditRoutePage = () => {
       if (!response.ok) throw new Error(result.error || `HTTP error! status: ${response.status}`);
 
       setSubmitStatus({ success: true, message: `Route updated successfully!` });
-      router.push('/admin/routes'); // Redirect on success
+      router.push('/admin/routes');
 
     } catch (error: unknown) {
       console.error("Failed to update route:", error);
@@ -194,7 +215,6 @@ const EditRoutePage = () => {
     }
   };
 
-  // Render loading/error states
   if (isLoadingRoute || isLoadingCities) {
     return <div className="text-center p-4">Loading data...</div>;
   }
@@ -208,10 +228,9 @@ const EditRoutePage = () => {
         </div>
     );
   }
-   if (cityError) {
-     return <p className="text-center p-4 text-red-600">{cityError}</p>;
-   }
-
+  if (cityError) {
+    return <p className="text-center p-4 text-red-600">{cityError}</p>;
+  }
 
   return (
     <div>
@@ -243,7 +262,7 @@ const EditRoutePage = () => {
         </div>
 
         {/* Destination City Dropdown */}
-         <div>
+        <div>
           <label htmlFor="route-destination" className="block text-sm font-medium text-gray-700 mb-1">
             Destination City *
           </label>
@@ -261,6 +280,40 @@ const EditRoutePage = () => {
                 </option>
               ))}
             </select>
+        </div>
+
+        {/* Display Name */}
+        <div>
+          <label htmlFor="display-name" className="block text-sm font-medium text-gray-700 mb-1">
+            Display Name *
+          </label>
+          <input
+            id="display-name"
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            required
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            placeholder="e.g., Shuttles from Liberia Airport to Tamarindo"
+          />
+          <p className="text-xs text-gray-500 mt-1">This will be displayed as the title on the route page</p>
+        </div>
+
+        {/* Custom Slug */}
+        <div>
+          <label htmlFor="route-slug" className="block text-sm font-medium text-gray-700 mb-1">
+            URL Slug *
+          </label>
+          <input
+            id="route-slug"
+            type="text"
+            value={routeSlug}
+            onChange={(e) => setRouteSlug(e.target.value)}
+            required
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            placeholder="e.g., costa-rica-liberia-airport-to-tamarindo"
+          />
+          <p className="text-xs text-gray-500 mt-1">Format: country-departure-to-destination</p>
         </div>
 
         {/* Viator Widget Code */}
