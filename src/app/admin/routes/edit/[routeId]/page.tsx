@@ -42,6 +42,7 @@ const EditRoutePage = () => {
   const [metaDescription, setMetaDescription] = useState('');
   const [metaKeywords, setMetaKeywords] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
+  const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [originalData, setOriginalData] = useState<Partial<RouteData>>({});
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -375,6 +376,21 @@ const EditRoutePage = () => {
          />
        </div>
 
+       {/* Additional Instructions */}
+       <div>
+         <label htmlFor="additional-instructions" className="block text-sm font-medium text-gray-700 mb-1">
+           Additional Instructions for Content Generation
+         </label>
+         <textarea
+           id="additional-instructions"
+           value={additionalInstructions}
+           onChange={(e) => setAdditionalInstructions(e.target.value)}
+           rows={4}
+           placeholder="Add any specific details, attractions, or requirements you want to include in the generated content..."
+           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+         />
+       </div>
+
        {/* SEO Description with Generate Button */}
        <div>
          <div className="flex justify-between items-center mb-1">
@@ -397,7 +413,11 @@ const EditRoutePage = () => {
                  const response = await fetch('/api/admin/routes/generate-content', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ departureCityId, destinationCityId }),
+                   body: JSON.stringify({ 
+                     departureCityId, 
+                     destinationCityId,
+                     additionalInstructions 
+                   }),
                  });
 
                  if (!response.ok) throw new Error('Failed to generate content');

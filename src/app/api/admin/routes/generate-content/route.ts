@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { departureCityId, destinationCityId } = body;
+    const { departureCityId, destinationCityId, additionalInstructions } = body;
 
     if (!departureCityId || !destinationCityId) {
       return NextResponse.json(
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     }
 
     // Create prompt for ChatGPT
-    const prompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name} to ${destinationCity.name}. We are a booking platform affiliated with local shuttle companies throughout ${destinationCity.country.name}.
+    const basePrompt = `Generate SEO-friendly content for a shuttle route from ${departureCity.name} to ${destinationCity.name}. We are a booking platform affiliated with local shuttle companies throughout ${destinationCity.country.name}.
 
 Please provide the following in JSON format:
 {
@@ -86,6 +86,11 @@ Writing style:
 - Avoid phrases like "our shuttles" - the focus is on the service and destination
 
 Make the content engaging while following SEO best practices. Focus on what makes ${destinationCity.name} a compelling destination.`;
+
+    // Add additional instructions if provided
+    const prompt = additionalInstructions 
+      ? `${basePrompt}\n\nAdditional requirements:\n${additionalInstructions}`
+      : basePrompt;
 
     console.log('Attempting to generate content with OpenAI...');
     
