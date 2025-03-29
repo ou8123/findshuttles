@@ -159,6 +159,9 @@ const SearchForm = () => {
               displayValue={(city) => city ? `${city.name}, ${city.countryName}` : ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
               placeholder="Enter city or country name"
+              autoComplete="off"
+              spellCheck="false"
+              aria-autocomplete="none"
             />
             <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
               {filteredDepartureCities.map((city) => (
@@ -196,6 +199,7 @@ const SearchForm = () => {
           required
           disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
           className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
+          autoComplete="off"
         >
           <option value="">
             {selectedDepartureCity 
