@@ -7,114 +7,117 @@ interface ViatorWidgetRendererProps {
 }
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!widgetCode) return;
+    if (!containerRef.current || !widgetCode) return;
 
-    const setupWidget = () => {
-      const iframe = iframeRef.current;
-      if (!iframe) return;
+    const container = containerRef.current;
+    let loadTimeout: NodeJS.Timeout;
+    let checkInterval: NodeJS.Timeout;
 
+    const loadWidget = async () => {
       try {
-        // Create a minimal HTML document with necessary styles
-        const html = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <style>
-                body {
-                  margin: 0;
-                  padding: 0;
-                  font-family: system-ui, -apple-system, sans-serif;
-                }
-                .widget-container {
-                  min-height: 300px;
-                  width: 100%;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="widget-container">
-                ${widgetCode}
-              </div>
-              <script>
-                // Listen for widget load
-                window.addEventListener('load', function() {
-                  // Send message to parent when loaded
-                  window.parent.postMessage('widget-loaded', '*');
-                });
+        // Clear any existing content
+        container.innerHTML = '';
 
-                // Listen for widget errors
-                window.addEventListener('error', function(e) {
-                  // Send error to parent
-                  window.parent.postMessage({ type: 'widget-error', error: e.message }, '*');
-                });
-              </script>
-            </body>
-          </html>
-        `;
+        // Create a temporary div to parse the widget code
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = widgetCode;
 
-        // Write the HTML to the iframe
-        const doc = iframe.contentWindow?.document;
-        if (doc) {
-          doc.open();
-          doc.write(html);
-          doc.close();
+        // Extract scripts and non-script content
+        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        scripts.forEach(script => script.remove());
+
+        // Add non-script content to container
+        container.innerHTML = tempDiv.innerHTML;
+
+        // Function to load a script
+        const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+          return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+
+            // Copy script attributes
+            Array.from(scriptElement.attributes).forEach(attr => {
+              script.setAttribute(attr.name, attr.value);
+            });
+
+            // Set script content or src
+            if (scriptElement.src) {
+              script.src = scriptElement.src;
+              script.async = true;
+            } else {
+              script.textContent = scriptElement.textContent;
+            }
+
+            // Handle load events
+            script.onload = () => resolve();
+            script.onerror = () => reject();
+
+            // Add to document
+            document.head.appendChild(script);
+          });
+        };
+
+        // Load scripts sequentially
+        for (const script of scripts) {
+          await loadScript(script);
+          // Add a small delay between scripts
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        // Check for widget initialization
+        checkInterval = setInterval(() => {
+          const widgetElement = container.querySelector('.viator-embedded');
+          if (widgetElement) {
+            clearInterval(checkInterval);
+            setIsLoading(false);
+            setError(null);
+          }
+        }, 500);
+
+        // Set timeout for widget load
+        loadTimeout = setTimeout(() => {
+          clearInterval(checkInterval);
+          if (isLoading) {
+            setError('Widget took too long to load');
+            setIsLoading(false);
+          }
+        }, 10000);
+
       } catch (err) {
-        console.error('Error setting up widget:', err);
+        console.error('Error loading widget:', err);
         setError('Failed to load widget');
         setIsLoading(false);
       }
     };
 
-    // Handle messages from iframe
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data === 'widget-loaded') {
-        setIsLoading(false);
-        setError(null);
-      } else if (event.data?.type === 'widget-error') {
-        console.error('Widget error:', event.data.error);
-        setError('Widget failed to load');
-        setIsLoading(false);
-      }
-    };
+    // Start loading with a delay
+    const initTimeout = setTimeout(() => {
+      loadWidget();
+    }, 1000);
 
-    window.addEventListener('message', handleMessage);
-    setupWidget();
-
-    // Set a timeout for loading
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        setIsLoading(false);
-        setError('Widget took too long to load');
-      }
-    }, 10000);
-
+    // Cleanup function
     return () => {
-      window.removeEventListener('message', handleMessage);
-      clearTimeout(timeout);
+      clearTimeout(loadTimeout);
+      clearTimeout(initTimeout);
+      clearInterval(checkInterval);
+      container.innerHTML = '';
     };
   }, [widgetCode, isLoading]);
 
   return (
-    <div className="viator-widget-container mt-2">
+    <div className="relative">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
           <div className="text-gray-500">Loading booking widget...</div>
         </div>
       )}
-      <iframe
-        ref={iframeRef}
-        className={`w-full min-h-[300px] border-0 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-        style={{ transition: 'opacity 0.3s ease-in-out' }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      <div 
+        ref={containerRef}
+        className={`min-h-[300px] transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
       />
       {error && (
         <div className="text-red-500 text-sm mt-2 text-center">

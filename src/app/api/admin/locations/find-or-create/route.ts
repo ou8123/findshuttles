@@ -20,6 +20,7 @@ interface FoundOrCreatedCity {
     slug: string;
     country: {
         name: string;
+        slug: string;
     };
 }
 
@@ -55,12 +56,15 @@ export async function POST(request: Request) {
   const trimmedCountryName = countryName.trim();
 
   // 4. Generate Slugs
-  const citySlug = generateSlug(trimmedCityName);
+  const cityBaseSlug = generateSlug(trimmedCityName);
   const countrySlug = generateSlug(trimmedCountryName);
 
-  if (!citySlug || !countrySlug) {
+  if (!cityBaseSlug || !countrySlug) {
       return NextResponse.json({ error: 'Could not generate valid slugs for city or country name' }, { status: 400 });
   }
+
+  // Generate city slug with country name
+  const citySlug = `${cityBaseSlug}-${countrySlug}`;
 
   // 5. Find or Create Country and City using Prisma Upsert
   try {
@@ -83,7 +87,10 @@ export async function POST(request: Request) {
           countryId: country.id,
         }
       },
-      update: {}, // No updates needed if found
+      update: {
+        // Update the slug to ensure it includes country name
+        slug: citySlug
+      },
       create: {
         name: trimmedCityName,
         slug: citySlug,
@@ -94,7 +101,8 @@ export async function POST(request: Request) {
       include: {
         country: {
           select: {
-            name: true
+            name: true,
+            slug: true
           }
         }
       }
@@ -107,7 +115,8 @@ export async function POST(request: Request) {
         name: city.name,
         slug: city.slug,
         country: {
-            name: city.country.name
+            name: city.country.name,
+            slug: city.country.slug
         }
     };
     return NextResponse.json(result, { status: 200 });
