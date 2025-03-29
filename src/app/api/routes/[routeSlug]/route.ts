@@ -1,16 +1,19 @@
-import { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-type Props = {
-  params: {
-    routeSlug: string;
-  };
-};
-
-export async function GET(req: NextRequest, { params }: Props) {
+export async function GET(request: Request) {
   try {
+    // Extract routeSlug from URL
+    const routeSlug = request.url.split('/').pop();
+    if (!routeSlug) {
+      return NextResponse.json(
+        { error: 'Route slug is required' },
+        { status: 400 }
+      );
+    }
+
     const route = await prisma.route.findUnique({
-      where: { routeSlug: params.routeSlug },
+      where: { routeSlug },
       select: {
         routeSlug: true,
         displayName: true,
@@ -40,21 +43,18 @@ export async function GET(req: NextRequest, { params }: Props) {
     });
 
     if (!route) {
-      return new Response(
-        JSON.stringify({ error: 'Route not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      return NextResponse.json(
+        { error: 'Route not found' },
+        { status: 404 }
       );
     }
 
-    return new Response(
-      JSON.stringify(route),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return NextResponse.json(route);
   } catch (error) {
     console.error('Error fetching route:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to fetch route data' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    return NextResponse.json(
+      { error: 'Failed to fetch route data' },
+      { status: 500 }
     );
   }
 }
