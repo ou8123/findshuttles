@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap';
-import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
-import SearchForm from '@/components/SearchForm';
 
 interface RouteWithRelations {
   routeSlug: string;
@@ -68,23 +66,14 @@ export default function RoutePage({ params }: any) {
 
   if (!route) {
     return (
-      <div>
-        <div className="mb-8">
-          <SearchForm />
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-lg text-gray-600">Loading route information...</div>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg text-gray-600">Loading route information...</div>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-8">
-        <SearchForm />
-      </div>
-      
       <div ref={contentRef} className="scroll-mt-4">
         <h1 className="text-3xl font-bold mb-4">
           {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
@@ -94,14 +83,26 @@ export default function RoutePage({ params }: any) {
           {/* Render the Viator Widget */}
           <div>
             <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
-            {route.viatorWidgetCode ? (
-              <ViatorWidgetRenderer 
-                key={`${route.routeSlug}-${hasScrolled}`} 
-                widgetCode={route.viatorWidgetCode}
+            <div 
+              className="w-full min-h-[400px]"
+              style={{ 
+                height: 'auto',
+                overflow: 'visible'
+              }}
+            >
+              <div 
+                data-vi-partner-id="P00097086" 
+                data-vi-widget-ref={`W-${route.routeSlug}`}
               />
-            ) : (
-              <p>Booking information currently unavailable.</p>
-            )}
+              <div className="text-center mt-4">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                >
+                  Shuttle Options not loading? Click here to refresh
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Display SEO Description if available */}

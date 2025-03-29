@@ -86,12 +86,8 @@ async function main() {
       displayName: 'Shuttles from Montezuma del Sol to Puerto Luna',
       viatorWidgetCode: `
         <div 
-          class="viator-widget" 
-          data-widget-type="products"
-          data-destination-id="80003"
-          data-top-x="5"
-          data-language="en"
-          data-currency="USD"
+          data-vi-partner-id="P00097086" 
+          data-vi-widget-ref="W-montezuma-puerto-luna"
         ></div>
       `,
       metaTitle: 'Montezuma del Sol to Puerto Luna | Shuttle & Transfer Service',

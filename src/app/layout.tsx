@@ -4,7 +4,6 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <head>
-        <Script 
+        <script 
           src="https://www.viator.com/orion/partner/widget.js"
-          strategy="beforeInteractive"
+          async
         />
       </head>
       <body
