@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -8,96 +8,64 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [showReloadLink, setShowReloadLink] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode) return;
+    // Load Viator script only once
+    const loadViatorScript = () => {
+      return new Promise<void>((resolve) => {
+        if (document.querySelector('script[src*="viator.com"]')) {
+          resolve();
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = "https://www.viator.com/orion/partner/widget.js";
+        script.async = true;
+        script.onload = () => resolve();
+        document.head.appendChild(script);
+      });
+    };
 
     const loadWidget = async () => {
-      try {
-        const container = containerRef.current;
-        if (!container) return;
+      if (!containerRef.current || !widgetCode) return;
 
-        // Clear any existing content
-        container.innerHTML = '';
-        setShowReloadLink(false);
+      try {
+        // Load Viator script first
+        await loadViatorScript();
+
+        // Clear container
+        containerRef.current.innerHTML = '';
 
         // Create a temporary div to parse the widget code
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = widgetCode;
 
-        // Find all script tags
-        const scripts = tempDiv.getElementsByTagName('script');
-        const scriptElements = Array.from(scripts);
-
-        // Remove scripts from the temp div
-        scriptElements.forEach(script => script.remove());
-
-        // Set the HTML content first (without scripts)
-        container.innerHTML = tempDiv.innerHTML;
-
-        // Function to load a script
-        const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
-          return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-
-            // Copy all attributes
-            Array.from(scriptElement.attributes).forEach(attr => {
-              script.setAttribute(attr.name, attr.value);
-            });
-
-            // Handle external scripts
-            if (scriptElement.src) {
-              script.onload = () => resolve();
-              script.onerror = () => reject();
-            }
-
-            // Copy inline script content
-            if (scriptElement.textContent) {
-              script.textContent = scriptElement.textContent;
-            }
-
-            // For inline scripts, resolve immediately
-            if (!scriptElement.src) {
-              script.onload = () => resolve();
-            }
-
-            // Add to document
-            document.head.appendChild(script);
-          });
-        };
-
-        // Load scripts sequentially
-        for (const script of scriptElements) {
-          try {
-            await loadScript(script);
-            // Add a small delay between scripts
-            await new Promise(resolve => setTimeout(resolve, 200));
-          } catch (error) {
-            console.error('Error loading script:', error);
-            setShowReloadLink(true);
-          }
+        // Find the widget div and get its ID
+        const widgetDiv = tempDiv.querySelector('div[id^="viator-"]');
+        if (!widgetDiv) {
+          console.error('No widget div found in code');
+          return;
         }
 
-        // Add a final delay and trigger resize
-        await new Promise(resolve => setTimeout(resolve, 500));
-        window.dispatchEvent(new Event('resize'));
+        // Set the container's HTML to just the widget div
+        containerRef.current.innerHTML = widgetDiv.outerHTML;
 
-        // Show reload link after a delay if widget might not be visible
+        // Give the script a moment to initialize
         setTimeout(() => {
-          if (container.querySelector('iframe')?.clientHeight === 0) {
-            setShowReloadLink(true);
-          }
-        }, 2000);
+          // Trigger a resize event to help the widget render
+          window.dispatchEvent(new Event('resize'));
+        }, 500);
 
       } catch (error) {
         console.error('Error loading widget:', error);
-        setShowReloadLink(true);
+        if (containerRef.current) {
+          containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
+        }
       }
     };
 
-    // Add initial delay
-    const timer = setTimeout(loadWidget, 500);
+    // Add a small delay before loading
+    const timer = setTimeout(loadWidget, 100);
 
     return () => {
       clearTimeout(timer);
@@ -106,10 +74,6 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       }
     };
   }, [widgetCode]);
-
-  const handleReload = () => {
-    window.location.reload();
-  };
 
   return (
     <div>
@@ -121,16 +85,14 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           overflow: 'visible'
         }}
       />
-      {showReloadLink && (
-        <div className="text-center mt-4">
-          <button
-            onClick={handleReload}
-            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-          >
-            Shuttle Options not loading? Click here
-          </button>
-        </div>
-      )}
+      <div className="text-center mt-4">
+        <button
+          onClick={() => window.location.reload()}
+          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+        >
+          Shuttle Options not loading? Click here
+        </button>
+      </div>
     </div>
   );
 };
