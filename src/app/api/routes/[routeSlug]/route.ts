@@ -1,13 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET(
-  request: Request,
-  context: { params: { routeSlug: string } }
-) {
+type Props = {
+  params: {
+    routeSlug: string;
+  };
+};
+
+export async function GET(req: NextRequest, { params }: Props) {
   try {
     const route = await prisma.route.findUnique({
-      where: { routeSlug: context.params.routeSlug },
+      where: { routeSlug: params.routeSlug },
       select: {
         routeSlug: true,
         displayName: true,
@@ -37,18 +40,21 @@ export async function GET(
     });
 
     if (!route) {
-      return NextResponse.json(
-        { error: 'Route not found' },
-        { status: 404 }
+      return new Response(
+        JSON.stringify({ error: 'Route not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    return NextResponse.json(route);
+    return new Response(
+      JSON.stringify(route),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Error fetching route:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch route data' },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch route data' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
