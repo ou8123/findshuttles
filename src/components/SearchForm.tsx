@@ -1,31 +1,30 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
 interface DestinationCity {
   id: string;
   name: string;
   slug: string;
   country?: {
-      id: string;
-      name: string;
+    id: string;
+    name: string;
   }
 }
+
 interface CityLookup {
   id: string;
   name: string;
   slug: string;
 }
+
 interface CountryWithCitiesLookup {
   id: string;
   name: string;
   slug: string;
   cities: CityLookup[];
 }
-
-const libraries: ("places")[] = ['places'];
 
 const SearchForm = () => {
   const router = useRouter();
@@ -35,24 +34,15 @@ const SearchForm = () => {
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
-  // State for Departure Autocomplete
-  const [departureAutocomplete, setDepartureAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  // State for departure city
+  const [selectedDepartureCityId, setSelectedDepartureCityId] = useState<string>('');
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
 
-  // State for Destination Dropdown
+  // State for destination city
   const [validDestinations, setValidDestinations] = useState<DestinationCity[]>([]);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState<boolean>(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [selectedDestinationCityId, setSelectedDestinationCityId] = useState<string>('');
-
-  const departureInputRef = useRef<HTMLInputElement>(null);
-
-  // --- Load Google Maps API ---
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || "",
-    libraries: libraries,
-  });
 
   // Fetch our internal locations data on mount
   useEffect(() => {
@@ -74,6 +64,21 @@ const SearchForm = () => {
     fetchLocationsLookup();
   }, []);
 
+  // Update selected departure city when ID changes
+  useEffect(() => {
+    if (selectedDepartureCityId) {
+      for (const country of locationsLookup) {
+        const city = country.cities.find(c => c.id === selectedDepartureCityId);
+        if (city) {
+          setSelectedDepartureCity(city);
+          return;
+        }
+      }
+    } else {
+      setSelectedDepartureCity(null);
+    }
+  }, [selectedDepartureCityId, locationsLookup]);
+
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
     const fetchValidDestinations = async (departureId: string) => {
@@ -87,77 +92,28 @@ const SearchForm = () => {
         const data: DestinationCity[] = await response.json();
         setValidDestinations(data);
         if (data.length === 0) {
-            setDestinationError("No routes found from this departure city.");
+          setDestinationError("No routes found from this departure city.");
         }
       } catch (err: unknown) {
         console.error("Failed to fetch valid destinations:", err);
         if (err instanceof Error) {
-            setDestinationError(err.message);
+          setDestinationError(err.message);
         } else {
-            setDestinationError("Could not load destinations.");
+          setDestinationError("Could not load destinations.");
         }
       } finally {
         setIsLoadingDestinations(false);
       }
     };
 
-    if (selectedDepartureCity?.id) {
-      fetchValidDestinations(selectedDepartureCity.id);
+    if (selectedDepartureCityId) {
+      fetchValidDestinations(selectedDepartureCityId);
     } else {
       setValidDestinations([]);
       setSelectedDestinationCityId('');
       setDestinationError(null);
     }
-  }, [selectedDepartureCity]);
-
-  // --- Autocomplete Handlers ---
-  const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => {
-    setDepartureAutocomplete(autocomplete);
-  };
-
-  const onDeparturePlaceChanged = () => {
-    setSelectedDepartureCity(null);
-    if (departureAutocomplete !== null) {
-      const place = departureAutocomplete.getPlace();
-      if (place?.name) {
-        const selectedName = place.name;
-        console.log("Departure Place Selected:", selectedName);
-
-        const nameLower = selectedName.trim().toLowerCase();
-        let foundCity: CityLookup | null = null;
-        for (const country of locationsLookup) {
-            const cityMatch = country.cities.find(city => city.name.trim().toLowerCase() === nameLower);
-            if (cityMatch) {
-                foundCity = cityMatch;
-                break;
-            }
-        }
-
-        if (foundCity) {
-            console.log("Matched internal departure city:", foundCity);
-            setSelectedDepartureCity(foundCity);
-        } else {
-            console.warn(`Selected departure place "${selectedName}" not found in internal locations data.`);
-            setValidDestinations([]);
-            setSelectedDestinationCityId('');
-            setDestinationError("Selected departure city not found in our system.");
-        }
-
-      } else {
-        console.log('Departure Autocomplete: No details available for input');
-        setSelectedDepartureCity(null);
-      }
-    } else {
-      console.log('Departure Autocomplete is not loaded yet!');
-    }
-  };
-
-  const handleDepartureInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      if (value === '') {
-          setSelectedDepartureCity(null);
-      }
-  };
+  }, [selectedDepartureCityId]);
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -171,10 +127,10 @@ const SearchForm = () => {
     // Find the country slug for the departure city
     let departureCountrySlug: string | undefined;
     for (const country of locationsLookup) {
-        if (country.cities.some(city => city.id === selectedDepartureCity.id)) {
-            departureCountrySlug = country.slug;
-            break;
-        }
+      if (country.cities.some(city => city.id === selectedDepartureCity.id)) {
+        departureCountrySlug = country.slug;
+        break;
+      }
     }
 
     if (departureCountrySlug && selectedDepartureCity.slug && destinationCity?.slug) {
@@ -188,82 +144,89 @@ const SearchForm = () => {
     }
   };
 
-  // --- Render Logic ---
-  if (loadError) {
-      console.error("Google Maps API load error:", loadError);
-      return <div className="text-center p-4 text-red-600">Error loading Google Maps services. Please check the API key and configuration.</div>;
-  }
-
-  if (!isLoaded) {
-      return <div className="text-center p-4">Loading Map Services...</div>;
-  }
-
-  if (!apiKey) {
-      console.error("Google Maps API Key is missing. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your .env file.");
-      return <div className="text-center p-4 text-red-600">Configuration error: Google Maps API Key is missing.</div>;
-  }
+  // Group cities by country for the departure dropdown
+  const groupedCities = locationsLookup.map(country => ({
+    country: country.name,
+    cities: country.cities.map(city => ({
+      id: city.id,
+      name: city.name,
+      label: `${city.name}, ${country.name}`
+    }))
+  }));
 
   return (
-      <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md space-y-4">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttles</h2>
+    <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md space-y-4">
+      <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttles</h2>
 
-        {/* Departure Autocomplete */}
-        <div>
-          <label htmlFor="departure" className="block text-sm font-medium text-gray-700 mb-1">
-            From:
-          </label>
-          <Autocomplete
-            onLoad={onDepartureLoad}
-            onPlaceChanged={onDeparturePlaceChanged}
-            options={{ types: ['(cities)'] }}
-          >
-            <input
-              id="departure"
-              type="text"
-              ref={departureInputRef}
-              required
-              placeholder="Enter departure city"
-              className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-              onChange={handleDepartureInputChange}
-            />
-          </Autocomplete>
-           {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading location data...</p>}
-           {locationLookupError && <p className="text-xs text-red-500 mt-1">{locationLookupError}</p>}
-        </div>
-
-        {/* Destination Dropdown */}
-        <div>
-          <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
-            To:
-          </label>
-          <select
-            id="destination"
-            value={selectedDestinationCityId}
-            onChange={(e) => setSelectedDestinationCityId(e.target.value)}
-            required
-            disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          >
-            <option value="" disabled>
-              {selectedDepartureCity ? (isLoadingDestinations ? 'Loading destinations...' : (validDestinations.length === 0 ? 'No routes found' : 'Select Destination')) : 'Select departure first'}
-            </option>
-            {validDestinations.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name} {city.country ? `(${city.country.name})` : ''}
-              </option>
-            ))}
-          </select>
-           {destinationError && !isLoadingDestinations && <p className="text-xs text-red-500 mt-1">{destinationError}</p>}
-        </div>
-
-        <button
-          type="submit"
-          disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
-          className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      {/* Departure City Dropdown */}
+      <div>
+        <label htmlFor="departure" className="block text-sm font-medium text-gray-700 mb-1">
+          From:
+        </label>
+        <select
+          id="departure"
+          value={selectedDepartureCityId}
+          onChange={(e) => setSelectedDepartureCityId(e.target.value)}
+          required
+          disabled={isLoadingLocationsLookup}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
-          Find Shuttles
-        </button>
-      </form>
+          <option value="">Select departure city</option>
+          {groupedCities.map(group => (
+            <optgroup key={group.country} label={group.country}>
+              {group.cities.map(city => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
+        {locationLookupError && <p className="text-xs text-red-500 mt-1">{locationLookupError}</p>}
+      </div>
+
+      {/* Destination Dropdown */}
+      <div>
+        <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
+          To:
+        </label>
+        <select
+          id="destination"
+          value={selectedDestinationCityId}
+          onChange={(e) => setSelectedDestinationCityId(e.target.value)}
+          required
+          disabled={!selectedDepartureCityId || isLoadingDestinations || validDestinations.length === 0}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        >
+          <option value="">
+            {selectedDepartureCityId 
+              ? (isLoadingDestinations 
+                ? 'Loading destinations...' 
+                : (validDestinations.length === 0 
+                  ? 'No routes found' 
+                  : 'Select destination'))
+              : 'Select departure first'}
+          </option>
+          {validDestinations.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name} {city.country ? `(${city.country.name})` : ''}
+            </option>
+          ))}
+        </select>
+        {destinationError && !isLoadingDestinations && (
+          <p className="text-xs text-red-500 mt-1">{destinationError}</p>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        disabled={!selectedDepartureCityId || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
+        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Find Shuttles
+      </button>
+    </form>
   );
 };
 
