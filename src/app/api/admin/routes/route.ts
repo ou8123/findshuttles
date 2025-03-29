@@ -100,7 +100,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid departure/destination city ID' }, { status: 400 });
     }
 
-    // Remove country slug from route slug
+    // Create route slug without country prefix
     const routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
     const displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
 

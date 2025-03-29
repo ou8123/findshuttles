@@ -16,78 +16,78 @@ async function main() {
   });
   console.log('Created/found country:', costaRica.name);
 
-  // Create Palmares (fictional)
-  const palmares = await prisma.city.upsert({
+  // Create Montezuma del Sol (fictional)
+  const montezuma = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Palmares',
+        name: 'Montezuma del Sol',
         countryId: costaRica.id
       }
     },
     update: {},
     create: {
-      name: 'Palmares',
-      slug: 'palmares',
+      name: 'Montezuma del Sol',
+      slug: 'montezuma-del-sol',
       countryId: costaRica.id,
-      latitude: 10.0589,
-      longitude: -84.4334,
+      latitude: 9.6547,
+      longitude: -85.0694,
     },
   });
-  console.log('Created/found city:', palmares.name, 'in', costaRica.name);
+  console.log('Created/found city:', montezuma.name, 'in', costaRica.name);
 
-  // Create Esmeralda (fictional)
-  const esmeralda = await prisma.city.upsert({
+  // Create Puerto Luna (fictional)
+  const puertoLuna = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Esmeralda',
+        name: 'Puerto Luna',
         countryId: costaRica.id
       }
     },
     update: {},
     create: {
-      name: 'Esmeralda',
-      slug: 'esmeralda',
+      name: 'Puerto Luna',
+      slug: 'puerto-luna',
       countryId: costaRica.id,
-      latitude: 9.8567,
-      longitude: -84.3456,
+      latitude: 9.9567,
+      longitude: -84.8456,
     },
   });
-  console.log('Created/found city:', esmeralda.name, 'in', costaRica.name);
+  console.log('Created/found city:', puertoLuna.name, 'in', costaRica.name);
 
-  // Create Dorado (fictional)
-  const dorado = await prisma.city.upsert({
+  // Create Valle Verde (fictional)
+  const valleVerde = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Dorado',
+        name: 'Valle Verde',
         countryId: costaRica.id
       }
     },
     update: {},
     create: {
-      name: 'Dorado',
-      slug: 'dorado',
+      name: 'Valle Verde',
+      slug: 'valle-verde',
       countryId: costaRica.id,
       latitude: 9.7456,
       longitude: -84.2345,
     },
   });
-  console.log('Created/found city:', dorado.name, 'in', costaRica.name);
+  console.log('Created/found city:', valleVerde.name, 'in', costaRica.name);
 
-  // Create Palmares to Esmeralda route
+  // Create Montezuma del Sol to Puerto Luna route
   const route = await prisma.route.upsert({
-    where: { routeSlug: 'palmares-to-esmeralda' },
+    where: { routeSlug: 'montezuma-del-sol-to-puerto-luna' },
     update: {},
     create: {
-      departureCityId: palmares.id,
-      destinationCityId: esmeralda.id,
+      departureCityId: montezuma.id,
+      destinationCityId: puertoLuna.id,
       departureCountryId: costaRica.id,
       destinationCountryId: costaRica.id,
-      routeSlug: 'palmares-to-esmeralda',
-      displayName: 'Shuttles from Palmares to Esmeralda',
+      routeSlug: 'montezuma-del-sol-to-puerto-luna',
+      displayName: 'Shuttles from Montezuma del Sol to Puerto Luna',
       viatorWidgetCode: '<div class="viator-widget">Sample widget code</div>',
-      metaTitle: 'Palmares to Esmeralda | Shuttle & Transfer Service',
-      metaDescription: 'Convenient shuttle service from Palmares to Esmeralda. Easy online booking with reliable local providers.',
-      metaKeywords: 'Palmares, Esmeralda, Costa Rica shuttle, transfer service',
+      metaTitle: 'Montezuma del Sol to Puerto Luna | Shuttle & Transfer Service',
+      metaDescription: 'Convenient shuttle service from Montezuma del Sol to Puerto Luna. Easy online booking with reliable local providers.',
+      metaKeywords: 'Montezuma del Sol, Puerto Luna, Costa Rica shuttle, transfer service',
       seoDescription: 'Sample SEO description for the route.',
     },
   });

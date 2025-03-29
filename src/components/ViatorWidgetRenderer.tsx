@@ -42,8 +42,8 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         newScript.textContent = oldScript.textContent;
       }
       
-      // Append the script
-      document.body.appendChild(newScript);
+      // Append the script to the document head
+      document.head.appendChild(newScript);
     });
 
     // Store the current ref value for cleanup
@@ -54,7 +54,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       if (currentContainer) {
         currentContainer.innerHTML = '';
       }
-      // Remove any scripts we added to the body
+      // Remove any scripts we added to the head
       scripts.forEach(oldScript => {
         const scriptSrc = oldScript.src;
         const scriptContent = oldScript.textContent;
@@ -73,7 +73,8 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   return (
     <div 
       ref={containerRef}
-      className="viator-widget-container min-h-[400px]"
+      className="viator-widget-container mt-4"
+      style={{ minHeight: '300px' }}
     />
   );
 };
