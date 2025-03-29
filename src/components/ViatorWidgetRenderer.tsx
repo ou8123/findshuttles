@@ -14,6 +14,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     if (!containerRef.current || !widgetCode) return;
 
     const container = containerRef.current;
+    let observer: MutationObserver | null = null;
     let loadTimeout: NodeJS.Timeout;
 
     // Function to load widget
@@ -21,37 +22,44 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       try {
         setIsLoading(true);
 
-        // Parse widget code
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = widgetCode;
+        // Create mutation observer to watch for widget initialization
+        observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              // Check if any added nodes are the widget's iframe or container
+              const hasWidget = Array.from(mutation.addedNodes).some(node => {
+                if (node instanceof HTMLElement) {
+                  return node.classList.contains('viator-embedded') ||
+                         node.tagName.toLowerCase() === 'iframe';
+                }
+                return false;
+              });
 
-        // Extract scripts
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-        scripts.forEach(script => script.remove());
-
-        // Add non-script content
-        container.innerHTML = tempDiv.innerHTML;
-
-        // Add scripts back directly
-        scripts.forEach(oldScript => {
-          const script = document.createElement('script');
-          
-          // Copy attributes
-          Array.from(oldScript.attributes).forEach(attr => {
-            script.setAttribute(attr.name, attr.value);
-          });
-
-          // Set content
-          script.textContent = oldScript.textContent;
-
-          // Add to container directly
-          container.appendChild(script);
+              if (hasWidget) {
+                // Widget has been added, hide loading
+                setIsLoading(false);
+                observer?.disconnect();
+              }
+            }
+          }
         });
 
-        // Hide loading after a delay
+        // Start observing
+        observer.observe(container, {
+          childList: true,
+          subtree: true
+        });
+
+        // Add widget code directly
+        container.innerHTML = widgetCode;
+
+        // Set timeout for widget check
         loadTimeout = setTimeout(() => {
-          setIsLoading(false);
-        }, 2000);
+          if (isLoading) {
+            setIsLoading(false);
+            observer?.disconnect();
+          }
+        }, 5000);
 
       } catch (error) {
         console.error('Error loading widget:', error);
@@ -66,12 +74,13 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     return () => {
       clearTimeout(initTimeout);
       clearTimeout(loadTimeout);
+      observer?.disconnect();
       if (container) {
         container.innerHTML = '';
       }
       setIsLoading(true);
     };
-  }, [widgetCode]);
+  }, [widgetCode, isLoading]);
 
   return (
     <div className="relative">
