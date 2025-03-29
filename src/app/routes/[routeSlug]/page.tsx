@@ -1,4 +1,6 @@
-import prisma from '@/lib/prisma';
+'use client';
+
+import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
@@ -26,52 +28,55 @@ interface RouteWithRelations {
   };
 }
 
-async function getRouteData(slug: string): Promise<RouteWithRelations | null> {
-  try {
-    const route = await prisma.route.findUnique({
-      where: { routeSlug: slug },
-      select: {
-        routeSlug: true,
-        displayName: true,
-        viatorWidgetCode: true,
-        seoDescription: true,
-        departureCity: {
-          select: { 
-            name: true, 
-            latitude: true, 
-            longitude: true 
-          }
-        },
-        departureCountry: { 
-          select: { name: true } 
-        },
-        destinationCity: {
-          select: { 
-            name: true, 
-            latitude: true, 
-            longitude: true 
-          }
-        },
-        destinationCountry: { 
-          select: { name: true } 
-        },
-      },
-    });
-
-    return route as RouteWithRelations | null;
-  } catch (error) {
-    console.error(`Error fetching route data for slug ${slug}:`, error);
-    return null;
-  }
-}
-
 interface PageProps {
-  params: Promise<{ routeSlug: string }>;
+  params: { routeSlug: string };
 }
 
-export default async function RoutePage({ params }: PageProps) {
-  const { routeSlug } = await params;
-  const routeData = await getRouteData(routeSlug);
+export default function RoutePage({ params }: PageProps) {
+  const [routeData, setRouteData] = useState<RouteWithRelations | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRouteData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch(`/api/routes/${params.routeSlug}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            notFound();
+          }
+          throw new Error('Failed to fetch route data');
+        }
+        const data = await response.json();
+        setRouteData(data);
+      } catch (err) {
+        console.error('Error fetching route data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load route data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRouteData();
+  }, [params.routeSlug]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg text-gray-600">Loading route information...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg text-red-600">{error}</div>
+      </div>
+    );
+  }
 
   if (!routeData) {
     notFound();
@@ -91,7 +96,7 @@ export default async function RoutePage({ params }: PageProps) {
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
         {routeData.viatorWidgetCode ? (
-          <ViatorWidgetRenderer widgetCode={routeData.viatorWidgetCode} />
+          <ViatorWidgetRenderer key={routeData.routeSlug} widgetCode={routeData.viatorWidgetCode} />
         ) : (
           <p>Booking information currently unavailable.</p>
         )}
