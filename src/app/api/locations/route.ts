@@ -11,6 +11,12 @@ export async function GET() {
             id: true,
             name: true,
             slug: true,
+            country: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
             routesFrom: {
               select: {
                 id: true
@@ -34,13 +40,21 @@ export async function GET() {
       slug: country.slug,
       cities: country.cities
         .filter(city => city.routesFrom.length > 0) // Only include cities that have routes starting from them
-        .map(({ id, name, slug }) => ({ id, name, slug }))
+        .map(({ id, name, slug, country }) => ({ 
+          id, 
+          name, 
+          slug,
+          country: {
+            id: country.id,
+            name: country.name
+          }
+        }))
     })).filter(country => country.cities.length > 0); // Remove countries with no departure cities
 
     // Log for debugging
     console.log('Found departure cities by country:', 
       countriesWithDepartureCities.map(c => 
-        `${c.name}: ${c.cities.map(city => city.name).join(', ')}`
+        `${c.name}: ${c.cities.map(city => `${city.name} (${city.country.name})`).join(', ')}`
       ).join(' | ')
     );
 
