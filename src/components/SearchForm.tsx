@@ -149,7 +149,6 @@ const SearchForm = () => {
     setDepartureInput(value);
     if (!value) {
       setSelectedDepartureCity(null);
-      setFilteredDepartureCities([]);
     }
   };
 
@@ -202,10 +201,18 @@ const SearchForm = () => {
           type="text"
           value={departureInput}
           onChange={handleDepartureInputChange}
+          onFocus={() => {
+            // Clear input and selection if clicking back into a filled field
+            if (selectedDepartureCity) {
+              setDepartureInput('');
+              setSelectedDepartureCity(null);
+            }
+          }}
           placeholder="Enter departure city"
           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
           required
           disabled={isLoadingLocationsLookup}
+          autoComplete="off" // Disable browser's native autocomplete
         />
         {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
         {locationLookupError && <p className="text-xs text-red-500 mt-1">{locationLookupError}</p>}
