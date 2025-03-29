@@ -29,11 +29,11 @@ interface RouteWithRelations {
   };
 }
 
-interface PageProps {
-  params: { routeSlug: string };
-}
-
-export default function RoutePage({ params }: PageProps) {
+export default function RoutePage({
+  params,
+}: {
+  params: { routeSlug: string }
+}) {
   const [routeData, setRouteData] = useState<RouteWithRelations | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
