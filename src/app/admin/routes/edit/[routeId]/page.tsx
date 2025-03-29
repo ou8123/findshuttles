@@ -45,6 +45,7 @@ const EditRoutePage = () => {
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [originalData, setOriginalData] = useState<Partial<RouteData>>({});
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDisplayNameCustomized, setIsDisplayNameCustomized] = useState(false);
 
   // City list state
   const [cities, setCities] = useState<City[]>([]);
@@ -81,7 +82,7 @@ const EditRoutePage = () => {
     fetchCities();
   }, []);
 
-  // Update route slug and display name when cities change
+  // Update route slug when cities change
   useEffect(() => {
     if (departureCityId && destinationCityId) {
       const departureCity = cities.find(c => c.id === departureCityId);
@@ -90,18 +91,20 @@ const EditRoutePage = () => {
       if (departureCity && destinationCity) {
         // Remove country slug from route slug
         const defaultSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
-        const defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
         
         // Only update if not manually edited
         if (!routeSlug || routeSlug === originalData.routeSlug) {
           setRouteSlug(defaultSlug);
         }
-        if (!displayName || displayName === originalData.displayName) {
+
+        // Only update display name if not customized and cities changed
+        if (!isDisplayNameCustomized) {
+          const defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
           setDisplayName(defaultDisplayName);
         }
       }
     }
-  }, [departureCityId, destinationCityId, cities, routeSlug, displayName, originalData.routeSlug, originalData.displayName]);
+  }, [departureCityId, destinationCityId, cities, routeSlug, originalData.routeSlug, isDisplayNameCustomized]);
 
   // Fetch the specific route data
   useEffect(() => {
@@ -293,7 +296,10 @@ const EditRoutePage = () => {
             id="display-name"
             type="text"
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              setIsDisplayNameCustomized(true);
+            }}
             required
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             placeholder="e.g., Shuttles from Liberia to Tamarindo"
