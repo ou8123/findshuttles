@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, Route } from '@prisma/client';
 
 interface UpdateRouteData {
   departureCityId: string;
@@ -77,22 +77,25 @@ export async function PUT(request: Request, context: any) {
       );
     }
 
+    const updateData = {
+      departureCity: { connect: { id: data.departureCityId } },
+      destinationCity: { connect: { id: data.destinationCityId } },
+      departureCountry: { connect: { id: departureCity.country.id } },
+      destinationCountry: { connect: { id: destinationCity.country.id } },
+      routeSlug: data.routeSlug,
+      displayName: data.displayName,
+      viatorWidgetCode: data.viatorWidgetCode,
+      metaTitle: data.metaTitle || null,
+      metaDescription: data.metaDescription || null,
+      metaKeywords: data.metaKeywords || null,
+      seoDescription: data.seoDescription || null,
+    };
+
     const updatedRoute = await prisma.route.update({
       where: { id: routeId },
-      data: {
-        departureCityId: data.departureCityId,
-        destinationCityId: data.destinationCityId,
-        departureCountryId: departureCity.country.id,
-        destinationCountryId: destinationCity.country.id,
-        routeSlug: data.routeSlug,
-        displayName: data.displayName,
-        viatorWidgetCode: data.viatorWidgetCode,
-        metaTitle: data.metaTitle || null,
-        metaDescription: data.metaDescription || null,
-        metaKeywords: data.metaKeywords || null,
-        seoDescription: data.seoDescription || null,
-      },
+      data: updateData,
     });
+
     console.log(`Admin Route PUT: Successfully updated route ${updatedRoute.id} by user ${session.user?.email}`);
     return NextResponse.json(updatedRoute);
 
