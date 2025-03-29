@@ -7,32 +7,49 @@ interface ViatorWidgetRendererProps {
 }
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    // Add a small delay to ensure the widget loads properly
-    const timeout = setTimeout(() => {
-      if (containerRef.current) {
-        const scripts = containerRef.current.getElementsByTagName('script');
-        Array.from(scripts).forEach(script => {
-          const newScript = document.createElement('script');
-          Array.from(script.attributes).forEach(attr => {
-            newScript.setAttribute(attr.name, attr.value);
-          });
-          newScript.textContent = script.textContent;
-          script.parentNode?.replaceChild(newScript, script);
-        });
-      }
-    }, 500);
+    if (!iframeRef.current || !widgetCode) return;
 
-    return () => clearTimeout(timeout);
+    // Create a complete HTML document
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: system-ui, -apple-system, sans-serif;
+              background: transparent;
+            }
+            .widget-container {
+              min-height: 400px;
+              width: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="widget-container">
+            ${widgetCode}
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Set iframe content
+    iframeRef.current.srcdoc = html;
+
   }, [widgetCode]);
 
   return (
-    <div 
-      ref={containerRef}
-      className="min-h-[400px]"
-      dangerouslySetInnerHTML={{ __html: widgetCode }}
+    <iframe
+      ref={iframeRef}
+      className="w-full min-h-[400px] border-0"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
     />
   );
 };
