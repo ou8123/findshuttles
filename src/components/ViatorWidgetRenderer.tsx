@@ -12,21 +12,55 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
 
-    // Add scripts after a delay
-    const timeout = setTimeout(() => {
-      const scripts = Array.from(containerRef.current?.getElementsByTagName('script') || []);
+    const container = containerRef.current;
+
+    // Generate a unique nonce
+    const nonce = Math.random().toString(36).substring(2);
+
+    // Parse widget code
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = widgetCode;
+
+    // Extract scripts and add nonce
+    const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+    scripts.forEach(script => {
+      script.setAttribute('nonce', nonce);
+      script.remove();
+    });
+
+    // Add non-script content
+    container.innerHTML = tempDiv.innerHTML;
+
+    // Add scripts back with delay
+    setTimeout(() => {
       scripts.forEach(oldScript => {
         const script = document.createElement('script');
+        script.setAttribute('nonce', nonce);
+        
+        // Copy attributes
         Array.from(oldScript.attributes).forEach(attr => {
-          script.setAttribute(attr.name, attr.value);
+          if (attr.name !== 'nonce') {
+            script.setAttribute(attr.name, attr.value);
+          }
         });
+
+        // Copy content
         script.textContent = oldScript.textContent;
-        oldScript.parentNode?.replaceChild(script, oldScript);
+
+        // Add to document
+        document.head.appendChild(script);
       });
     }, 2000);
 
+    // Cleanup function
     return () => {
-      clearTimeout(timeout);
+      if (container) {
+        container.innerHTML = '';
+      }
+      // Remove any scripts we added
+      document.querySelectorAll(`script[nonce="${nonce}"]`).forEach(script => {
+        script.remove();
+      });
     };
   }, [widgetCode]);
 
@@ -34,7 +68,6 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     <div 
       ref={containerRef}
       className="min-h-[400px]"
-      dangerouslySetInnerHTML={{ __html: widgetCode }}
     />
   );
 };
