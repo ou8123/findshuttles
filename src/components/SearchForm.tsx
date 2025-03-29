@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Combobox } from '@headlessui/react';
 
 interface DestinationCity {
   id: string;
@@ -34,13 +35,10 @@ const SearchForm = () => {
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
-  // State for departure city autocomplete
+  // State for departure city
   const [departureCities, setDepartureCities] = useState<CityLookup[]>([]);
-  const [departureInput, setDepartureInput] = useState('');
-  const [filteredDepartureCities, setFilteredDepartureCities] = useState<CityLookup[]>([]);
+  const [departureQuery, setDepartureQuery] = useState('');
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
-  const [showDepartureSuggestions, setShowDepartureSuggestions] = useState(false);
-  const departureAutocompleteRef = useRef<HTMLDivElement>(null);
 
   // State for destination city
   const [validDestinations, setValidDestinations] = useState<DestinationCity[]>([]);
@@ -80,35 +78,12 @@ const SearchForm = () => {
     fetchLocationsLookup();
   }, []);
 
-  // Handle clicks outside of departure autocomplete
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (departureAutocompleteRef.current && !departureAutocompleteRef.current.contains(event.target as Node)) {
-        setShowDepartureSuggestions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Filter departure cities based on input
-  useEffect(() => {
-    if (!departureInput.trim()) {
-      setFilteredDepartureCities([]);
-      setShowDepartureSuggestions(false);
-      return;
-    }
-
-    const filtered = departureCities.filter(city => {
-      const searchStr = departureInput.toLowerCase();
-      return city.name.toLowerCase().includes(searchStr);
-    });
-    setFilteredDepartureCities(filtered);
-    setShowDepartureSuggestions(true);
-  }, [departureInput, departureCities]);
+  // Filter departure cities based on query
+  const filteredDepartureCities = departureQuery === ''
+    ? []
+    : departureCities.filter(city => 
+        city.name.toLowerCase().includes(departureQuery.toLowerCase())
+      );
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
@@ -146,24 +121,6 @@ const SearchForm = () => {
     }
   }, [selectedDepartureCity]);
 
-  const handleDepartureInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setDepartureInput(value);
-    if (!value) {
-      setSelectedDepartureCity(null);
-      setShowDepartureSuggestions(false);
-    } else {
-      setShowDepartureSuggestions(true);
-    }
-  };
-
-  const handleDepartureCitySelect = (city: CityLookup) => {
-    setSelectedDepartureCity(city);
-    setDepartureInput(city.name);
-    setShowDepartureSuggestions(false);
-    setFilteredDepartureCities([]);
-  };
-
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedDepartureCity || !selectedDestinationCityId) {
@@ -186,50 +143,41 @@ const SearchForm = () => {
     <form onSubmit={handleSearch} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
       <h2 className="text-2xl font-semibold mb-6 text-gray-700">Find Your Shuttles</h2>
 
-      {/* Departure City Autocomplete */}
-      <div ref={departureAutocompleteRef} className="relative mb-8">
-        <label htmlFor="departure" className="block text-lg font-medium text-gray-700 mb-2">
+      {/* Departure City Combobox */}
+      <div className="mb-8">
+        <label className="block text-lg font-medium text-gray-700 mb-2">
           From:
         </label>
-        <input
-          id="departure"
-          type="text"
-          value={departureInput}
-          onChange={handleDepartureInputChange}
-          onFocus={() => {
-            if (selectedDepartureCity) {
-              setDepartureInput('');
-              setSelectedDepartureCity(null);
-              setShowDepartureSuggestions(true);
-            }
-          }}
-          placeholder="Enter departure city"
-          className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black"
-          required
-          disabled={isLoadingLocationsLookup}
-          autoComplete="off"
-        />
+        <Combobox value={selectedDepartureCity} onChange={setSelectedDepartureCity}>
+          <div className="relative">
+            <Combobox.Input<CityLookup>
+              className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black"
+              displayValue={(city) => city?.name ?? ''}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
+              placeholder="Enter departure city"
+            />
+            <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
+              {filteredDepartureCities.map((city) => (
+                <Combobox.Option
+                  key={city.id}
+                  value={city}
+                  className={({ active }: { active: boolean }) =>
+                    `relative cursor-pointer select-none py-3 px-4 ${
+                      active ? 'bg-indigo-50 text-black' : 'text-gray-900'
+                    }`
+                  }
+                >
+                  {city.name}
+                </Combobox.Option>
+              ))}
+              {filteredDepartureCities.length === 0 && departureQuery !== '' && (
+                <div className="py-3 px-4 text-gray-500">No cities found</div>
+              )}
+            </Combobox.Options>
+          </div>
+        </Combobox>
         {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-2">Loading cities...</p>}
         {locationLookupError && <p className="text-sm text-red-600 mt-2">{locationLookupError}</p>}
-        
-        {/* Departure Suggestions Dropdown */}
-        {showDepartureSuggestions && filteredDepartureCities.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
-            {filteredDepartureCities.map((city) => (
-              <div
-                key={city.id}
-                onClick={() => handleDepartureCitySelect(city)}
-                className="cursor-pointer select-none relative py-3 px-4 hover:bg-indigo-50 text-black"
-              >
-                <div className="flex items-center">
-                  <span className="font-normal block truncate">
-                    {city.name}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Destination Dropdown */}
