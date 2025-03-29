@@ -6,6 +6,22 @@ interface ViatorWidgetRendererProps {
   widgetCode: string;
 }
 
+interface ScriptAttribute {
+  name: string;
+  value: string;
+}
+
+interface ScriptData {
+  src: string;
+  content: string | null;
+  attributes: ScriptAttribute[];
+}
+
+interface WorkerMessage {
+  content: string;
+  scripts: ScriptData[];
+}
+
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -14,52 +30,86 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
 
     const container = containerRef.current;
 
-    // Generate a unique nonce
-    const nonce = Math.random().toString(36).substring(2);
-
-    // Parse widget code
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = widgetCode;
-
-    // Extract scripts and add nonce
-    const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-    scripts.forEach(script => {
-      script.setAttribute('nonce', nonce);
-      script.remove();
-    });
-
-    // Add non-script content
-    container.innerHTML = tempDiv.innerHTML;
-
-    // Add scripts back with delay
-    setTimeout(() => {
-      scripts.forEach(oldScript => {
-        const script = document.createElement('script');
-        script.setAttribute('nonce', nonce);
+    // Create a blob URL for the worker code
+    const workerCode = `
+      self.onmessage = function(e) {
+        const widgetCode = e.data;
         
-        // Copy attributes
-        Array.from(oldScript.attributes).forEach(attr => {
-          if (attr.name !== 'nonce') {
-            script.setAttribute(attr.name, attr.value);
-          }
+        // Parse widget code
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(widgetCode, 'text/html');
+        
+        // Extract scripts
+        const scripts = Array.from(doc.getElementsByTagName('script'));
+        const scriptData = scripts.map(script => ({
+          src: script.src,
+          content: script.textContent,
+          attributes: Array.from(script.attributes).map(attr => ({
+            name: attr.name,
+            value: attr.value
+          }))
+        }));
+        
+        // Remove scripts from content
+        scripts.forEach(script => script.remove());
+        
+        // Send back parsed content and script data
+        self.postMessage({
+          content: doc.body.innerHTML,
+          scripts: scriptData
         });
+      };
+    `;
 
-        // Copy content
-        script.textContent = oldScript.textContent;
+    const blob = new Blob([workerCode], { type: 'text/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    const worker = new Worker(workerUrl);
 
-        // Add to document
-        document.head.appendChild(script);
-      });
-    }, 2000);
+    // Handle worker messages
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      const { content, scripts } = e.data;
+
+      // Add non-script content
+      container.innerHTML = content;
+
+      // Add scripts with delay
+      setTimeout(() => {
+        scripts.forEach((scriptData: ScriptData) => {
+          const script = document.createElement('script');
+          
+          // Add attributes
+          scriptData.attributes.forEach((attr: ScriptAttribute) => {
+            script.setAttribute(attr.name, attr.value);
+          });
+
+          // Set content or src
+          if (scriptData.src) {
+            script.src = scriptData.src;
+          } else if (scriptData.content) {
+            script.textContent = scriptData.content;
+          }
+
+          // Add to document
+          document.head.appendChild(script);
+        });
+      }, 2000);
+    };
+
+    // Send widget code to worker
+    worker.postMessage(widgetCode);
 
     // Cleanup function
     return () => {
+      worker.terminate();
+      URL.revokeObjectURL(workerUrl);
       if (container) {
         container.innerHTML = '';
       }
       // Remove any scripts we added
-      document.querySelectorAll(`script[nonce="${nonce}"]`).forEach(script => {
-        script.remove();
+      document.querySelectorAll('script').forEach(script => {
+        if (script.textContent?.includes('viator')) {
+          script.remove();
+        }
       });
     };
   }, [widgetCode]);
