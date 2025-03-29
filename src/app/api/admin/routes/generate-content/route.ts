@@ -10,9 +10,9 @@ export async function POST(request: Request) {
     const { departureCityName, destinationCityName, destinationCountryName } = await request.json();
 
     // Prepare prompt for OpenAI
-    const systemMessage = `You are a travel content writer specializing in professional, SEO-optimized descriptions for shuttle routes. Return only a valid JSON object with no additional text or formatting. The JSON must have exactly these fields: metaTitle, metaDescription, metaKeywords, and seoDescription.`;
+    const systemMessage = `You are a travel content writer who specializes in professional, SEO-optimized descriptions for shuttle routes. Return a JSON object with exactly these fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include any additional text or formatting.`;
 
-    const userMessage = `Create SEO content for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a point-to-point transport service, not a sightseeing tour.
+    const userMessage = `Generate an SEO-optimized description for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a point-to-point transport service, not a sightseeing tour.
 
 Required format:
 {
@@ -37,8 +37,7 @@ Guidelines:
         { role: 'user', content: userMessage }
       ],
       temperature: 0.7,
-      max_tokens: 1000,
-      response_format: { type: "json_object" }
+      max_tokens: 1000
     });
 
     // Get the response text
