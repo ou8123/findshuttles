@@ -27,53 +27,38 @@ interface RouteWithRelations {
   };
 }
 
-async function getRouteData(slug: string): Promise<RouteWithRelations | null> {
-  try {
-    const route = await prisma.route.findUnique({
-      where: { routeSlug: slug },
-      select: {
-        routeSlug: true,
-        displayName: true,
-        viatorWidgetCode: true,
-        seoDescription: true,
-        departureCity: {
-          select: { 
-            name: true, 
-            latitude: true, 
-            longitude: true 
-          }
-        },
-        departureCountry: { 
-          select: { name: true } 
-        },
-        destinationCity: {
-          select: { 
-            name: true, 
-            latitude: true, 
-            longitude: true 
-          }
-        },
-        destinationCountry: { 
-          select: { name: true } 
-        },
+export default async function RoutePage({ params }: any) {
+  const route = await prisma.route.findUnique({
+    where: { routeSlug: params.routeSlug },
+    select: {
+      routeSlug: true,
+      displayName: true,
+      viatorWidgetCode: true,
+      seoDescription: true,
+      departureCity: {
+        select: { 
+          name: true, 
+          latitude: true, 
+          longitude: true 
+        }
       },
-    });
+      departureCountry: { 
+        select: { name: true } 
+      },
+      destinationCity: {
+        select: { 
+          name: true, 
+          latitude: true, 
+          longitude: true 
+        }
+      },
+      destinationCountry: { 
+        select: { name: true } 
+      },
+    },
+  });
 
-    return route as RouteWithRelations | null;
-  } catch (error) {
-    console.error(`Error fetching route data for slug ${slug}:`, error);
-    return null;
-  }
-}
-
-export default async function RoutePage({
-  params,
-}: {
-  params: { routeSlug: string }
-}) {
-  const routeData = await getRouteData(params.routeSlug);
-
-  if (!routeData) {
+  if (!route) {
     notFound();
   }
 
@@ -85,37 +70,37 @@ export default async function RoutePage({
       
       <div>
         <h1 className="text-3xl font-bold mb-4">
-          {routeData.displayName || `Shuttles from ${routeData.departureCity.name} to ${routeData.destinationCity.name}`}
+          {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
         </h1>
 
         {/* Render the Viator Widget */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
-          {routeData.viatorWidgetCode ? (
-            <ViatorWidgetRenderer key={routeData.routeSlug} widgetCode={routeData.viatorWidgetCode} />
+          {route.viatorWidgetCode ? (
+            <ViatorWidgetRenderer key={route.routeSlug} widgetCode={route.viatorWidgetCode} />
           ) : (
             <p>Booking information currently unavailable.</p>
           )}
         </div>
 
         {/* Display SEO Description if available */}
-        {routeData.seoDescription && (
+        {route.seoDescription && (
           <div className="mb-6 p-4 bg-white rounded shadow-sm">
             <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
-            <p className="text-black">{routeData.seoDescription}</p>
+            <p className="text-black">{route.seoDescription}</p>
           </div>
         )}
 
         {/* Map Display Section */}
-        {routeData.departureCity?.latitude && routeData.departureCity?.longitude &&
-         routeData.destinationCity?.latitude && routeData.destinationCity?.longitude && (
+        {route.departureCity?.latitude && route.departureCity?.longitude &&
+         route.destinationCity?.latitude && route.destinationCity?.longitude && (
           <div className="my-8">
             <h2 className="text-xl font-semibold mb-3">Route Map</h2>
             <RouteMap
-              departureLat={routeData.departureCity.latitude}
-              departureLng={routeData.departureCity.longitude}
-              destinationLat={routeData.destinationCity.latitude}
-              destinationLng={routeData.destinationCity.longitude}
+              departureLat={route.departureCity.latitude}
+              departureLng={route.departureCity.longitude}
+              destinationLat={route.destinationCity.latitude}
+              destinationLng={route.destinationCity.longitude}
             />
           </div>
         )}
