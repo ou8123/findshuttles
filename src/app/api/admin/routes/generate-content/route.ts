@@ -5,9 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI();
 
 interface GeneratedContent {
   metaTitle: string;
@@ -103,7 +101,7 @@ Make the content engaging while following SEO best practices. Focus on what make
         messages: [
           {
             role: "system",
-            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond in strict JSON format with these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. For the seoDescription field, use '\\n' for line breaks. Do not include any other text outside the JSON object or any raw newlines in the response."
+            content: "You are a travel content expert who specializes in creating SEO-optimized content for transportation routes. Always respond with a valid JSON object containing these exact fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown code blocks or any other formatting."
           },
           {
             role: "user",
@@ -125,36 +123,23 @@ Make the content engaging while following SEO best practices. Focus on what make
         throw new Error('No content generated');
       }
 
-      // Sanitize the response before parsing
-      const sanitizedContent = messageContent
-        .replace(/^\s+/gm, '') // Remove leading whitespace (including tabs)
+      // Clean up the response
+      const cleanContent = messageContent
+        .replace(/```json\s*/g, '') // Remove ```json
+        .replace(/```\s*/g, '') // Remove ```
+        .replace(/^\s+/gm, '') // Remove leading whitespace
         .replace(/\t/g, '') // Remove tabs
-        .replace(/\n/g, '\\n') // Escape newlines
-        .replace(/\r/g, '\\r') // Escape carriage returns
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
-        .replace(/'/g, "'") // Replace smart quotes
-        .replace(/'/g, "'") // Replace other smart quotes
-        .replace(/"/g, '"') // Replace smart double quotes
-        .replace(/"/g, '"') // Replace other smart double quotes
         .trim(); // Remove any trailing whitespace
       
-      console.log('Sanitized content:', sanitizedContent);
+      console.log('Cleaned content:', cleanContent);
       
       let parsedContent: GeneratedContent;
       try {
-        parsedContent = JSON.parse(sanitizedContent);
+        parsedContent = JSON.parse(cleanContent);
       } catch (error) {
-        // Try parsing with more lenient cleanup
         console.error('Failed to parse OpenAI response:', messageContent);
         console.error('Parse error:', error);
-        
-        const cleanContent = sanitizedContent
-          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-          .replace(/\\n/g, ' ')
-          .replace(/\\/g, '\\\\');
-        
-        console.log('Cleaned content:', cleanContent);
-        parsedContent = JSON.parse(cleanContent);
+        throw new Error('Failed to parse generated content');
       }
 
       // Log the parsed content
