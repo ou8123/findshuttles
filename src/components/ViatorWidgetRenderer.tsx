@@ -10,36 +10,29 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode) return;
-
-    const container = containerRef.current;
-
-    // Function to load widget
-    const loadWidget = () => {
-      try {
-        // Add widget code directly
-        container.innerHTML = widgetCode;
-      } catch (error) {
-        console.error('Error loading widget:', error);
+    // Add a small delay to ensure the widget loads properly
+    const timeout = setTimeout(() => {
+      if (containerRef.current) {
+        const scripts = containerRef.current.getElementsByTagName('script');
+        Array.from(scripts).forEach(script => {
+          const newScript = document.createElement('script');
+          Array.from(script.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.textContent = script.textContent;
+          script.parentNode?.replaceChild(newScript, script);
+        });
       }
-    };
+    }, 500);
 
-    // Start loading with delay
-    const initTimeout = setTimeout(loadWidget, 500);
-
-    // Cleanup function
-    return () => {
-      clearTimeout(initTimeout);
-      if (container) {
-        container.innerHTML = '';
-      }
-    };
+    return () => clearTimeout(timeout);
   }, [widgetCode]);
 
   return (
     <div 
       ref={containerRef}
       className="min-h-[400px]"
+      dangerouslySetInnerHTML={{ __html: widgetCode }}
     />
   );
 };
