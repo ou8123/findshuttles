@@ -1,8 +1,8 @@
-"use client"; // This component needs client-side interactivity
+"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useJsApiLoader, Autocomplete } from '@react-google-maps/api'; // Import useJsApiLoader
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
 // Define the expected structure of the location data from the API
 interface DestinationCity {
@@ -39,7 +39,6 @@ const SearchForm = () => {
 
   // State for Departure Autocomplete
   const [departureAutocomplete, setDepartureAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
-  // const [departureName, setDepartureName] = useState<string>(''); // Unused state
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
 
   // State for Destination Dropdown
@@ -53,12 +52,9 @@ const SearchForm = () => {
   // --- Load Google Maps API ---
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || "", // Ensure apiKey is not undefined
+    googleMapsApiKey: apiKey || "",
     libraries: libraries,
-    // preventLoading: !apiKey, // Prevent loading if key is missing (optional)
   });
-  // --- End Load Google Maps API ---
-
 
   // Fetch our internal locations data on mount
   useEffect(() => {
@@ -72,13 +68,7 @@ const SearchForm = () => {
         setLocationsLookup(data);
       } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
-        // Removed unused 'message' variable
-        // let message = "Could not load location data for routing.";
-        // if (err instanceof Error) {
-        //     message = err.message;
-        // }
-        // Optionally, keep the generic message or use the specific one
-        setLocationLookupError("Could not load location data for routing."); // Keeping generic for user display
+        setLocationLookupError("Could not load location data for routing.");
       } finally {
         setIsLoadingLocationsLookup(false);
       }
@@ -103,11 +93,10 @@ const SearchForm = () => {
         }
       } catch (err: unknown) {
         console.error("Failed to fetch valid destinations:", err);
-        // Directly set the error message
         if (err instanceof Error) {
             setDestinationError(err.message);
         } else {
-            setDestinationError("Could not load destinations."); // Fallback message
+            setDestinationError("Could not load destinations.");
         }
       } finally {
         setIsLoadingDestinations(false);
@@ -123,7 +112,6 @@ const SearchForm = () => {
     }
   }, [selectedDepartureCity]);
 
-
   // --- Autocomplete Handlers ---
   const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => {
     setDepartureAutocomplete(autocomplete);
@@ -135,7 +123,6 @@ const SearchForm = () => {
       const place = departureAutocomplete.getPlace();
       if (place?.name) {
         const selectedName = place.name;
-        // setDepartureName(selectedName); // Removed usage
         console.log("Departure Place Selected:", selectedName);
 
         const nameLower = selectedName.trim().toLowerCase();
@@ -160,23 +147,19 @@ const SearchForm = () => {
 
       } else {
         console.log('Departure Autocomplete: No details available for input');
-        // setDepartureName(''); // Removed usage
         setSelectedDepartureCity(null);
       }
     } else {
       console.log('Departure Autocomplete is not loaded yet!');
     }
   };
-  // --- End Autocomplete Handlers ---
 
   const handleDepartureInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       if (value === '') {
-          // setDepartureName(''); // Removed usage
           setSelectedDepartureCity(null);
       }
   };
-
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -217,16 +200,14 @@ const SearchForm = () => {
       return <div className="text-center p-4">Loading Map Services...</div>;
   }
 
-  // Check API key presence after checking loadError/isLoaded
   if (!apiKey) {
       console.error("Google Maps API Key is missing. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your .env file.");
       return <div className="text-center p-4 text-red-600">Configuration error: Google Maps API Key is missing.</div>;
   }
 
   return (
-      // No <LoadScript> wrapper needed here
       <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md space-y-4">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttle</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttles</h2>
 
         {/* Departure Autocomplete */}
         <div>
@@ -276,7 +257,6 @@ const SearchForm = () => {
           </select>
            {destinationError && !isLoadingDestinations && <p className="text-xs text-red-500 mt-1">{destinationError}</p>}
         </div>
-
 
         <button
           type="submit"
