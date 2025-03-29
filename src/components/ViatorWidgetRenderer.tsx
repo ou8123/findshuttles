@@ -13,63 +13,72 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     if (!containerRef.current || !widgetCode) return;
 
     const container = containerRef.current;
+    let scriptQueue: HTMLScriptElement[] = [];
+    let currentScriptIndex = 0;
 
-    // Function to load a script and return a promise
-    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        
-        // Copy attributes
-        Array.from(scriptElement.attributes).forEach(attr => {
-          script.setAttribute(attr.name, attr.value);
-        });
+    const loadNextScript = () => {
+      if (currentScriptIndex >= scriptQueue.length) {
+        scriptQueue = [];
+        currentScriptIndex = 0;
+        return;
+      }
 
-        // Set content
-        if (scriptElement.src) {
-          script.src = scriptElement.src;
-          script.async = true;
-        } else {
-          script.textContent = scriptElement.textContent;
-        }
+      const script = scriptQueue[currentScriptIndex];
+      const newScript = document.createElement('script');
 
-        // Add load handlers
-        script.onload = () => resolve();
-        script.onerror = () => reject();
-
-        // Add to document
-        document.head.appendChild(script);
+      // Copy attributes
+      Array.from(script.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
       });
+
+      // Copy content
+      if (script.src) {
+        newScript.src = script.src;
+        newScript.async = false;
+      } else {
+        newScript.textContent = script.textContent;
+      }
+
+      // Add load handlers
+      newScript.onload = () => {
+        currentScriptIndex++;
+        setTimeout(loadNextScript, 500); // 500ms delay between scripts
+      };
+
+      newScript.onerror = () => {
+        console.error('Failed to load script:', script.src || 'inline script');
+        currentScriptIndex++;
+        setTimeout(loadNextScript, 500);
+      };
+
+      // Add to document
+      document.head.appendChild(newScript);
     };
 
-    // Function to load widget
-    const loadWidget = async () => {
+    const initWidget = () => {
       try {
         // Parse widget code
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = widgetCode;
 
         // Extract scripts
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-        scripts.forEach(script => script.remove());
+        scriptQueue = Array.from(tempDiv.getElementsByTagName('script'));
+        scriptQueue.forEach(script => script.remove());
 
         // Add non-script content
         container.innerHTML = tempDiv.innerHTML;
 
-        // Load scripts sequentially
-        for (const script of scripts) {
-          await loadScript(script);
-          // Add a small delay between scripts
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
+        // Start loading scripts
+        currentScriptIndex = 0;
+        loadNextScript();
+
       } catch (error) {
-        console.error('Error loading widget:', error);
+        console.error('Error initializing widget:', error);
       }
     };
 
-    // Start loading with delay
-    const initTimeout = setTimeout(() => {
-      loadWidget();
-    }, 2000);
+    // Start with a delay
+    const initTimeout = setTimeout(initWidget, 2000);
 
     // Cleanup function
     return () => {
@@ -83,6 +92,8 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           script.remove();
         }
       });
+      scriptQueue = [];
+      currentScriptIndex = 0;
     };
   }, [widgetCode]);
 
