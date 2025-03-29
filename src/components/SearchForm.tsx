@@ -144,87 +144,89 @@ const SearchForm = () => {
   };
 
   return (
-    <form onSubmit={handleSearch} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
-      <h2 className="text-2xl font-semibold mb-6 text-gray-700">Find Your Shuttle Route</h2>
+    <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
+      <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttle Route</h2>
 
-      {/* Departure City Combobox */}
-      <div className="mb-8">
-        <label className="block text-lg font-medium text-gray-700 mb-2">
-          From:
-        </label>
-        <Combobox value={selectedDepartureCity} onChange={setSelectedDepartureCity}>
-          <div className="relative">
-            <Combobox.Input<CityLookup>
-              className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black"
-              displayValue={(city) => city ? `${city.name}, ${city.countryName}` : ''}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
-              placeholder="Enter city or country name"
-              autoComplete="off"
-              spellCheck="false"
-              aria-autocomplete="none"
-            />
-            <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-xl max-h-60 rounded-lg py-2 text-base overflow-auto focus:outline-none sm:text-lg border border-gray-200">
-              {filteredDepartureCities.map((city) => (
-                <Combobox.Option
-                  key={city.id}
-                  value={city}
-                  className={({ active }: { active: boolean }) =>
-                    `relative cursor-pointer select-none py-3 px-4 ${
-                      active ? 'bg-indigo-50 text-black' : 'text-gray-900'
-                    }`
-                  }
-                >
-                  {`${city.name}, ${city.countryName}`}
-                </Combobox.Option>
-              ))}
-              {filteredDepartureCities.length === 0 && departureQuery !== '' && (
-                <div className="py-3 px-4 text-gray-500">No cities found</div>
-              )}
-            </Combobox.Options>
-          </div>
-        </Combobox>
-        {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-2">Loading cities...</p>}
-        {locationLookupError && <p className="text-sm text-red-600 mt-2">{locationLookupError}</p>}
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Departure City Combobox */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            From:
+          </label>
+          <Combobox value={selectedDepartureCity} onChange={setSelectedDepartureCity}>
+            <div className="relative">
+              <Combobox.Input<CityLookup>
+                className="w-full h-10 px-3 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black"
+                displayValue={(city) => city ? `${city.name}, ${city.countryName}` : ''}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
+                placeholder="Enter city or country name"
+                autoComplete="off"
+                spellCheck="false"
+                aria-autocomplete="none"
+              />
+              <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200">
+                {filteredDepartureCities.map((city) => (
+                  <Combobox.Option
+                    key={city.id}
+                    value={city}
+                    className={({ active }: { active: boolean }) =>
+                      `relative cursor-pointer select-none py-2 px-3 ${
+                        active ? 'bg-indigo-50 text-black' : 'text-gray-900'
+                      }`
+                    }
+                  >
+                    {`${city.name}, ${city.countryName}`}
+                  </Combobox.Option>
+                ))}
+                {filteredDepartureCities.length === 0 && departureQuery !== '' && (
+                  <div className="py-2 px-3 text-gray-500">No cities found</div>
+                )}
+              </Combobox.Options>
+            </div>
+          </Combobox>
+          {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
+          {locationLookupError && <p className="text-xs text-red-600 mt-1">{locationLookupError}</p>}
+        </div>
 
-      {/* Destination Dropdown */}
-      <div className="mb-8">
-        <label htmlFor="destination" className="block text-lg font-medium text-gray-700 mb-2">
-          To:
-        </label>
-        <select
-          id="destination"
-          value={selectedDestinationCityId}
-          onChange={(e) => setSelectedDestinationCityId(e.target.value)}
-          required
-          disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
-          className="w-full h-14 px-4 text-lg border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
-          autoComplete="off"
-        >
-          <option value="">
-            {selectedDepartureCity 
-              ? (isLoadingDestinations 
-                ? 'Loading destinations...' 
-                : (validDestinations.length === 0 
-                  ? 'No routes found' 
-                  : 'Select destination'))
-              : 'Select departure first'}
-          </option>
-          {validDestinations.map((city) => (
-            <option key={city.id} value={city.id}>
-              {`${city.name}, ${city.country?.name}`}
+        {/* Destination Dropdown */}
+        <div>
+          <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
+            To:
+          </label>
+          <select
+            id="destination"
+            value={selectedDestinationCityId}
+            onChange={(e) => setSelectedDestinationCityId(e.target.value)}
+            required
+            disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
+            className="w-full h-10 px-3 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
+            autoComplete="off"
+          >
+            <option value="">
+              {selectedDepartureCity 
+                ? (isLoadingDestinations 
+                  ? 'Loading destinations...' 
+                  : (validDestinations.length === 0 
+                    ? 'No routes found' 
+                    : 'Select destination'))
+                : 'Select departure first'}
             </option>
-          ))}
-        </select>
-        {destinationError && !isLoadingDestinations && (
-          <p className="text-sm text-red-600 mt-2">{destinationError}</p>
-        )}
+            {validDestinations.map((city) => (
+              <option key={city.id} value={city.id}>
+                {`${city.name}, ${city.country?.name}`}
+              </option>
+            ))}
+          </select>
+          {destinationError && !isLoadingDestinations && (
+            <p className="text-xs text-red-600 mt-1">{destinationError}</p>
+          )}
+        </div>
       </div>
 
       <button
         type="submit"
         disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
-        className="w-full bg-indigo-600 text-white py-4 px-6 text-lg rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+        className="w-full mt-4 bg-indigo-600 text-white py-2 px-4 text-base rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
       >
         Find Shuttles
       </button>

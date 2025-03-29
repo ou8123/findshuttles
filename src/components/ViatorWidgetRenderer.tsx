@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -8,86 +8,57 @@ interface ViatorWidgetRendererProps {
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode || isLoaded) return;
+    if (!containerRef.current || !widgetCode) return;
 
-    const loadWidget = async () => {
+    const loadWidget = () => {
       try {
         // Clear any existing content
-        containerRef.current!.innerHTML = '';
-
-        // Create a temporary div to parse the widget code
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = widgetCode;
+        containerRef.current!.innerHTML = widgetCode;
 
         // Find all script tags
-        const scripts = tempDiv.getElementsByTagName('script');
-        const scriptContents: string[] = [];
-        const scriptSrcs: string[] = [];
+        const scripts = containerRef.current!.getElementsByTagName('script');
+        const scriptElements = Array.from(scripts);
 
-        // Extract script contents and sources
-        Array.from(scripts).forEach(script => {
-          if (script.src) {
-            scriptSrcs.push(script.src);
-          }
-          if (script.textContent) {
-            scriptContents.push(script.textContent);
-          }
-          script.remove();
-        });
+        // Remove all script tags (we'll re-add them properly)
+        scriptElements.forEach(script => script.remove());
 
-        // Add the HTML content first
-        containerRef.current!.innerHTML = tempDiv.innerHTML;
-
-        // Function to load a script by source
-        const loadScript = (src: string): Promise<void> => {
-          return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = () => resolve();
-            script.onerror = () => reject();
-            document.body.appendChild(script);
-          });
-        };
-
-        // Function to execute inline script
-        const executeScript = (content: string): void => {
+        // Re-add each script properly
+        scriptElements.forEach(originalScript => {
           const script = document.createElement('script');
-          script.text = content;
+          
+          // Copy all attributes
+          Array.from(originalScript.attributes).forEach(attr => {
+            script.setAttribute(attr.name, attr.value);
+          });
+
+          // Copy inline script content
+          if (originalScript.innerHTML) {
+            script.innerHTML = originalScript.innerHTML;
+          }
+
+          // Add the script to the document
           document.body.appendChild(script);
-        };
-
-        // Load all external scripts sequentially
-        for (const src of scriptSrcs) {
-          await loadScript(src);
-          // Add a small delay between scripts
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        // After all external scripts are loaded, execute inline scripts
-        scriptContents.forEach(content => {
-          executeScript(content);
         });
-
-        setIsLoaded(true);
       } catch (error) {
         console.error('Error loading widget:', error);
+        if (containerRef.current) {
+          containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
+        }
       }
     };
 
-    // Add a small delay before loading the widget
-    setTimeout(loadWidget, 500);
+    // Add a small delay before loading
+    const timer = setTimeout(loadWidget, 100);
 
-    // Cleanup function
     return () => {
+      clearTimeout(timer);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
-      setIsLoaded(false);
     };
-  }, [widgetCode, isLoaded]);
+  }, [widgetCode]);
 
   return (
     <div 

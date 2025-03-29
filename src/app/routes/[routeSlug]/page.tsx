@@ -32,6 +32,7 @@ interface RouteWithRelations {
 export default function RoutePage({ params }: any) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [route, setRoute] = useState<RouteWithRelations | null>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -45,13 +46,6 @@ export default function RoutePage({ params }: any) {
         }
         const data = await response.json();
         setRoute(data);
-
-        // Scroll to content after data is loaded
-        if (contentRef.current) {
-          setTimeout(() => {
-            contentRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }, 100);
-        }
       } catch (error) {
         console.error('Error fetching route:', error);
       }
@@ -59,6 +53,18 @@ export default function RoutePage({ params }: any) {
 
     fetchRoute();
   }, [params.routeSlug]);
+
+  // Separate effect for scrolling after data is loaded
+  useEffect(() => {
+    if (route && contentRef.current && !hasScrolled) {
+      const timer = setTimeout(() => {
+        contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setHasScrolled(true);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [route, hasScrolled]);
 
   if (!route) {
     return (
@@ -79,7 +85,7 @@ export default function RoutePage({ params }: any) {
         <SearchForm />
       </div>
       
-      <div ref={contentRef}>
+      <div ref={contentRef} className="scroll-mt-4">
         <h1 className="text-3xl font-bold mb-4">
           {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
         </h1>
@@ -88,7 +94,7 @@ export default function RoutePage({ params }: any) {
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
           {route.viatorWidgetCode ? (
-            <ViatorWidgetRenderer key={route.routeSlug} widgetCode={route.viatorWidgetCode} />
+            <ViatorWidgetRenderer key={`${route.routeSlug}-${hasScrolled}`} widgetCode={route.viatorWidgetCode} />
           ) : (
             <p>Booking information currently unavailable.</p>
           )}
