@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import { extractScripts, loadScript, loadScriptContent } from '@/lib/scriptLoader';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
@@ -10,28 +11,36 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode) return;
+    const loadWidget = async () => {
+      if (!containerRef.current || !widgetCode) return;
 
-    // Create a temporary div to parse the widget code
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = widgetCode;
+      try {
+        // Clear any existing content
+        containerRef.current.innerHTML = '';
 
-    // Clear any existing content
-    containerRef.current.innerHTML = '';
+        // Extract scripts and remaining HTML
+        const { scripts, inlineScripts, remainingHtml } = extractScripts(widgetCode);
 
-    // Add the widget code
-    containerRef.current.appendChild(tempDiv);
+        // Set the HTML content first
+        containerRef.current.innerHTML = remainingHtml;
 
-    // Initialize any scripts
-    const scripts = tempDiv.getElementsByTagName('script');
-    Array.from(scripts).forEach(oldScript => {
-      const newScript = document.createElement('script');
-      Array.from(oldScript.attributes).forEach(attr => {
-        newScript.setAttribute(attr.name, attr.value);
-      });
-      newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
-    });
+        // Load external scripts sequentially
+        for (const src of scripts) {
+          await loadScript(src);
+        }
+
+        // Load inline scripts sequentially
+        for (const content of inlineScripts) {
+          await loadScriptContent(content);
+        }
+
+      } catch (error) {
+        console.error('Error loading widget:', error);
+        containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
+      }
+    };
+
+    loadWidget();
 
     // Cleanup function
     return () => {

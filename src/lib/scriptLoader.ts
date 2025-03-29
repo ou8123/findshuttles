@@ -1,55 +1,56 @@
-type ScriptStatus = {
-  loaded: boolean;
-  error: boolean;
-  promise?: Promise<void>;
-};
+export function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Check if script already exists
+    const existingScript = document.querySelector(`script[src="${src}"]`);
+    if (existingScript) {
+      resolve();
+      return;
+    }
 
-const scripts: { [src: string]: ScriptStatus } = {};
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
 
-export const loadScript = (src: string): Promise<void> => {
-  if (!scripts[src]) {
-    scripts[src] = {
-      loaded: false,
-      error: false,
-      promise: new Promise((resolve, reject) => {
-        // Create script element
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.async = true;
-        script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
 
-        // Add event listeners
-        script.onload = () => {
-          scripts[src].loaded = true;
-          resolve();
-        };
+    document.body.appendChild(script);
+  });
+}
 
-        script.onerror = () => {
-          scripts[src].error = true;
-          reject(new Error(`Failed to load script: ${src}`));
-        };
+export function loadScriptContent(content: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      const script = document.createElement('script');
+      script.textContent = content;
+      document.body.appendChild(script);
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 
-        // Append script to document
-        document.head.appendChild(script);
-      }),
-    };
-  }
+export function extractScripts(html: string): { scripts: string[]; inlineScripts: string[]; remainingHtml: string } {
+  const scripts: string[] = [];
+  const inlineScripts: string[] = [];
+  let remainingHtml = html;
 
-  return scripts[src].promise!;
-};
+  // Extract scripts with src
+  const srcRegex = /<script[^>]*src=["']([^"']+)["'][^>]*><\/script>/g;
+  remainingHtml = remainingHtml.replace(srcRegex, (match, src) => {
+    scripts.push(src);
+    return '';
+  });
 
-export const loadScripts = async (srcs: string[]): Promise<void> => {
-  try {
-    await Promise.all(srcs.map(src => loadScript(src)));
-  } catch (error) {
-    console.error('Failed to load scripts:', error);
-    throw error;
-  }
-};
+  // Extract inline scripts
+  const inlineRegex = /<script[^>]*>([\s\S]*?)<\/script>/g;
+  remainingHtml = remainingHtml.replace(inlineRegex, (match, content) => {
+    if (content.trim()) {
+      inlineScripts.push(content);
+    }
+    return '';
+  });
 
-export const injectInlineScript = (content: string): void => {
-  const script = document.createElement('script');
-  script.type = 'text/javascript';
-  script.text = content;
-  document.head.appendChild(script);
-};
+  return { scripts, inlineScripts, remainingHtml };
+}
