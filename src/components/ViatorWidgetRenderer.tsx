@@ -12,48 +12,69 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
 
-    const loadWidget = () => {
-      try {
-        // Clear any existing content
-        containerRef.current!.innerHTML = widgetCode;
+    // Create a temporary div to parse the widget code
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = widgetCode;
 
-        // Find all script tags
-        const scripts = containerRef.current!.getElementsByTagName('script');
-        const scriptElements = Array.from(scripts);
+    // Find all script tags
+    const scripts = tempDiv.getElementsByTagName('script');
+    const scriptElements = Array.from(scripts);
 
-        // Remove all script tags (we'll re-add them properly)
-        scriptElements.forEach(script => script.remove());
+    // Remove scripts from the temp div
+    scriptElements.forEach(script => script.remove());
 
-        // Re-add each script properly
-        scriptElements.forEach(originalScript => {
-          const script = document.createElement('script');
-          
-          // Copy all attributes
-          Array.from(originalScript.attributes).forEach(attr => {
-            script.setAttribute(attr.name, attr.value);
-          });
+    // Set the HTML content first (without scripts)
+    containerRef.current.innerHTML = tempDiv.innerHTML;
 
-          // Copy inline script content
-          if (originalScript.innerHTML) {
-            script.innerHTML = originalScript.innerHTML;
-          }
+    // Function to load a script
+    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
 
-          // Add the script to the document
-          document.body.appendChild(script);
+        // Copy all attributes
+        Array.from(scriptElement.attributes).forEach(attr => {
+          script.setAttribute(attr.name, attr.value);
         });
-      } catch (error) {
-        console.error('Error loading widget:', error);
-        if (containerRef.current) {
-          containerRef.current.innerHTML = 'Error loading booking widget. Please try refreshing the page.';
+
+        // Handle external scripts
+        if (scriptElement.src) {
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+        }
+
+        // Copy inline script content
+        if (scriptElement.textContent) {
+          script.textContent = scriptElement.textContent;
+        }
+
+        // For inline scripts, resolve immediately
+        if (!scriptElement.src) {
+          script.onload = () => resolve();
+        }
+
+        // Add to document
+        document.head.appendChild(script);
+      });
+    };
+
+    // Load scripts sequentially
+    const loadScripts = async () => {
+      for (const script of scriptElements) {
+        try {
+          await loadScript(script);
+          // Add a small delay between scripts
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          console.error('Error loading script:', error);
         }
       }
     };
 
-    // Add a small delay before loading
-    const timer = setTimeout(loadWidget, 100);
+    // Start loading scripts with a delay
+    setTimeout(loadScripts, 500);
 
+    // Cleanup function
     return () => {
-      clearTimeout(timer);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
