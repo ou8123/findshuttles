@@ -50,13 +50,14 @@ model Route {
   destinationCityId    String
   destinationCountryId String
   routeSlug            String   @unique
+  displayName          String   @default("")
   viatorWidgetCode     String
   seoDescription       String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  metaTitle            String?
   metaDescription      String?
   metaKeywords         String?
-  metaTitle            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
   departureCity        City     @relation("DepartureCity", fields: [departureCityId], references: [id])
   departureCountry     Country  @relation("DepartureCountry", fields: [departureCountryId], references: [id])
   destinationCity      City     @relation("DestinationCity", fields: [destinationCityId], references: [id])
