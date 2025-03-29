@@ -99,7 +99,7 @@ const EditRoutePage = () => {
         }
       }
     }
-  }, [departureCityId, destinationCityId, cities]);
+  }, [departureCityId, destinationCityId, cities, routeSlug, displayName, originalData.routeSlug, originalData.displayName]);
 
   // Fetch the specific route data
   useEffect(() => {

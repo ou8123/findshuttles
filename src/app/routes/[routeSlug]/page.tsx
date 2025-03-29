@@ -3,7 +3,30 @@ import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 
-async function getRouteData(slug: string) {
+interface RouteWithRelations {
+  routeSlug: string;
+  displayName: string;
+  viatorWidgetCode: string;
+  seoDescription: string | null;
+  departureCity: {
+    name: string;
+    latitude: number | null;
+    longitude: number | null;
+  };
+  departureCountry: {
+    name: string;
+  };
+  destinationCity: {
+    name: string;
+    latitude: number | null;
+    longitude: number | null;
+  };
+  destinationCountry: {
+    name: string;
+  };
+}
+
+async function getRouteData(slug: string): Promise<RouteWithRelations | null> {
   try {
     const route = await prisma.route.findUnique({
       where: { routeSlug: slug },
@@ -34,7 +57,8 @@ async function getRouteData(slug: string) {
         },
       },
     });
-    return route;
+
+    return route as RouteWithRelations | null;
   } catch (error) {
     console.error(`Error fetching route data for slug ${slug}:`, error);
     return null;
