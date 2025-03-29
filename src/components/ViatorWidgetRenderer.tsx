@@ -28,21 +28,23 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         // Add non-script content
         container.innerHTML = tempDiv.innerHTML;
 
-        // Add scripts back directly
-        scripts.forEach(oldScript => {
-          const script = document.createElement('script');
-          
-          // Copy attributes
-          Array.from(oldScript.attributes).forEach(attr => {
-            script.setAttribute(attr.name, attr.value);
+        // Add scripts back with delay
+        setTimeout(() => {
+          scripts.forEach(oldScript => {
+            const script = document.createElement('script');
+            
+            // Copy attributes
+            Array.from(oldScript.attributes).forEach(attr => {
+              script.setAttribute(attr.name, attr.value);
+            });
+
+            // Set content
+            script.textContent = oldScript.textContent;
+
+            // Add to document
+            document.head.appendChild(script);
           });
-
-          // Set content
-          script.textContent = oldScript.textContent;
-
-          // Add to container directly
-          container.appendChild(script);
-        });
+        }, 500);
       } catch (error) {
         console.error('Error loading widget:', error);
       }
@@ -57,6 +59,12 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       if (container) {
         container.innerHTML = '';
       }
+      // Remove any scripts we added
+      document.querySelectorAll('script').forEach(script => {
+        if (script.textContent?.includes('viator')) {
+          script.remove();
+        }
+      });
     };
   }, [widgetCode]);
 
