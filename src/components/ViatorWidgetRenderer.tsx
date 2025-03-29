@@ -7,73 +7,86 @@ interface ViatorWidgetRendererProps {
 }
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!iframeRef.current || !widgetCode) return;
+    if (!containerRef.current || !widgetCode) return;
 
-    const iframe = iframeRef.current;
+    const container = containerRef.current;
 
-    // Create a complete HTML document
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: system-ui, -apple-system, sans-serif;
-              background: transparent;
-            }
-            .widget-container {
-              min-height: 400px;
-              width: 100%;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="widget-container">
-            ${widgetCode}
-          </div>
-          <script>
-            // Listen for widget load
-            window.addEventListener('load', function() {
-              // Send message to parent when loaded
-              window.parent.postMessage('widget-loaded', '*');
-            });
+    // Function to load a script
+    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        
+        // Copy attributes
+        Array.from(scriptElement.attributes).forEach(attr => {
+          script.setAttribute(attr.name, attr.value);
+        });
 
-            // Listen for widget errors
-            window.addEventListener('error', function(e) {
-              // Send error to parent
-              window.parent.postMessage({ type: 'widget-error', error: e.message }, '*');
-            });
-          </script>
-        </body>
-      </html>
-    `;
+        // Set content
+        if (scriptElement.src) {
+          script.src = scriptElement.src;
+          script.async = false;
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+        } else {
+          script.textContent = scriptElement.textContent;
+          resolve();
+        }
 
-    // Create blob URL
-    const blob = new Blob([html], { type: 'text/html' });
-    const blobUrl = URL.createObjectURL(blob);
+        // Add to document
+        document.head.appendChild(script);
+      });
+    };
 
-    // Set iframe src
-    iframe.src = blobUrl;
+    // Function to load widget
+    const loadWidget = async () => {
+      try {
+        // Parse widget code
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = widgetCode;
+
+        // Extract scripts
+        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        scripts.forEach(script => script.remove());
+
+        // Add non-script content
+        container.innerHTML = tempDiv.innerHTML;
+
+        // Load scripts sequentially
+        for (const script of scripts) {
+          await loadScript(script);
+          // Add a small delay between scripts
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error('Error loading widget:', error);
+      }
+    };
+
+    // Start loading with delay
+    const initTimeout = setTimeout(loadWidget, 500);
 
     // Cleanup function
     return () => {
-      URL.revokeObjectURL(blobUrl);
-      iframe.src = 'about:blank';
+      clearTimeout(initTimeout);
+      if (container) {
+        container.innerHTML = '';
+      }
+      // Remove any scripts we added
+      document.querySelectorAll('script').forEach(script => {
+        if (script.textContent?.includes('viator')) {
+          script.remove();
+        }
+      });
     };
   }, [widgetCode]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      className="w-full min-h-[400px] border-0"
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+    <div 
+      ref={containerRef}
+      className="min-h-[400px]"
     />
   );
 };
