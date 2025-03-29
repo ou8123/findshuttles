@@ -1,10 +1,8 @@
-'use client';
-
-import { useEffect, useState, useRef } from 'react';
 import { notFound } from 'next/navigation';
 import RouteMap from '@/components/RouteMap';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 import SearchForm from '@/components/SearchForm';
+import prisma from '@/lib/prisma';
 
 interface RouteWithRelations {
   routeSlug: string;
@@ -29,71 +27,51 @@ interface RouteWithRelations {
   };
 }
 
-export default function RoutePage({
+async function getRouteData(slug: string): Promise<RouteWithRelations | null> {
+  try {
+    const route = await prisma.route.findUnique({
+      where: { routeSlug: slug },
+      select: {
+        routeSlug: true,
+        displayName: true,
+        viatorWidgetCode: true,
+        seoDescription: true,
+        departureCity: {
+          select: { 
+            name: true, 
+            latitude: true, 
+            longitude: true 
+          }
+        },
+        departureCountry: { 
+          select: { name: true } 
+        },
+        destinationCity: {
+          select: { 
+            name: true, 
+            latitude: true, 
+            longitude: true 
+          }
+        },
+        destinationCountry: { 
+          select: { name: true } 
+        },
+      },
+    });
+
+    return route as RouteWithRelations | null;
+  } catch (error) {
+    console.error(`Error fetching route data for slug ${slug}:`, error);
+    return null;
+  }
+}
+
+export default async function RoutePage({
   params,
 }: {
   params: { routeSlug: string }
 }) {
-  const [routeData, setRouteData] = useState<RouteWithRelations | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const fetchRouteData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await fetch(`/api/routes/${params.routeSlug}`);
-        if (!response.ok) {
-          if (response.status === 404) {
-            notFound();
-          }
-          throw new Error('Failed to fetch route data');
-        }
-        const data = await response.json();
-        setRouteData(data);
-
-        // Scroll to content after data is loaded
-        if (contentRef.current) {
-          contentRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      } catch (err) {
-        console.error('Error fetching route data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load route data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchRouteData();
-  }, [params.routeSlug]);
-
-  if (isLoading) {
-    return (
-      <div>
-        <div className="mb-8">
-          <SearchForm />
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-lg text-gray-600">Loading route information...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div>
-        <div className="mb-8">
-          <SearchForm />
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-lg text-red-600">{error}</div>
-        </div>
-      </div>
-    );
-  }
+  const routeData = await getRouteData(params.routeSlug);
 
   if (!routeData) {
     notFound();
@@ -105,7 +83,7 @@ export default function RoutePage({
         <SearchForm />
       </div>
       
-      <div ref={contentRef}>
+      <div>
         <h1 className="text-3xl font-bold mb-4">
           {routeData.displayName || `Shuttles from ${routeData.departureCity.name} to ${routeData.destinationCity.name}`}
         </h1>
