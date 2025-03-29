@@ -98,7 +98,6 @@ export default function RoutePage({ params }: any) {
               <ViatorWidgetRenderer 
                 key={`${route.routeSlug}-${hasScrolled}`} 
                 widgetCode={route.viatorWidgetCode}
-                routeSlug={route.routeSlug}
               />
             ) : (
               <p>Booking information currently unavailable.</p>
