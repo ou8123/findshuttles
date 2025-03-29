@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { routeSlug: string } }
+  request: Request,
+  context: { params: { routeSlug: string } }
 ) {
   try {
     const route = await prisma.route.findUnique({
-      where: { routeSlug: params.routeSlug },
+      where: { routeSlug: context.params.routeSlug },
       select: {
         routeSlug: true,
         displayName: true,
