@@ -38,9 +38,9 @@ const SearchForm = () => {
   // State for departure city autocomplete
   const [departureCities, setDepartureCities] = useState<CityLookup[]>([]);
   const [departureInput, setDepartureInput] = useState('');
-  const [showDepartureSuggestions, setShowDepartureSuggestions] = useState(false);
   const [filteredDepartureCities, setFilteredDepartureCities] = useState<CityLookup[]>([]);
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
   const departureAutocompleteRef = useRef<HTMLDivElement>(null);
 
   // State for destination city
@@ -82,7 +82,7 @@ const SearchForm = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (departureAutocompleteRef.current && !departureAutocompleteRef.current.contains(event.target as Node)) {
-        setShowDepartureSuggestions(false);
+        setIsTyping(false);
       }
     };
 
@@ -94,6 +94,8 @@ const SearchForm = () => {
 
   // Filter departure cities based on input
   useEffect(() => {
+    if (!isTyping) return;
+    
     const filtered = departureCities.filter(city => {
       const searchStr = departureInput.toLowerCase();
       return (
@@ -102,7 +104,7 @@ const SearchForm = () => {
       );
     });
     setFilteredDepartureCities(filtered);
-  }, [departureInput, departureCities]);
+  }, [departureInput, departureCities, isTyping]);
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
@@ -143,16 +145,14 @@ const SearchForm = () => {
   const handleDepartureInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setDepartureInput(value);
-    setShowDepartureSuggestions(true);
-    if (!value) {
-      setSelectedDepartureCity(null);
-    }
+    setIsTyping(true);
+    setSelectedDepartureCity(null);
   };
 
   const handleDepartureCitySelect = (city: CityLookup) => {
     setSelectedDepartureCity(city);
     setDepartureInput(`${city.name}, ${city.countryName}`);
-    setShowDepartureSuggestions(false);
+    setIsTyping(false);
   };
 
   const handleSearch = (event: React.FormEvent) => {
@@ -198,7 +198,7 @@ const SearchForm = () => {
           type="text"
           value={departureInput}
           onChange={handleDepartureInputChange}
-          onFocus={() => setShowDepartureSuggestions(true)}
+          onFocus={() => setIsTyping(true)}
           placeholder="Enter departure city"
           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
           required
@@ -208,7 +208,7 @@ const SearchForm = () => {
         {locationLookupError && <p className="text-xs text-red-500 mt-1">{locationLookupError}</p>}
         
         {/* Departure Suggestions Dropdown */}
-        {showDepartureSuggestions && departureInput && (
+        {isTyping && departureInput && (
           <div className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
             {filteredDepartureCities.length > 0 ? (
               filteredDepartureCities.map((city) => (
