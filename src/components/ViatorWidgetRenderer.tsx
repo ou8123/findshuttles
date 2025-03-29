@@ -16,91 +16,70 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
 
     const container = containerRef.current;
     let loadTimeout: NodeJS.Timeout;
-    let retryCount = 0;
-    const maxRetries = 3;
 
-    // Function to load a script and return a promise
-    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        
-        // Copy attributes
-        Array.from(scriptElement.attributes).forEach(attr => {
-          script.setAttribute(attr.name, attr.value);
-        });
-
-        // Set content
-        if (scriptElement.src) {
-          script.src = scriptElement.src;
-          script.async = false; // Load scripts in order
-          script.onload = () => resolve();
-          script.onerror = () => reject();
-        } else {
-          script.textContent = scriptElement.textContent;
-          resolve();
-        }
-
-        // Add to document
-        document.head.appendChild(script);
-      });
-    };
-
-    // Function to load widget with retry
+    // Function to load widget
     const loadWidget = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
+        // Create a blob URL for the widget code
+        const blob = new Blob([widgetCode], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Load widget code as a module
+        const response = await fetch(blobUrl);
+        const html = await response.text();
+
         // Parse widget code
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = widgetCode;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
 
         // Extract scripts
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
+        const scripts = Array.from(doc.getElementsByTagName('script'));
         scripts.forEach(script => script.remove());
 
         // Add non-script content
-        container.innerHTML = tempDiv.innerHTML;
+        container.innerHTML = doc.body.innerHTML;
 
-        // Load scripts sequentially
+        // Load scripts
         for (const script of scripts) {
-          await loadScript(script);
+          const newScript = document.createElement('script');
+          
+          // Copy attributes
+          Array.from(script.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+
+          // Set content
+          if (script.src) {
+            newScript.src = script.src;
+            await new Promise((resolve, reject) => {
+              newScript.onload = resolve;
+              newScript.onerror = reject;
+              document.head.appendChild(newScript);
+            });
+          } else {
+            newScript.textContent = script.textContent;
+            document.head.appendChild(newScript);
+          }
+
           // Add a small delay between scripts
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Check for widget initialization
-        const checkWidget = setInterval(() => {
-          if ((window as any).viator) {
-            clearInterval(checkWidget);
-            setIsLoading(false);
-            setError(null);
-          }
-        }, 500);
+        // Clean up blob URL
+        URL.revokeObjectURL(blobUrl);
 
-        // Set timeout for widget check
+        // Hide loading after a delay
         loadTimeout = setTimeout(() => {
-          clearInterval(checkWidget);
-          if (isLoading && retryCount < maxRetries) {
-            console.log(`Attempt ${retryCount + 1} failed, retrying...`);
-            retryCount++;
-            loadWidget();
-          } else if (isLoading) {
-            setError('Widget took too long to load');
-            setIsLoading(false);
-          }
-        }, 5000);
+          setIsLoading(false);
+        }, 2000);
 
       } catch (error) {
         console.error('Error loading widget:', error);
-        if (retryCount < maxRetries) {
-          console.log(`Attempt ${retryCount + 1} failed, retrying...`);
-          retryCount++;
-          loadWidget();
-        } else {
-          setError('Failed to load widget');
-          setIsLoading(false);
-        }
+        setError('Failed to load widget');
+        setIsLoading(false);
       }
     };
 
@@ -123,7 +102,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       setIsLoading(true);
       setError(null);
     };
-  }, [widgetCode, isLoading]);
+  }, [widgetCode]);
 
   return (
     <div className="relative">
