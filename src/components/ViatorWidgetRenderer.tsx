@@ -7,106 +7,52 @@ interface ViatorWidgetRendererProps {
 }
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasViator, setHasViator] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !widgetCode) return;
+    if (!widgetCode) return;
 
-    const container = containerRef.current;
-    let loadTimeout: NodeJS.Timeout;
     let checkInterval: NodeJS.Timeout;
+    let loadTimeout: NodeJS.Timeout;
 
-    const loadWidget = async () => {
-      try {
-        // Clear any existing content
-        container.innerHTML = '';
-
-        // Create a temporary div to parse the widget code
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = widgetCode;
-
-        // Extract scripts and non-script content
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-        scripts.forEach(script => script.remove());
-
-        // Add non-script content to container
-        container.innerHTML = tempDiv.innerHTML;
-
-        // Function to load a script
-        const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
-          return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-
-            // Copy script attributes
-            Array.from(scriptElement.attributes).forEach(attr => {
-              script.setAttribute(attr.name, attr.value);
-            });
-
-            // Set script content or src
-            if (scriptElement.src) {
-              script.src = scriptElement.src;
-              script.async = true;
-            } else {
-              script.textContent = scriptElement.textContent;
-            }
-
-            // Handle load events
-            script.onload = () => resolve();
-            script.onerror = () => reject();
-
-            // Add to document
-            document.head.appendChild(script);
-          });
-        };
-
-        // Load scripts sequentially
-        for (const script of scripts) {
-          await loadScript(script);
-          // Add a small delay between scripts
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        // Check for widget initialization
-        checkInterval = setInterval(() => {
-          const widgetElement = container.querySelector('.viator-embedded');
-          if (widgetElement) {
-            clearInterval(checkInterval);
-            setIsLoading(false);
-            setError(null);
-          }
-        }, 500);
-
-        // Set timeout for widget load
-        loadTimeout = setTimeout(() => {
-          clearInterval(checkInterval);
-          if (isLoading) {
-            setError('Widget took too long to load');
-            setIsLoading(false);
-          }
-        }, 10000);
-
-      } catch (err) {
-        console.error('Error loading widget:', err);
-        setError('Failed to load widget');
+    const checkViator = () => {
+      if ((window as any).viator) {
+        setHasViator(true);
         setIsLoading(false);
+        clearInterval(checkInterval);
       }
     };
 
-    // Start loading with a delay
+    // Start checking for Viator object after a delay
+    const startChecking = () => {
+      checkInterval = setInterval(checkViator, 500);
+
+      // Set a timeout to stop checking
+      loadTimeout = setTimeout(() => {
+        clearInterval(checkInterval);
+        if (!hasViator) {
+          setError('Widget took too long to load');
+          setIsLoading(false);
+        }
+      }, 10000);
+    };
+
+    // Start the process with a delay
     const initTimeout = setTimeout(() => {
-      loadWidget();
+      setIsLoading(true);
+      setError(null);
+      startChecking();
     }, 1000);
 
-    // Cleanup function
     return () => {
-      clearTimeout(loadTimeout);
       clearTimeout(initTimeout);
+      clearTimeout(loadTimeout);
       clearInterval(checkInterval);
-      container.innerHTML = '';
+      setHasViator(false);
     };
-  }, [widgetCode, isLoading]);
+  }, [widgetCode, hasViator]);
 
   return (
     <div className="relative">
@@ -116,8 +62,8 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         </div>
       )}
       <div 
-        ref={containerRef}
         className={`min-h-[300px] transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+        dangerouslySetInnerHTML={{ __html: widgetCode }}
       />
       {error && (
         <div className="text-red-500 text-sm mt-2 text-center">
