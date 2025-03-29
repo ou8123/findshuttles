@@ -84,7 +84,16 @@ async function main() {
       destinationCountryId: costaRica.id,
       routeSlug: 'montezuma-del-sol-to-puerto-luna',
       displayName: 'Shuttles from Montezuma del Sol to Puerto Luna',
-      viatorWidgetCode: '<div class="viator-widget">Sample widget code</div>',
+      viatorWidgetCode: `
+        <div 
+          class="viator-widget" 
+          data-widget-type="products"
+          data-destination-id="80003"
+          data-top-x="5"
+          data-language="en"
+          data-currency="USD"
+        ></div>
+      `,
       metaTitle: 'Montezuma del Sol to Puerto Luna | Shuttle & Transfer Service',
       metaDescription: 'Convenient shuttle service from Montezuma del Sol to Puerto Luna. Easy online booking with reliable local providers.',
       metaKeywords: 'Montezuma del Sol, Puerto Luna, Costa Rica shuttle, transfer service',

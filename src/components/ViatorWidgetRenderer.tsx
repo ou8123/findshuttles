@@ -18,46 +18,73 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   const pathname = usePathname();
 
   useEffect(() => {
-    // Check if script is already in the document
-    const existingScript = document.getElementById("viator-widget-script");
+    if (!widgetRef.current || !widgetCode) return;
 
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://www.viator.com/orion/js/widgets/viator-widget.js";
-      script.async = true;
-      script.id = "viator-widget-script";
-      document.body.appendChild(script);
+    // First, set the widget HTML
+    widgetRef.current.innerHTML = widgetCode.trim();
 
-      script.onload = () => {
-        if (window.OrionWidgetRefresh) {
-          window.OrionWidgetRefresh();
+    // Function to load the script
+    const loadScript = () => {
+      return new Promise<void>((resolve, reject) => {
+        const existingScript = document.getElementById('viator-widget-script');
+        if (existingScript) {
+          resolve();
+          return;
         }
-      };
-    } else {
-      // If script is already present, just refresh the widget
-      if (window.OrionWidgetRefresh) {
-        window.OrionWidgetRefresh();
+
+        const script = document.createElement('script');
+        script.id = 'viator-widget-script';
+        script.src = 'https://www.viator.com/orion/js/widgets/viator-widget.js';
+        script.async = true;
+        script.onload = () => {
+          console.log('Viator script loaded');
+          resolve();
+        };
+        script.onerror = (error) => {
+          console.error('Error loading Viator script:', error);
+          reject(error);
+        };
+        document.body.appendChild(script);
+      });
+    };
+
+    // Load script and initialize widget
+    const initWidget = async () => {
+      try {
+        await loadScript();
+        
+        // Give a moment for the script to initialize
+        setTimeout(() => {
+          if (window.OrionWidgetRefresh) {
+            console.log('Refreshing widget');
+            window.OrionWidgetRefresh();
+          }
+        }, 500);
+      } catch (error) {
+        console.error('Failed to initialize widget:', error);
       }
-    }
-  }, []);
+    };
+
+    initWidget();
+  }, [widgetCode]);
 
   // Refresh widget on route changes
   useEffect(() => {
     if (window.OrionWidgetRefresh) {
+      console.log('Route changed, refreshing widget');
       window.OrionWidgetRefresh();
     }
   }, [pathname]);
 
   return (
     <div>
-      <div
+      <div 
         ref={widgetRef}
         className="w-full min-h-[400px]"
         style={{ 
           height: 'auto',
           overflow: 'visible'
         }}
-        dangerouslySetInnerHTML={{ __html: widgetCode }}
       />
       <div className="text-center mt-4">
         <button
