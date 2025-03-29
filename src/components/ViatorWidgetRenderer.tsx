@@ -1,73 +1,97 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { loadScripts, injectInlineScript } from '@/lib/scriptLoader';
 
 interface ViatorWidgetRendererProps {
   widgetCode: string;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
+const LOAD_TIMEOUT = 15000;
+
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasViator, setHasViator] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
 
     const container = containerRef.current;
-    let checkInterval: NodeJS.Timeout;
     let loadTimeout: NodeJS.Timeout;
+    let retryTimeout: NodeJS.Timeout;
 
-    const initWidget = async () => {
+    const loadWidget = () => {
       try {
-        // Parse widget code
+        // Clear previous content
+        container.innerHTML = '';
+
+        // Create a new div for the widget
+        const widgetContainer = document.createElement('div');
+        widgetContainer.className = 'viator-widget';
+        container.appendChild(widgetContainer);
+
+        // Create a script element for the widget
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.async = true;
+
+        // Extract script content
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = widgetCode;
+        const scriptElement = tempDiv.querySelector('script');
 
-        // Extract scripts
-        const scripts = Array.from(tempDiv.getElementsByTagName('script'));
-        const externalScripts = scripts.filter(script => script.src).map(script => script.src);
-        const inlineScripts = scripts.filter(script => !script.src);
+        if (scriptElement) {
+          // Copy script attributes
+          Array.from(scriptElement.attributes).forEach(attr => {
+            script.setAttribute(attr.name, attr.value);
+          });
 
-        // Remove scripts from content
-        scripts.forEach(script => script.remove());
-
-        // Add non-script content to container
-        container.innerHTML = tempDiv.innerHTML;
-
-        // Load external scripts first
-        if (externalScripts.length > 0) {
-          await loadScripts(externalScripts);
-        }
-
-        // Then inject inline scripts
-        inlineScripts.forEach(script => {
-          if (script.textContent) {
-            injectInlineScript(script.textContent);
+          // Set script content or src
+          if (scriptElement.src) {
+            script.src = scriptElement.src;
+          } else {
+            script.textContent = scriptElement.textContent;
           }
-        });
 
-        // Start checking for Viator object
-        checkInterval = setInterval(() => {
-          if ((window as any).viator) {
-            clearInterval(checkInterval);
-            setHasViator(true);
+          // Add non-script content
+          scriptElement.remove();
+          widgetContainer.innerHTML = tempDiv.innerHTML;
+
+          // Add load and error handlers
+          script.onload = () => {
+            console.log('Widget script loaded successfully');
             setIsLoading(false);
             setError(null);
-          }
-        }, 500);
+          };
 
-        // Set timeout for widget load
-        loadTimeout = setTimeout(() => {
-          clearInterval(checkInterval);
-          if (!hasViator) {
-            setError('Widget took too long to load');
-            setIsLoading(false);
-          }
-        }, 10000);
+          script.onerror = () => {
+            console.error('Widget script failed to load');
+            if (retryCount < MAX_RETRIES) {
+              console.log(`Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+              setRetryCount(prev => prev + 1);
+              retryTimeout = setTimeout(loadWidget, RETRY_DELAY);
+            } else {
+              setError('Failed to load widget after multiple attempts');
+              setIsLoading(false);
+            }
+          };
 
+          // Add script to document
+          document.head.appendChild(script);
+
+          // Set timeout for overall load
+          loadTimeout = setTimeout(() => {
+            if (isLoading) {
+              setError('Widget took too long to load');
+              setIsLoading(false);
+            }
+          }, LOAD_TIMEOUT);
+        } else {
+          throw new Error('No script found in widget code');
+        }
       } catch (err) {
         console.error('Error loading widget:', err);
         setError('Failed to load widget');
@@ -75,30 +99,37 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       }
     };
 
-    // Start loading with a delay
+    // Start loading with initial delay
     const initTimeout = setTimeout(() => {
       setIsLoading(true);
       setError(null);
-      initWidget();
+      loadWidget();
     }, 1000);
 
     // Cleanup function
     return () => {
       clearTimeout(initTimeout);
       clearTimeout(loadTimeout);
-      clearInterval(checkInterval);
+      clearTimeout(retryTimeout);
       if (container) {
         container.innerHTML = '';
       }
-      setHasViator(false);
+      // Remove any scripts we added
+      document.querySelectorAll('script').forEach(script => {
+        if (script.textContent?.includes('viator') || script.src.includes('viator')) {
+          script.remove();
+        }
+      });
     };
-  }, [widgetCode, hasViator]);
+  }, [widgetCode, isLoading, retryCount]);
 
   return (
     <div className="relative">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-          <div className="text-gray-500">Loading booking widget...</div>
+          <div className="text-gray-500">
+            {retryCount > 0 ? `Loading widget (Attempt ${retryCount + 1}/${MAX_RETRIES})...` : 'Loading booking widget...'}
+          </div>
         </div>
       )}
       <div 
