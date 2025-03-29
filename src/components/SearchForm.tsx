@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
-// Define the expected structure of the location data from the API
 interface DestinationCity {
   id: string;
   name: string;
@@ -26,13 +25,12 @@ interface CountryWithCitiesLookup {
   cities: CityLookup[];
 }
 
-// Define libraries for Google Maps API
 const libraries: ("places")[] = ['places'];
 
 const SearchForm = () => {
   const router = useRouter();
 
-  // State for our internal locations data (used for slug lookup)
+  // State for our internal locations data
   const [locationsLookup, setLocationsLookup] = useState<CountryWithCitiesLookup[]>([]);
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
