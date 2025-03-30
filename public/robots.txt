@@ -1,0 +1,7 @@
+# Allow all robots
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://findshuttles.netlify.app/sitemap.xml
+Sitemap: https://findshuttles.netlify.app/api/sitemap
