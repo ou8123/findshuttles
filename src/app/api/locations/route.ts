@@ -3,13 +3,129 @@ import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
-    // Check if we want all cities or only departure cities
+    // Parse URL parameters
     const url = new URL(request.url);
     const onlyDepartures = url.searchParams.get('departures_only') === 'true';
+    const searchQuery = url.searchParams.get('q') || '';
+    const limit = parseInt(url.searchParams.get('limit') || '20');
     
-    console.log(`Fetching locations with departures_only=${onlyDepartures}`);
+    console.log(`Fetching locations with departures_only=${onlyDepartures}, search="${searchQuery}", limit=${limit}`);
 
-    // Get all countries with their cities
+    // If there's a search query, perform an optimized search directly on cities
+    if (searchQuery && searchQuery.length >= 2) {
+      // Search in both city names and country names
+      const cities = await prisma.city.findMany({
+        where: {
+          OR: [
+            { name: { contains: searchQuery, mode: 'insensitive' } },
+            { country: { name: { contains: searchQuery, mode: 'insensitive' } } }
+          ],
+          // Only include departure cities if the flag is set
+          ...(onlyDepartures ? { routesFrom: { some: {} } } : {})
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          country: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { name: 'asc' },
+        take: limit
+      });
+
+      // Group cities by country for consistent response format
+      const countryMap = new Map();
+      cities.forEach(city => {
+        if (!countryMap.has(city.country.id)) {
+          countryMap.set(city.country.id, {
+            id: city.country.id,
+            name: city.country.name,
+            cities: []
+          });
+        }
+        countryMap.get(city.country.id).cities.push({
+          id: city.id,
+          name: city.name,
+          slug: city.slug,
+          country: {
+            id: city.country.id,
+            name: city.country.name
+          }
+        });
+      });
+
+      const searchResults = Array.from(countryMap.values());
+      
+      // Log results
+      console.log(`Search found ${cities.length} matching cities`);
+      
+      return NextResponse.json(searchResults);
+    }
+    
+    // For empty searches or very short queries, return popular/featured cities
+    // This provides immediate options without loading all cities
+    const featuredCitiesLimit = 10; // Limit to 10 cities for immediate display
+    
+    // Get popular departure cities (those with the most routes)
+    if (onlyDepartures) {
+      const popularDepartures = await prisma.city.findMany({
+        where: {
+          routesFrom: { some: {} }
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          country: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          _count: {
+            select: { routesFrom: true }
+          }
+        },
+        orderBy: {
+          routesFrom: { _count: 'desc' }
+        },
+        take: featuredCitiesLimit
+      });
+      
+      // Group by country for consistent format
+      const countryMap = new Map();
+      popularDepartures.forEach(city => {
+        if (!countryMap.has(city.country.id)) {
+          countryMap.set(city.country.id, {
+            id: city.country.id,
+            name: city.country.name,
+            cities: []
+          });
+        }
+        countryMap.get(city.country.id).cities.push({
+          id: city.id,
+          name: city.name,
+          slug: city.slug,
+          country: {
+            id: city.country.id,
+            name: city.country.name
+          }
+        });
+      });
+      
+      const featuredResults = Array.from(countryMap.values());
+      console.log(`Returning ${popularDepartures.length} popular departure cities`);
+      
+      return NextResponse.json(featuredResults);
+    }
+    
+    // If not searching and want all cities (unlikely use case, but still supported)
+    // Get all countries with their cities, but limit the total number
     const countries = await prisma.country.findMany({
       include: {
         cities: {
@@ -31,26 +147,24 @@ export async function GET(request: Request) {
           },
           orderBy: {
             name: 'asc'
-          }
+          },
+          ...(onlyDepartures ? { where: { routesFrom: { some: {} } } } : {}),
+          take: Math.floor(limit / 2) // Split the limit across countries
         }
       },
       orderBy: {
         name: 'asc'
-      }
+      },
+      take: 5 // Limit to 5 countries for initial load
     });
 
-    // Transform the data based on the query parameter
+    // Transform the data
     const processedCountries = countries.map(country => {
-      // Either filter to only departure cities or include all cities
-      const filteredCities = onlyDepartures 
-        ? country.cities.filter(city => city.routesFrom.length > 0)
-        : country.cities;
-        
       return {
         id: country.id,
         name: country.name,
         slug: country.slug,
-        cities: filteredCities.map(({ id, name, slug, country }) => ({ 
+        cities: country.cities.map(({ id, name, slug, country }) => ({ 
           id, 
           name, 
           slug,
@@ -60,15 +174,9 @@ export async function GET(request: Request) {
           }
         }))
       };
-    }).filter(country => country.cities.length > 0); // Remove countries with no cities after filtering
+    }).filter(country => country.cities.length > 0);
 
-    // Log for debugging
-    console.log('Found cities by country:', 
-      processedCountries.map(c => 
-        `${c.name}: ${c.cities.map(city => `${city.name}`).join(', ')}`
-      ).join(' | ')
-    );
-
+    console.log(`Returning cities from ${processedCountries.length} countries`);
     return NextResponse.json(processedCountries);
 
   } catch (error) {

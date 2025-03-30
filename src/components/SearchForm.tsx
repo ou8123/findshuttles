@@ -1,10 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Combobox } from '@headlessui/react';
 
 interface SearchFormProps {
   className?: string;
+}
+
+// Type definitions for better clarity
+interface City {
+  id: string;
+  name: string;
+  slug: string;
+  countryName?: string;
+  country?: {
+    id: string;
+    name: string;
+  };
+}
+
+interface CountryWithCities {
+  id: string;
+  name: string;
+  cities: City[];
 }
 
 /**
@@ -12,47 +30,74 @@ interface SearchFormProps {
  * 
  * This component uses server-side form submission and redirect instead of client-side navigation.
  * This approach ensures a full page reload which solves issues with third-party widgets.
+ * 
+ * Performance optimized for handling large numbers of cities:
+ * - Uses server-side search instead of loading all cities at once
+ * - Implements debouncing to reduce API calls
+ * - Shows popular cities by default for immediate options
  */
-const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto" }) => {
+const SearchForm: React.FC<SearchFormProps> = ({ 
+  className = "max-w-2xl mx-auto"
+}) => {
   // State for our internal locations data
-  const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
+  const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(false);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
   // State for departure city
-  const [departureCities, setDepartureCities] = useState<any[]>([]);
+  const [departureCities, setDepartureCities] = useState<City[]>([]);
   const [departureQuery, setDepartureQuery] = useState('');
-  const [selectedDepartureCity, setSelectedDepartureCity] = useState<any | null>(null);
-
+  const [selectedDepartureCity, setSelectedDepartureCity] = useState<City | null>(null);
+  const [debouncedDepartureQuery, setDebouncedDepartureQuery] = useState('');
+  
   // State for destination city
-  const [validDestinations, setValidDestinations] = useState<any[]>([]);
+  const [validDestinations, setValidDestinations] = useState<City[]>([]);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState<boolean>(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [selectedDestinationCityId, setSelectedDestinationCityId] = useState<string>('');
 
-  // Fetch our internal locations data on mount
+  // Create a debounce function for the search query
   useEffect(() => {
-    const fetchLocationsLookup = async () => {
+    // Don't trigger a search for very short queries (wait for more typing)
+    if (departureQuery.length < 2) {
+      setDebouncedDepartureQuery('');
+      return;
+    }
+    
+    // Set a timeout to update the debounced value after 300ms
+    const handler = setTimeout(() => {
+      setDebouncedDepartureQuery(departureQuery);
+    }, 300);
+    
+    // Clean up the timeout if the query changes before the delay expires
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [departureQuery]);
+  
+  // Load popular cities on initial render
+  useEffect(() => {
+    const fetchPopularCities = async () => {
       setIsLoadingLocationsLookup(true);
       setLocationLookupError(null);
       try {
-        // Get all cities, not just departure cities
-        // This ensures new cities added in the admin interface are available in search
-        const response = await fetch('/api/locations?departures_only=false');
+        // Get popular departure cities from the API
+        const response = await fetch('/api/locations?departures_only=true&limit=10');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
+        const data: CountryWithCities[] = await response.json();
         
-        // Create flat list of cities with country names
-        const allCities = data.flatMap((country: any) => 
-          country.cities.map((city: any) => ({
+        // Flatten the country structure for the dropdown
+        const popularCities = data.flatMap((country) => 
+          country.cities.map((city) => ({
             ...city,
             countryName: country.name
           }))
         );
-        console.log(`Loaded ${allCities.length} cities for search dropdown`);
-        setDepartureCities(allCities);
+        
+        console.log(`Loaded ${popularCities.length} popular cities for initial display`);
+        setDepartureCities(popularCities);
       } catch (err: unknown) {
-        console.error("Failed to fetch internal locations lookup:", err);
-        let message = "Could not load location data.";
+        console.error("Failed to fetch popular cities:", err);
+        let message = "Could not load cities.";
         if (err instanceof Error) {
             message = err.message;
         }
@@ -61,32 +106,61 @@ const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto"
         setIsLoadingLocationsLookup(false);
       }
     };
-    fetchLocationsLookup();
+    
+    fetchPopularCities();
   }, []);
 
-  // Filter departure cities based on query
-  const filteredDepartureCities = departureQuery === ''
-    ? []
-    : departureCities.filter(city => {
-        const searchStr = departureQuery.toLowerCase();
-        return (
-          city.name.toLowerCase().includes(searchStr) ||
-          city.countryName.toLowerCase().includes(searchStr)
+  // Search cities when the debounced query changes
+  useEffect(() => {
+    if (!debouncedDepartureQuery) return;
+    
+    const searchCities = async () => {
+      setIsLoadingLocationsLookup(true);
+      setLocationLookupError(null);
+      try {
+        // Search cities based on the debounced query
+        const response = await fetch(`/api/locations?departures_only=true&q=${encodeURIComponent(debouncedDepartureQuery)}&limit=20`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data: CountryWithCities[] = await response.json();
+        
+        // Flatten the country structure for the dropdown
+        const matchingCities = data.flatMap((country) => 
+          country.cities.map((city) => ({
+            ...city,
+            countryName: country.name
+          }))
         );
-      });
+        
+        console.log(`Found ${matchingCities.length} cities matching "${debouncedDepartureQuery}"`);
+        setDepartureCities(matchingCities);
+      } catch (err: unknown) {
+        console.error("Failed to search cities:", err);
+        let message = "Search failed.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setLocationLookupError(message);
+      } finally {
+        setIsLoadingLocationsLookup(false);
+      }
+    };
+    
+    searchCities();
+  }, [debouncedDepartureQuery]);
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {
     const fetchValidDestinations = async (departureId: string) => {
       setIsLoadingDestinations(true);
       setDestinationError(null);
-      setValidDestinations([]);
       setSelectedDestinationCityId('');
+      
       try {
         const response = await fetch(`/api/valid-destinations?departureCityId=${departureId}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setValidDestinations(data);
+        
         if (data.length === 0) {
           setDestinationError("No routes found from this departure city.");
         }
@@ -103,6 +177,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto"
     };
 
     if (selectedDepartureCity) {
+      console.log("Fetching destinations for", selectedDepartureCity.name);
       fetchValidDestinations(selectedDepartureCity.id);
     } else {
       setValidDestinations([]);
@@ -161,7 +236,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto"
                 aria-autocomplete="none"
               />
               <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200">
-                {filteredDepartureCities.map((city) => (
+                {departureCities.map((city) => (
                   <Combobox.Option
                     key={city.id}
                     value={city}
@@ -174,7 +249,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto"
                     {`${city.name}, ${city.countryName}`}
                   </Combobox.Option>
                 ))}
-                {filteredDepartureCities.length === 0 && departureQuery !== '' && (
+                {departureCities.length === 0 && departureQuery !== '' && (
                   <div className="py-2 px-3 text-gray-500">No cities found</div>
                 )}
               </Combobox.Options>
