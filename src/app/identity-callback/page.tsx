@@ -1,63 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+// Export dynamic to disable static generation for this page
+export const dynamic = 'force-dynamic';
+
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNetlifyAuth } from '@/lib/netlify-auth-context';
 
 export default function IdentityCallbackPage() {
-  const { handleInviteToken, user, isLoading } = useNetlifyAuth();
+  const { user, isLoading } = useNetlifyAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your request...');
   const router = useRouter();
-
-  useEffect(() => {
-    // Check URL for identity-related tokens
-    if (typeof window !== 'undefined') {
-      try {
-        // Handle invitation tokens
-        if (window.location.hash && window.location.hash.includes('invite_token=')) {
-          const token = window.location.hash.match(/invite_token=([^&]+)/)?.[1];
-          
-          if (token) {
-            setMessage('Processing your invitation...');
-            console.log('Processing invitation token');
-            // Trigger the invitation flow
-            handleInviteToken(token);
-            setStatus('success');
-            setMessage('Invitation accepted. Setting up your account...');
-          } else {
-            setStatus('error');
-            setMessage('Invalid invitation token. Please request a new invitation.');
-          }
-        } 
-        // Handle confirmation tokens (email verification, etc.)
-        else if (window.location.hash && window.location.hash.includes('confirmation_token=')) {
-          setMessage('Confirming your account...');
-          // The widget should handle this automatically
-          setStatus('success');
-          setMessage('Account confirmed successfully!');
-        }
-        // Handle recovery tokens (password reset)
-        else if (window.location.hash && window.location.hash.includes('recovery_token=')) {
-          setMessage('Processing password reset...');
-          // The widget should handle this automatically
-          setStatus('success');
-          setMessage('You can now reset your password.');
-        }
-        // No tokens found - just redirect to home
-        else {
-          // Redirect to homepage after a delay
-          setTimeout(() => {
-            router.push('/');
-          }, 3000);
-        }
-      } catch (error) {
-        console.error('Error processing identity callback:', error);
-        setStatus('error');
-        setMessage('An error occurred processing your request. Please try again or contact support.');
-      }
-    }
-  }, [handleInviteToken, router]);
 
   // If user is authenticated and done loading, redirect to admin
   useEffect(() => {
@@ -67,6 +21,57 @@ export default function IdentityCallbackPage() {
       }, 2000);
     }
   }, [user, isLoading, router]);
+  
+  const { handleInviteToken } = useNetlifyAuth(); // Access this at the component level
+  
+  // Process tokens on component mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Handle invitation tokens
+      if (window.location.hash && window.location.hash.includes('invite_token=')) {
+        const token = window.location.hash.match(/invite_token=([^&]+)/)?.[1];
+        
+        if (token) {
+          setMessage('Processing your invitation...');
+          console.log('Processing invitation token');
+          
+          // Now we can safely call this method since we have it from the hook
+          handleInviteToken(token);
+          
+          setStatus('success');
+          setMessage('Invitation accepted. Setting up your account...');
+        } else {
+          setStatus('error');
+          setMessage('Invalid invitation token. Please request a new invitation.');
+        }
+      } 
+      // Handle confirmation tokens (email verification, etc.)
+      else if (window.location.hash && window.location.hash.includes('confirmation_token=')) {
+        setMessage('Confirming your account...');
+        setStatus('success');
+        setMessage('Account confirmed successfully!');
+      }
+      // Handle recovery tokens (password reset)
+      else if (window.location.hash && window.location.hash.includes('recovery_token=')) {
+        setMessage('Processing password reset...');
+        setStatus('success');
+        setMessage('You can now reset your password.');
+      }
+      // No tokens found - just redirect to home
+      else {
+        // Redirect to homepage after a delay
+        setTimeout(() => {
+          router.push('/');
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error processing identity callback:', error);
+      setStatus('error');
+      setMessage('An error occurred processing your request. Please try again or contact support.');
+    }
+  }, [router, handleInviteToken]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
