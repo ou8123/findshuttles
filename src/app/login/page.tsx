@@ -63,7 +63,13 @@ export default function SignInPage() {
 
       {/* Render Credentials Form */}
       {providers.credentials && (
-        <form onSubmit={handleSubmit}>
+        <form 
+          id="login-form" 
+          name="login-form" 
+          onSubmit={handleSubmit} 
+          method="post" 
+          autoComplete="on"
+        >
           <div style={{ marginBottom: '15px' }}>
             <label htmlFor="email" style={{ display: 'block', marginBottom: '5px' }}>Email</label>
             <input
@@ -74,6 +80,8 @@ export default function SignInPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+              autoComplete="username email"
+              placeholder="admin@example.com"
             />
           </div>
           <div style={{ marginBottom: '20px' }}>
@@ -86,10 +94,13 @@ export default function SignInPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+              autoComplete="current-password"
+              placeholder="••••••••"
             />
           </div>
           <button 
             type="submit" 
+            name="signin"
             style={{ width: '100%', padding: '10px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
           >
             Sign In
