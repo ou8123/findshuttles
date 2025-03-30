@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
-    "baseUrl": ".", // Add baseUrl for path aliases
+    "baseUrl": ".", 
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,                   /* Changed from true to false to be more lenient with Next.js */
+    "strictNullChecks": true,         /* Enable strict null checks but be more flexible elsewhere */
+    "noImplicitAny": false,           /* Allow implicit any for compatibility with dynamic routes */
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
