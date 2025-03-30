@@ -49,9 +49,8 @@ export async function generateMetadata(
   { params }: { params: { routeSlug: string } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  // Await the parameters to properly handle dynamic routes in Next.js 14
-  const routeParams = await params;
-  const routeSlug = routeParams.routeSlug;
+  // Access the route slug directly from params
+  const { routeSlug } = params;
   
   // Fetch route data
   const route = await fetchRouteData(routeSlug);
@@ -131,9 +130,8 @@ export default async function RoutePage({
 }: {
   params: { routeSlug: string }
 }) {
-  // Await the parameters to properly handle dynamic routes in Next.js 14
-  const routeParams = await params;
-  const routeSlug = routeParams.routeSlug;
+  // Access the route slug directly from params
+  const { routeSlug } = params;
   
   const route = await fetchRouteData(routeSlug);
   
