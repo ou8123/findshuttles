@@ -37,6 +37,7 @@ const AddRouteForm = () => {
 
   // State for form fields
   const [viatorWidgetCode, setViatorWidgetCode] = useState<string>('');
+  const [additionalInfo, setAdditionalInfo] = useState<string>('');
   const [metaTitle, setMetaTitle] = useState<string>('');
   const [metaDescription, setMetaDescription] = useState<string>('');
   const [metaKeywords, setMetaKeywords] = useState<string>('');
@@ -480,6 +481,22 @@ const AddRouteForm = () => {
         />
       </div>
 
+      {/* Additional Information */}
+      <div>
+        <label htmlFor="additional-info" className="block text-sm font-medium text-gray-700 mb-1">
+          Additional Information (Optional)
+        </label>
+        <textarea
+          id="additional-info"
+          value={additionalInfo}
+          onChange={(e) => setAdditionalInfo(e.target.value)}
+          rows={4}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+          placeholder="Enter any additional information to include in the first paragraph of the description..."
+        />
+        <p className="text-xs text-gray-500 mt-1">If provided, this text will be used verbatim as the first paragraph of the SEO description.</p>
+      </div>
+
       {/* SEO Description with Generate Button */}
       <div>
         <div className="flex justify-between items-center mb-1">
@@ -514,7 +531,8 @@ const AddRouteForm = () => {
                     departureCityName: selectedDepartureCity.name,
                     destinationCityName: selectedDestinationCity.name,
                     destinationCountryName: selectedDestinationCity.countryName,
-                    viatorWidgetCode
+                    viatorWidgetCode,
+                    additionalInfo: additionalInfo.trim()
                   }),
                 });
 
