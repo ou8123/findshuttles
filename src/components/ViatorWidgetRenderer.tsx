@@ -48,9 +48,45 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   // ResizeObserver reference
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   
+  // Force re-render on route changes
+  const [forceRenderKey, setForceRenderKey] = useState(0);
+  
+  // Track if component is in viewport
+  const isInViewport = useRef(false);
+  
+  // Reset component when routeSlug changes
+  useEffect(() => {
+    // Force a complete re-render when the route changes
+    setForceRenderKey(prev => prev + 1);
+    
+    // Reset states
+    setWidgetId(`widget-${Math.random().toString(36).substring(2, 9)}`);
+    setHasError(false);
+    setContainerHeight(400);
+    setDetectedContentHeight(0);
+    setHeightChecks(0);
+    
+    // Clean up any iframe reference
+    if (iframeRef.current) {
+      iframeRef.current = null;
+    }
+    
+    // Check if component is currently visible
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      isInViewport.current = 
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+    }
+  }, [widgetCode]); // This will trigger on any widgetCode change
+  
   // Initialize the widget
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
+    
+    console.log(`Initializing Viator widget with key: ${forceRenderKey}`);
     
     let cleanup: (() => void)[] = [];
     
@@ -349,6 +385,50 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       setContainerHeight(Math.max(containerHeight, heightWithBuffer));
     }
   }, [detectedContentHeight]);
+  
+  // Use IntersectionObserver to detect when widget becomes visible
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    // Initialize IntersectionObserver
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            isInViewport.current = true;
+            
+            // If the widget is visible, check if we need to force a reload
+            // This helps with widgets that may not have loaded correctly
+            if (containerRef.current && (!iframeRef.current || !iframeRef.current.contentWindow)) {
+              console.log("Widget became visible - forcing reload if needed");
+              
+              // Check if the widget needs reinitialization
+              const existingIframe = containerRef.current.querySelector('iframe');
+              if (!existingIframe || !existingIframe.src) {
+                // Force a reset of the component
+                setForceRenderKey(prev => prev + 1);
+              }
+            }
+          } else {
+            isInViewport.current = false;
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1, // Trigger when at least 10% of the element is visible
+      }
+    );
+    
+    // Start observing the container
+    observer.observe(containerRef.current);
+    
+    // Cleanup observer on unmount
+    return () => {
+      observer.disconnect();
+    };
+  }, [forceRenderKey]); // Re-initialize when forceRenderKey changes
   
   return (
     <div 
