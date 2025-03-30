@@ -11,6 +11,8 @@ declare module "next-auth" {
     user: {
       /** The user's role. */
       role?: string; // Add role here (make optional or required as needed)
+      /** The user's ID. */
+      id?: string; // Add ID field 
     } & DefaultSession["user"]; // Keep the default properties
   }
 

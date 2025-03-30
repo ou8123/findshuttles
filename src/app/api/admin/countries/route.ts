@@ -1,8 +1,11 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from "@/lib/auth"; // Revert to path alias
+import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { 
+  checkApiAuth, 
+  RequiredRole, 
+  secureApiResponse 
+} from '@/lib/api-auth';
 
 // Helper function to generate slugs (simple version)
 function generateSlug(name: string): string {
@@ -15,54 +18,68 @@ function generateSlug(name: string): string {
 }
 
 // GET handler to list all countries
-export async function GET() { // Removed unused _request parameter
-  // Pass request object to getServerSession for API routes
-  const session = await getServerSession(authOptions);
-  // Explicitly log URL if needed, otherwise remove request usage
-  // console.log("API /api/admin/countries GET session:", JSON.stringify(session, null, 2)); // Log session
-
-  if (session?.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: NextRequest) {
+  // Check authentication with our enhanced utility
+  const authCheck = await checkApiAuth(request, RequiredRole.Admin);
+  if (!authCheck.authenticated) {
+    // Return the pre-configured error response
+    return authCheck.response;
   }
 
   try {
     const countries = await prisma.country.findMany({
       orderBy: { name: 'asc' },
     });
-    return NextResponse.json(countries);
+    
+    // Use our secure response helper
+    return secureApiResponse(countries);
   } catch (error) {
     console.error("Admin Countries GET Error:", error);
-    return NextResponse.json({ error: 'Failed to fetch countries' }, { status: 500 });
+    return secureApiResponse(
+      { error: 'Failed to fetch countries' }, 
+      500
+    );
   }
 }
 
 // POST handler to create a new country
 export async function POST(request: Request) {
-   // Pass request object to getServerSession for API routes
-  const session = await getServerSession(authOptions);
-   console.log("API /api/admin/countries POST session:", JSON.stringify(session, null, 2)); // Log session
-
-  if (session?.user?.role !== 'ADMIN') {
-    // If unauthorized, return JSON, not HTML
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Check authentication
+  const authCheck = await checkApiAuth(request, RequiredRole.Admin);
+  if (!authCheck.authenticated) {
+    return authCheck.response;
   }
 
+  // Log successful authentication
+  console.log(`API /api/admin/countries POST: Admin user ${authCheck.session?.user?.email} authorized`);
+
+  // Parse request body
   let data: { name: string };
   try {
     data = await request.json();
-  } catch { // Removed unused error variable
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  } catch {
+    return secureApiResponse(
+      { error: 'Invalid request body' }, 
+      400
+    );
   }
 
+  // Validate required fields
   if (!data.name || typeof data.name !== 'string' || data.name.trim() === '') {
-    return NextResponse.json({ error: 'Missing or invalid required field: name' }, { status: 400 });
+    return secureApiResponse(
+      { error: 'Missing or invalid required field: name' }, 
+      400
+    );
   }
 
   const name = data.name.trim();
   const slug = generateSlug(name);
 
   if (!slug) {
-     return NextResponse.json({ error: 'Failed to generate a valid slug from the provided name' }, { status: 400 });
+    return secureApiResponse(
+      { error: 'Failed to generate a valid slug from the provided name' }, 
+      400
+    );
   }
 
   try {
@@ -72,9 +89,11 @@ export async function POST(request: Request) {
         slug: slug,
       },
     });
-    console.log(`Admin Countries POST: Successfully created country ${newCountry.name} by user ${session.user?.email}`);
-    // Return JSON on success
-    return NextResponse.json(newCountry, { status: 201 });
+    
+    console.log(`Admin Countries POST: Successfully created country ${newCountry.name} by user ${authCheck.session?.user?.email}`);
+    
+    // Return the new country with secure headers
+    return secureApiResponse(newCountry, 201);
 
   } catch (error) {
     console.error("Admin Countries POST Error:", error);
@@ -82,13 +101,17 @@ export async function POST(request: Request) {
       // Unique constraint violation (likely name or slug)
       if (error.code === 'P2002') {
         const target = (error.meta?.target as string[])?.join(', ');
-        return NextResponse.json(
+        return secureApiResponse(
           { error: `A country with this ${target} already exists.` },
-          { status: 409 } // Conflict
+          409 // Conflict
         );
       }
     }
-    // Return JSON for generic errors
-    return NextResponse.json({ error: 'Failed to create country' }, { status: 500 });
+    
+    // Generic error response
+    return secureApiResponse(
+      { error: 'Failed to create country' }, 
+      500
+    );
   }
 }
