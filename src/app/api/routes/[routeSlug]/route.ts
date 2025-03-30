@@ -1,14 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// Correct type signature for Next.js route handlers
-export async function GET(
-  request: Request,
-  { params }: { params: { routeSlug: string } }
-) {
+// Most basic route handler with minimal type requirements
+export async function GET(req: Request, context: any) {
+  // Extract params safely
+  const params = context.params || {};
+  let { routeSlug } = params;
+  
   try {
-    // Get the full route slug from the URL params
-    let { routeSlug } = params;
+    // Validate route slug
     if (!routeSlug) {
       return NextResponse.json(
         { error: 'Route slug is required' },
@@ -20,7 +20,7 @@ export async function GET(
     
     // Check if we're on Netlify by looking at the URL or host header
     const isNetlify = process.env.NETLIFY === 'true' || 
-                     request.headers.get('host')?.includes('netlify');
+                     req.headers.get('host')?.includes('netlify');
     
     // If on Netlify, the URL format might include country names that need to be stripped
     if (isNetlify && routeSlug.includes('-to-')) {
