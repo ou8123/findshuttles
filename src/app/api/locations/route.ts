@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get all countries
+    // Check if we want all cities or only departure cities
+    const url = new URL(request.url);
+    const onlyDepartures = url.searchParams.get('departures_only') === 'true';
+    
+    console.log(`Fetching locations with departures_only=${onlyDepartures}`);
+
+    // Get all countries with their cities
     const countries = await prisma.country.findMany({
       include: {
         cities: {
@@ -33,14 +39,18 @@ export async function GET() {
       }
     });
 
-    // Transform the data to include only cities that are departure cities
-    const countriesWithDepartureCities = countries.map(country => ({
-      id: country.id,
-      name: country.name,
-      slug: country.slug,
-      cities: country.cities
-        .filter(city => city.routesFrom.length > 0) // Only include cities that have routes starting from them
-        .map(({ id, name, slug, country }) => ({ 
+    // Transform the data based on the query parameter
+    const processedCountries = countries.map(country => {
+      // Either filter to only departure cities or include all cities
+      const filteredCities = onlyDepartures 
+        ? country.cities.filter(city => city.routesFrom.length > 0)
+        : country.cities;
+        
+      return {
+        id: country.id,
+        name: country.name,
+        slug: country.slug,
+        cities: filteredCities.map(({ id, name, slug, country }) => ({ 
           id, 
           name, 
           slug,
@@ -49,16 +59,17 @@ export async function GET() {
             name: country.name
           }
         }))
-    })).filter(country => country.cities.length > 0); // Remove countries with no departure cities
+      };
+    }).filter(country => country.cities.length > 0); // Remove countries with no cities after filtering
 
     // Log for debugging
-    console.log('Found departure cities by country:', 
-      countriesWithDepartureCities.map(c => 
-        `${c.name}: ${c.cities.map(city => `${city.name} (${city.country.name})`).join(', ')}`
+    console.log('Found cities by country:', 
+      processedCountries.map(c => 
+        `${c.name}: ${c.cities.map(city => `${city.name}`).join(', ')}`
       ).join(' | ')
     );
 
-    return NextResponse.json(countriesWithDepartureCities);
+    return NextResponse.json(processedCountries);
 
   } catch (error) {
     console.error("Error fetching locations:", error);

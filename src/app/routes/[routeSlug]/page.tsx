@@ -123,7 +123,7 @@ export default function RoutePage({
             {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
           </h1>
 
-          <div className="space-y-6">
+          <div className="flex flex-col gap-4">
             <div>
               <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
               {route.viatorWidgetCode ? (
@@ -136,9 +136,9 @@ export default function RoutePage({
               )}
             </div>
 
-            {/* Display SEO Description */}
+            {/* Display SEO Description with reduced top spacing */}
              {route.seoDescription && (
-              <div className="p-4 bg-white rounded shadow-sm">
+              <div className="mt-2 p-4 bg-white rounded shadow-sm">
                 <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
                 <p className="text-black">{route.seoDescription}</p>
               </div>

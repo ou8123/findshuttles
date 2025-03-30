@@ -35,7 +35,9 @@ const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto"
       setIsLoadingLocationsLookup(true);
       setLocationLookupError(null);
       try {
-        const response = await fetch('/api/locations');
+        // Get all cities, not just departure cities
+        // This ensures new cities added in the admin interface are available in search
+        const response = await fetch('/api/locations?departures_only=false');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
@@ -46,6 +48,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto"
             countryName: country.name
           }))
         );
+        console.log(`Loaded ${allCities.length} cities for search dropdown`);
         setDepartureCities(allCities);
       } catch (err: unknown) {
         console.error("Failed to fetch internal locations lookup:", err);
