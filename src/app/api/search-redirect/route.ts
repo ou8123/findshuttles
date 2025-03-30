@@ -58,16 +58,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // We'll now use a consistent format regardless of environment
-    // This avoids issues with duplicate country names in URLs
+    // First check if a route already exists between these cities
+    // This ensures we use custom route slugs if they've been defined
+    const existingRoute = await prisma.route.findFirst({
+      where: {
+        departureCityId: departureCityId,
+        destinationCityId: destinationCityId
+      },
+      select: {
+        routeSlug: true
+      }
+    });
+
+    let routeSlug;
     
-    // Prepare clean city slugs without duplicate country names
-    let departureSlug = departureCity.slug;
-    let destinationSlug = destinationCity.slug;
-    
-    // Create the route slug consistently across all environments
-    const routeSlug = `${departureSlug}-to-${destinationSlug}`;
-    console.log(`Using clean URL format: ${routeSlug}`);
+    if (existingRoute) {
+      // Use the custom slug defined in the admin panel
+      routeSlug = existingRoute.routeSlug;
+      console.log(`Using custom route slug: ${routeSlug}`);
+    } else {
+      // Fallback to constructing a slug if no route exists yet
+      // Generate a standard slug without special handling for US cities
+      routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
+      console.log(`Using generated URL format: ${routeSlug}`);
+    }
     
     // Perform a 302 (temporary) redirect to the route page
     // 302 is used instead of 301 to ensure no browser caching of the redirect

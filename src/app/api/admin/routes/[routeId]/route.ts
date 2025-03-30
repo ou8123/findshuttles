@@ -84,11 +84,25 @@ export async function PUT(request: Request, context: any) {
       return NextResponse.json({ error: 'Invalid departure or destination city ID' }, { status: 400 });
     }
 
-    // Generate route slug with country names if not provided
-    const routeSlug = data.routeSlug || `${departureCity.slug}-${departureCity.country.slug}-to-${destinationCity.slug}-${destinationCity.country.slug}`;
+    // Use provided slug or generate a default one
+    const routeSlug = data.routeSlug || `${departureCity.slug}-to-${destinationCity.slug}`;
     
-    // Generate display name if not provided
-    const displayName = data.displayName || `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
+    // Use provided display name or generate one with proper country format
+    let displayName;
+    
+    if (data.displayName) {
+      // Use the custom display name from the form if provided
+      displayName = data.displayName;
+    } else {
+      // Generate display name with country format
+      if (departureCity.country.name === destinationCity.country.name) {
+        // Same country format: "Shuttles from City1 to City2, Country"
+        displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}, ${departureCity.country.name}`;
+      } else {
+        // Different countries format: "Shuttles from City1, Country1 to City2, Country2"
+        displayName = `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
+      }
+    }
 
     // Check if the route already exists with this slug, excluding the current route
     const existingRoute = await prisma.route.findFirst({

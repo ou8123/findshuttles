@@ -14,7 +14,7 @@ interface NewRouteData {
   seoDescription?: string | null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role;
 
@@ -23,8 +23,39 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Parse URL query parameters
+  const url = new URL(request.url);
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = parseInt(url.searchParams.get('limit') || '25');
+  const search = url.searchParams.get('search') || '';
+  
+  // Validate pagination parameters
+  const validPage = page > 0 ? page : 1;
+  const validLimit = limit > 0 && limit <= 100 ? limit : 25;
+  const skip = (validPage - 1) * validLimit;
+
   try {
+    // Build the where clause based on search term
+    let where = {};
+    if (search) {
+      where = {
+        OR: [
+          { displayName: { contains: search, mode: 'insensitive' } },
+          { routeSlug: { contains: search, mode: 'insensitive' } },
+          { departureCity: { name: { contains: search, mode: 'insensitive' } } },
+          { destinationCity: { name: { contains: search, mode: 'insensitive' } } },
+          { departureCountry: { name: { contains: search, mode: 'insensitive' } } },
+          { destinationCountry: { name: { contains: search, mode: 'insensitive' } } },
+        ]
+      };
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.route.count({ where });
+
+    // Get paginated routes
     const routes = await prisma.route.findMany({
+      where,
       include: {
         departureCity: { select: { name: true } },
         destinationCity: { select: { name: true } },
@@ -33,11 +64,24 @@ export async function GET() {
       },
       orderBy: {
         createdAt: 'desc',
-      }
+      },
+      skip,
+      take: validLimit,
     });
 
-    console.log(`Admin Route GET: Fetched ${routes.length} routes for user ${session.user?.email}`);
-    return NextResponse.json(routes, { status: 200 });
+    console.log(`Admin Route GET: Fetched ${routes.length} routes (page ${validPage}, limit ${validLimit}) for user ${session.user?.email}`);
+    
+    // Return routes with pagination metadata
+    return NextResponse.json({
+      routes,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / validLimit),
+        hasMore: skip + routes.length < totalCount
+      }
+    }, { status: 200 });
 
   } catch (error) {
     console.error("Admin Route GET: Error fetching routes.", error);
@@ -106,9 +150,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid departure/destination city ID' }, { status: 400 });
     }
 
-    // Create route slug and display name without country names
+    // Create route slug without special handling
     const routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
-    const displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
+    
+    // Create display name with country format
+    let displayName = '';
+    
+    // Check if both cities are in the same country
+    if (departureCity.country.name === destinationCity.country.name) {
+      // Same country format: "Shuttles from City1 to City2, Country"
+      displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}, ${departureCity.country.name}`;
+    } else {
+      // Different countries format: "Shuttles from City1, Country1 to City2, Country2"
+      displayName = `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
+    }
 
     const newRoute = await prisma.route.create({
       data: {

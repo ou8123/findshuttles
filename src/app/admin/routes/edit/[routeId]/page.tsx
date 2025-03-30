@@ -48,6 +48,7 @@ const EditRoutePage = () => {
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDisplayNameCustomized, setIsDisplayNameCustomized] = useState(false);
+  const [isSlugCustomized, setIsSlugCustomized] = useState(false);
 
   // City list state
   const [cities, setCities] = useState<City[]>([]);
@@ -92,21 +93,31 @@ const EditRoutePage = () => {
     const destinationCity = cities.find(c => c.id === destinationCityId);
     
     if (departureCity && destinationCity) {
-      // Remove country slug from route slug
+      // Generate the default slug for these cities (without special handling for US)
       const defaultSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
       
-      // Only update if not manually edited
-      if (!routeSlug || routeSlug === originalData?.routeSlug) {
+      // Only update slug if not manually customized by user
+      if (!isSlugCustomized) {
         setRouteSlug(defaultSlug);
       }
 
       // Only update display name if not customized and cities changed
       if (!isDisplayNameCustomized) {
-        const defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
+        let defaultDisplayName = '';
+        
+        // Check if both cities are in the same country
+        if (departureCity.country.name === destinationCity.country.name) {
+          // Same country format: "Shuttles from City1 to City2, Country"
+          defaultDisplayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}, ${departureCity.country.name}`;
+        } else {
+          // Different countries format: "Shuttles from City1, Country1 to City2, Country2"
+          defaultDisplayName = `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
+        }
+        
         setDisplayName(defaultDisplayName);
       }
     }
-  }, [departureCityId, destinationCityId, cities, routeSlug, originalData?.routeSlug, isDisplayNameCustomized]);
+  }, [departureCityId, destinationCityId, cities, isSlugCustomized, isDisplayNameCustomized]);
 
   // Fetch the specific route data
   useEffect(() => {
@@ -122,7 +133,8 @@ const EditRoutePage = () => {
       try {
         const response = await fetch(`/api/admin/routes`);
         if (!response.ok) throw new Error('Failed to fetch routes list');
-        const routes: RouteData[] = await response.json();
+        const data = await response.json();
+        const routes: RouteData[] = data.routes; // Extract routes array from response
         const routeData = routes.find(r => r.id === routeId);
 
         if (!routeData) throw new Error('Route not found');
@@ -160,7 +172,7 @@ const EditRoutePage = () => {
     fetchRoute();
   }, [routeId]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent, shouldRedirect: boolean = false) => {
     event.preventDefault();
 
     if (!departureCityId || !destinationCityId || !viatorWidgetCode || !routeSlug || !displayName) {
@@ -234,8 +246,10 @@ const EditRoutePage = () => {
         seoDescription: currentSeoDesc
       });
 
-      // Navigate back to routes list
-      router.push('/admin/routes');
+      // Only redirect if specified
+      if (shouldRedirect) {
+        router.push('/admin/routes');
+      }
 
     } catch (error: unknown) {
       console.error("Failed to update route:", error);
@@ -339,18 +353,26 @@ const EditRoutePage = () => {
         {/* URL Slug */}
         <div>
           <label htmlFor="route-slug" className="block text-sm font-medium text-gray-700 mb-1">
-            URL Slug *
+            URL Slug * <span className="font-normal text-blue-600">(Customizable)</span>
           </label>
           <input
             id="route-slug"
             type="text"
             value={routeSlug}
-            onChange={(e) => setRouteSlug(e.target.value)}
+            onChange={(e) => {
+              setRouteSlug(e.target.value);
+              setIsSlugCustomized(true);
+            }}
             required
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             placeholder="e.g., liberia-to-tamarindo"
           />
-          <p className="text-xs text-gray-500 mt-1">Format: departure-to-destination</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Format: departure-to-destination<br />
+            <span className="text-blue-600">
+              This custom slug will be used throughout the site, including search results and URLs.
+            </span>
+          </p>
         </div>
 
         {/* Viator Widget Code */}
@@ -493,20 +515,50 @@ const EditRoutePage = () => {
           />
         </div>
 
-        {/* Submit Button & Status */}
+        {/* Submit Buttons & Status */}
         <div className="pt-2">
           {submitStatus && (
             <p className={`mb-3 text-sm ${submitStatus.success ? 'text-green-600' : 'text-red-600'}`}>
               {submitStatus.message}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </button>
+          
+          <div className="grid grid-cols-3 gap-2">
+            {/* Save button - stays on page */}
+            <button
+              type="button"
+              onClick={(e) => handleSubmit(e, false)}
+              disabled={isSubmitting}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </button>
+            
+            {/* Save and Close button - redirects back */}
+            <button
+              type="button"
+              onClick={(e) => handleSubmit(e, true)}
+              disabled={isSubmitting}
+              className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Saving...' : 'Save & Close'}
+            </button>
+            
+            {/* View button - opens route in new tab */}
+            <a
+              href={originalData ? `/routes/${routeSlug}` : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex justify-center items-center bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${!originalData || isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => {
+                if (!originalData || isSubmitting) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              View
+            </a>
+          </div>
         </div>
       </form>
     </div>
