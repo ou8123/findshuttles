@@ -48,16 +48,66 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   // ResizeObserver reference
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   
-  // Force re-render on route changes
-  const [forceRenderKey, setForceRenderKey] = useState(0);
+  // Force re-render on route changes and use the navigationId to ensure re-renders during navigation
+  const [forceRenderKey, setForceRenderKey] = useState(Date.now());
   
   // Track if component is in viewport
   const isInViewport = useRef(false);
   
-  // Reset component when routeSlug changes
+  // Track route navigation - use the pathname as key
+  const [currentRouteUrl, setCurrentRouteUrl] = useState<string>('');
+  
+  // Track route navigation changes using window.location
   useEffect(() => {
-    // Force a complete re-render when the route changes
-    setForceRenderKey(prev => prev + 1);
+    // Function to handle navigation
+    const handleNavigation = () => {
+      const currentUrl = window.location.href;
+      
+      // If URL has changed, update the state and trigger re-render
+      if (currentUrl !== currentRouteUrl && currentRouteUrl !== '') {
+        console.log(`Route changed from ${currentRouteUrl} to ${currentUrl}`);
+        
+        // Force complete re-rendering of component on URL change
+        setForceRenderKey(Date.now());
+        
+        // Reset widget state
+        setWidgetId(`widget-${Math.random().toString(36).substring(2, 9)}`);
+        setHasError(false);
+        setContainerHeight(400);
+        setDetectedContentHeight(0);
+        setHeightChecks(0);
+        
+        // Clean up iframe reference
+        if (iframeRef.current) {
+          iframeRef.current = null;
+        }
+      }
+      
+      // Update current URL
+      setCurrentRouteUrl(currentUrl);
+    };
+    
+    // Initialize current URL on first render
+    if (currentRouteUrl === '') {
+      setCurrentRouteUrl(window.location.href);
+    }
+    
+    // Set up event listeners for route changes
+    window.addEventListener('popstate', handleNavigation);
+    
+    // Check for URL changes periodically (catches client-side routing)
+    const navigationCheckInterval = setInterval(handleNavigation, 500);
+    
+    return () => {
+      window.removeEventListener('popstate', handleNavigation);
+      clearInterval(navigationCheckInterval);
+    };
+  }, [currentRouteUrl]);
+  
+  // Reset component when widgetCode changes (complementary to URL tracking)
+  useEffect(() => {
+    // Force a complete re-render when the widgetCode changes
+    setForceRenderKey(Date.now());
     
     // Reset states
     setWidgetId(`widget-${Math.random().toString(36).substring(2, 9)}`);
@@ -82,11 +132,29 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     }
   }, [widgetCode]); // This will trigger on any widgetCode change
   
-  // Initialize the widget
+  // Initialize the widget - depend on forceRenderKey to ensure re-initialization
   useEffect(() => {
     if (!containerRef.current || !widgetCode) return;
     
-    console.log(`Initializing Viator widget with key: ${forceRenderKey}`);
+    // Force removal of previous content
+    if (containerRef.current) {
+      containerRef.current.innerHTML = '';
+    }
+    
+    // Clear all previous iframes in our container - extra cleanup
+    if (iframeRef.current) {
+      try {
+        iframeRef.current.remove();
+      } catch (e) {
+        // Ignore errors if iframe is already gone
+      }
+      iframeRef.current = null;
+    }
+    
+    console.log(`Initializing Viator widget with key: ${forceRenderKey} at ${new Date().toISOString()}`);
+    
+    // Create key for debugging and force reinitialize
+    document.body.dataset.viatorLastInitTime = new Date().toISOString();
     
     let cleanup: (() => void)[] = [];
     
