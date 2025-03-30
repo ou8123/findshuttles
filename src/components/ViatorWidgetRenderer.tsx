@@ -1,44 +1,96 @@
 "use client";
 
+import { useEffect, useRef } from 'react';
+
 interface ViatorWidgetRendererProps {
   widgetCode: string;
 }
 
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
-  // Extract widget ID and partner ID from the widget code
-  const getWidgetAttributes = (code: string) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || !widgetCode) return;
+
+    // Create a temporary div to parse the widget code
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = code;
-    const widget = tempDiv.querySelector('div');
-    return {
-      partnerId: widget?.getAttribute('data-vi-partner-id') || 'P00097086',
-      widgetRef: widget?.getAttribute('data-vi-widget-ref') || `W-${Math.random().toString(36).substr(2, 9)}`
+    tempDiv.innerHTML = widgetCode;
+
+    // Find all script tags
+    const scripts = tempDiv.getElementsByTagName('script');
+    const scriptElements = Array.from(scripts);
+
+    // Remove scripts from the temp div
+    scriptElements.forEach(script => script.remove());
+
+    // Set the HTML content first (without scripts)
+    containerRef.current.innerHTML = tempDiv.innerHTML;
+
+    // Function to load a script
+    const loadScript = (scriptElement: HTMLScriptElement): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+
+        // Copy all attributes
+        Array.from(scriptElement.attributes).forEach(attr => {
+          script.setAttribute(attr.name, attr.value);
+        });
+
+        // Handle external scripts
+        if (scriptElement.src) {
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+        }
+
+        // Copy inline script content
+        if (scriptElement.textContent) {
+          script.textContent = scriptElement.textContent;
+        }
+
+        // For inline scripts, resolve immediately
+        if (!scriptElement.src) {
+          script.onload = () => resolve();
+        }
+
+        // Add to document
+        document.head.appendChild(script);
+      });
     };
-  };
+
+    // Load scripts sequentially
+    const loadScripts = async () => {
+      for (const script of scriptElements) {
+        try {
+          await loadScript(script);
+        } catch (error) {
+          console.error('Error loading script:', error);
+        }
+      }
+    };
+
+    // Load scripts immediately
+    loadScripts();
+
+    // Cleanup function
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
+  }, [widgetCode]);
 
   return (
-    <div>
-      <div 
-        className="w-full min-h-[400px]"
-        style={{ 
-          height: 'auto',
-          overflow: 'visible'
-        }}
-      >
-        <div 
-          data-vi-partner-id={getWidgetAttributes(widgetCode).partnerId}
-          data-vi-widget-ref={getWidgetAttributes(widgetCode).widgetRef}
-        />
-      </div>
-      <div className="text-center mt-4">
-        <button
-          onClick={() => window.location.reload()}
-          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-        >
-          Shuttle Options not loading? Click here to refresh
-        </button>
-      </div>
-    </div>
+    <div 
+      ref={containerRef}
+      className="w-full min-h-[400px]"
+      style={{ 
+        height: 'auto',
+        overflow: 'visible',
+        WebkitOverflowScrolling: 'touch', // Enable smooth scrolling on iOS
+        maxWidth: '100vw', // Ensure widget doesn't overflow viewport
+        position: 'relative', // Create new stacking context
+      }}
+    />
   );
 };
 
