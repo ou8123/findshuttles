@@ -58,23 +58,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get environment to determine URL format (Netlify uses different format than dev)
-    const isNetlify = process.env.NETLIFY === 'true' || 
-                     request.headers.get('host')?.includes('netlify');
+    // We'll now use a consistent format regardless of environment
+    // This avoids issues with duplicate country names in URLs
     
-    // Use proper URL format based on environment (Netlify includes country names)
-    let routeSlug;
-    if (isNetlify) {
-      // Format city-country slugs for Netlify URLs
-      const departureSlug = `${departureCity.slug.replace(/-/g, '-')}-${departureCity.country.name.toLowerCase().replace(/\s+/g, '-')}`;
-      const destinationSlug = `${destinationCity.slug.replace(/-/g, '-')}-${destinationCity.country.name.toLowerCase().replace(/\s+/g, '-')}`;
-      routeSlug = `${departureSlug}-to-${destinationSlug}`;
-      console.log(`Netlify URL format: ${routeSlug}`);
-    } else {
-      // Simple format for local development
-      routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
-      console.log(`Local URL format: ${routeSlug}`);
-    }
+    // Prepare clean city slugs without duplicate country names
+    let departureSlug = departureCity.slug;
+    let destinationSlug = destinationCity.slug;
+    
+    // Create the route slug consistently across all environments
+    const routeSlug = `${departureSlug}-to-${destinationSlug}`;
+    console.log(`Using clean URL format: ${routeSlug}`);
     
     // Perform a 302 (temporary) redirect to the route page
     // 302 is used instead of 301 to ensure no browser caching of the redirect

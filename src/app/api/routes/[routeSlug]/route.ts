@@ -22,15 +22,14 @@ export async function GET(req: Request, context: any) {
     const isNetlify = process.env.NETLIFY === 'true' || 
                      req.headers.get('host')?.includes('netlify');
     
-    // If on Netlify, the URL format might include country names that need to be stripped
-    if (isNetlify && routeSlug.includes('-to-')) {
-      // Parse complex Netlify URL format: city-country-to-city-country
-      // We need to extract just the core route parts for database lookup
+    // Enhanced URL handling for both old and new URL formats
+    if (routeSlug.includes('-to-')) {
+      // Parse basic route format from any URL pattern
       const parts = routeSlug.split('-to-');
       if (parts.length === 2) {
-        console.log(`Processing Netlify format URL with parts: ${parts[0]} to ${parts[1]}`);
+        console.log(`Processing route with parts: ${parts[0]} to ${parts[1]}`);
         
-        // Attempt to find the matching route in the database as is first
+        // Try to find exact match first
         const exactMatch = await prisma.route.findUnique({
           where: { routeSlug },
           select: { id: true }
@@ -39,32 +38,82 @@ export async function GET(req: Request, context: any) {
         if (exactMatch) {
           console.log(`Found exact match for route slug: ${routeSlug}`);
         } else {
-          console.log(`No exact match found, will search for similar routes`);
+          console.log(`No exact match found, searching by city combinations`);
           
-          // If no exact match, try a more complex search
-          const allRoutes = await prisma.route.findMany({
+          // Get all cities to identify matches in the slugs (simplified query to avoid schema issues)
+          const allCities = await prisma.city.findMany({
             select: { 
-              routeSlug: true,
-              departureCity: { select: { slug: true, name: true } },
-              destinationCity: { select: { slug: true, name: true } }
+              id: true,
+              slug: true, 
+              name: true
             }
           });
           
-          // Find a route that matches the basic pattern (any route between these cities)
-          for (const route of allRoutes) {
-            const depCityLower = route.departureCity.name.toLowerCase();
-            const destCityLower = route.destinationCity.name.toLowerCase();
+          // First try to find cities that could match the departures and destinations
+          const possibleDepartureCities = allCities.filter(city => 
+            parts[0].includes(city.slug) || 
+            parts[0].toLowerCase().includes(city.name.toLowerCase())
+          );
+          
+          const possibleDestinationCities = allCities.filter(city => 
+            parts[1].includes(city.slug) || 
+            parts[1].toLowerCase().includes(city.name.toLowerCase())
+          );
+          
+          console.log(`Found ${possibleDepartureCities.length} possible departure cities and ${possibleDestinationCities.length} possible destination cities`);
+          
+          // Now look for routes between any of these cities
+          let foundRoute = false;
+          
+          for (const depCity of possibleDepartureCities) {
+            for (const destCity of possibleDestinationCities) {
+              // Check if there's a route between these cities
+              const routeMatch = await prisma.route.findFirst({
+                where: {
+                  departureCity: { slug: depCity.slug },
+                  destinationCity: { slug: destCity.slug }
+                },
+                select: { routeSlug: true }
+              });
+              
+              if (routeMatch) {
+                console.log(`Found matching route: ${routeMatch.routeSlug}`);
+                routeSlug = routeMatch.routeSlug;
+                foundRoute = true;
+                break;
+              }
+            }
+            if (foundRoute) break;
+          }
+          
+          // If we still don't have a match, try a basic URL cleanup approach
+          if (!foundRoute) {
+            // Remove any country name patterns to simplify the slug
+            const basicDepartureSlug = parts[0].replace(/-costa-rica/g, '')
+                                           .replace(/-nicaragua/g, '')
+                                           .replace(/-honduras/g, '');
+            const basicDestinationSlug = parts[1].replace(/-costa-rica/g, '')
+                                               .replace(/-nicaragua/g, '')
+                                               .replace(/-honduras/g, '');
             
-            const slugContainsBothCities = 
-              (routeSlug.toLowerCase().includes(depCityLower) || 
-               parts[0].toLowerCase().includes(depCityLower)) && 
-              (routeSlug.toLowerCase().includes(destCityLower) || 
-               parts[1].toLowerCase().includes(destCityLower));
+            const cleanRouteSlug = `${basicDepartureSlug}-to-${basicDestinationSlug}`;
             
-            if (slugContainsBothCities) {
-              console.log(`Found matching route: ${route.routeSlug}`);
-              routeSlug = route.routeSlug;
-              break;
+            console.log(`Trying simplified slug: ${cleanRouteSlug}`);
+            
+            // Try finding a route with the cleaned slug
+            const cleanMatch = await prisma.route.findFirst({
+              where: {
+                routeSlug: {
+                  contains: cleanRouteSlug,
+                  mode: 'insensitive'
+                }
+              },
+              select: { routeSlug: true }
+            });
+            
+            if (cleanMatch) {
+              console.log(`Found match with simplified slug: ${cleanMatch.routeSlug}`);
+              routeSlug = cleanMatch.routeSlug;
             }
           }
         }
