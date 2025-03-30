@@ -44,13 +44,10 @@ export function generateViewport() {
   };
 }
 
-// Generate metadata for the page
-export async function generateMetadata(
-  { params }: { params: { routeSlug: string } },
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  // Access the route slug directly from params
-  const { routeSlug } = params;
+// Generate metadata for the page - simplified for Next.js 15.2.4 compatibility
+export async function generateMetadata(props: any, parent: ResolvingMetadata): Promise<Metadata> {
+  // Access params property safely
+  const routeSlug = props.params?.routeSlug;
   
   // Fetch route data
   const route = await fetchRouteData(routeSlug);
@@ -124,14 +121,13 @@ async function fetchRouteData(routeSlug: string): Promise<RouteWithRelations | n
  * 
  * This component displays information about a specific shuttle route, including
  * Viator booking widgets, metadata, and route information.
+ * 
+ * Note: Function signature simplified for Next.js 15.2.4 compatibility 
  */
-export default async function RoutePage({
-  params
-}: {
-  params: { routeSlug: string }
-}) {
-  // Access the route slug directly from params
-  const { routeSlug } = params;
+export default async function RoutePage(props: { params: { routeSlug: string } }) {
+  // We need to handle the params safely to avoid TypeScript conflicts
+  // Adding explicit but simple typing that should work with Next.js 15.2.4
+  const routeSlug = props.params?.routeSlug;
   
   const route = await fetchRouteData(routeSlug);
   
