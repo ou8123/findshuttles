@@ -3,10 +3,9 @@ import prisma from '@/lib/prisma';
 
 // Correct type signature for Next.js route handlers
 export async function GET(
-  request: Request, 
-  context: { params: { routeSlug: string } }
+  request: Request,
+  { params }: { params: { routeSlug: string } }
 ) {
-  const { params } = context;
   try {
     // Get the full route slug from the URL params
     let { routeSlug } = params;
