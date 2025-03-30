@@ -21,11 +21,14 @@ export const metadata: Metadata = {
     default: 'Shuttle Finder | FindTours.com',
   },
   description: "Find shuttle routes worldwide",
-  viewport: {
+};
+
+export function generateViewport() {
+  return {
     width: 'device-width',
     initialScale: 1,
-  },
-};
+  };
+}
 
 export default function RootLayout({
   children,

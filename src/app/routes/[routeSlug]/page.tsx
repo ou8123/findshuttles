@@ -36,13 +36,25 @@ interface RouteWithRelations {
   };
 }
 
+// Generate viewport metadata
+export function generateViewport() {
+  return {
+    width: 'device-width',
+    initialScale: 1,
+  };
+}
+
 // Generate metadata for the page
 export async function generateMetadata(
   { params }: { params: { routeSlug: string } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
+  // Await the parameters to properly handle dynamic routes in Next.js 14
+  const routeParams = await params;
+  const routeSlug = routeParams.routeSlug;
+  
   // Fetch route data
-  const route = await fetchRouteData(params.routeSlug);
+  const route = await fetchRouteData(routeSlug);
   
   if (!route) {
     return {
@@ -119,7 +131,11 @@ export default async function RoutePage({
 }: {
   params: { routeSlug: string }
 }) {
-  const route = await fetchRouteData(params.routeSlug);
+  // Await the parameters to properly handle dynamic routes in Next.js 14
+  const routeParams = await params;
+  const routeSlug = routeParams.routeSlug;
+  
+  const route = await fetchRouteData(routeSlug);
   
   if (!route) {
     notFound();
