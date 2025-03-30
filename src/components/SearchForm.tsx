@@ -1,47 +1,30 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Combobox } from '@headlessui/react';
 
-interface DestinationCity {
-  id: string;
-  name: string;
-  slug: string;
-  country?: {
-    id: string;
-    name: string;
-  }
+interface SearchFormProps {
+  className?: string;
 }
 
-interface CityLookup {
-  id: string;
-  name: string;
-  slug: string;
-  countryName: string;
-}
-
-interface CountryWithCitiesLookup {
-  id: string;
-  name: string;
-  slug: string;
-  cities: CityLookup[];
-}
-
-const SearchForm = () => {
-  const router = useRouter();
-
+/**
+ * SearchForm Component
+ * 
+ * This component uses server-side form submission and redirect instead of client-side navigation.
+ * This approach ensures a full page reload which solves issues with third-party widgets.
+ */
+const SearchForm: React.FC<SearchFormProps> = ({ className = "max-w-2xl mx-auto" }) => {
   // State for our internal locations data
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
 
   // State for departure city
-  const [departureCities, setDepartureCities] = useState<CityLookup[]>([]);
+  const [departureCities, setDepartureCities] = useState<any[]>([]);
   const [departureQuery, setDepartureQuery] = useState('');
-  const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
+  const [selectedDepartureCity, setSelectedDepartureCity] = useState<any | null>(null);
 
   // State for destination city
-  const [validDestinations, setValidDestinations] = useState<DestinationCity[]>([]);
+  const [validDestinations, setValidDestinations] = useState<any[]>([]);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState<boolean>(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [selectedDestinationCityId, setSelectedDestinationCityId] = useState<string>('');
@@ -54,11 +37,11 @@ const SearchForm = () => {
       try {
         const response = await fetch('/api/locations');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data: CountryWithCitiesLookup[] = await response.json();
+        const data = await response.json();
         
         // Create flat list of cities with country names
-        const allCities = data.flatMap(country => 
-          country.cities.map(city => ({
+        const allCities = data.flatMap((country: any) => 
+          country.cities.map((city: any) => ({
             ...city,
             countryName: country.name
           }))
@@ -99,7 +82,7 @@ const SearchForm = () => {
       try {
         const response = await fetch(`/api/valid-destinations?departureCityId=${departureId}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data: DestinationCity[] = await response.json();
+        const data = await response.json();
         setValidDestinations(data);
         if (data.length === 0) {
           setDestinationError("No routes found from this departure city.");
@@ -125,26 +108,36 @@ const SearchForm = () => {
     }
   }, [selectedDepartureCity]);
 
-  const handleSearch = (event: React.FormEvent) => {
-    event.preventDefault();
+  /**
+   * Client-side validation before server-side form submission
+   * This will be the fallback if the HTML5 validation fails
+   */
+  const validateForm = () => {
     if (!selectedDepartureCity || !selectedDestinationCityId) {
       alert("Please select a valid departure city and a destination from the list.");
-      return;
+      return false;
     }
-
-    const destinationCity = validDestinations.find(city => city.id === selectedDestinationCityId);
-    if (selectedDepartureCity.slug && destinationCity?.slug) {
-      const routeSlug = `${selectedDepartureCity.slug}-to-${destinationCity.slug}`;
-      console.log(`Navigating to route: /routes/${routeSlug}`);
-      router.push(`/routes/${routeSlug}`);
-    } else {
-      alert("Could not construct route information. Please re-select departure and destination.");
-      console.error("Slug missing for departure or destination", selectedDepartureCity, destinationCity);
-    }
+    return true;
   };
 
   return (
-    <form onSubmit={handleSearch} className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
+    <form 
+      action="/api/search-redirect" 
+      method="POST" 
+      onSubmit={(e) => !validateForm() && e.preventDefault()} 
+      className={`bg-white p-6 rounded-lg shadow-md ${className}`}
+    >
+      {/* These hidden fields will be submitted with the form */}
+      <input 
+        type="hidden" 
+        name="departureCityId" 
+        value={selectedDepartureCity?.id || ''} 
+      />
+      <input 
+        type="hidden" 
+        name="destinationCityId" 
+        value={selectedDestinationCityId || ''} 
+      />
       <h2 className="text-xl font-semibold mb-4 text-gray-700">Find Your Shuttle Route</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -155,9 +148,9 @@ const SearchForm = () => {
           </label>
           <Combobox value={selectedDepartureCity} onChange={setSelectedDepartureCity}>
             <div className="relative">
-              <Combobox.Input<CityLookup>
+              <Combobox.Input
                 className="w-full h-10 px-3 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black"
-                displayValue={(city) => city ? `${city.name}, ${city.countryName}` : ''}
+                displayValue={(city: any) => city ? `${city.name}, ${city.countryName}` : ''}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
                 placeholder="Enter city or country name"
                 autoComplete="off"
