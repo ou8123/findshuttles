@@ -1,19 +1,69 @@
 # netlify.toml
 [build]
   # Run prisma commands in sequence to ensure proper database setup
-  command = "npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-reset-password.js && node netlify-build.js"
+  command = "cp .env.production .env && npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-reset-password.js && node netlify-build.js"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
+# Netlify Identity configuration
+[dev]
+  framework = "nextjs"
+  
+[template.environment]
+  NETLIFY_IDENTITY_INVITE_ONLY = "true"
+
 [build.environment]
-  # Set Node.js version to match Next.js requirements (^18.18.0 || ^19.8.0 || >= 20.0.0)
+  # Set Node.js version to match Next.js requirements
   NODE_VERSION = "20.11.1"
-  # Ensure Prisma CLI is available during build (it's in devDependencies)
+  # Ensure proper environment for production
+  NODE_ENV = "production"
+  # Auth-related environment variables
+  NEXTAUTH_URL = "https://findshuttles.netlify.app"
+  # Session configuration for Netlify
+  NEXT_PUBLIC_COOKIE_SECURE = "true"
+  NEXTAUTH_COOKIE_DOMAIN = "findshuttles.netlify.app"
   # Disable static generation entirely
   NEXT_DISABLE_STATIC_GENERATION = "true"
   # Skip static generation in the Next.js plugin
   NEXT_USE_NETLIFY_EDGE = "true"
+  # JWT Default Secret - will be overridden by environment secret
+  JWT_SECRET = "fallback-secret-for-netlify-testing"
 
 # Configure the Next.js plugin without any inputs
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Add redirect for direct admin access
+[[redirects]]
+  from = "/emergency-admin"
+  to = "/admin-bypass"
+  status = 200
+  force = true
+  
+# Add redirect for Netlify Identity callback handling
+[[redirects]]
+  from = "/.netlify/identity/*"
+  to = "/.netlify/identity/:splat"
+  status = 200
+  force = true
+
+# Handle Netlify Identity invite tokens
+[[redirects]]
+  from = "/#invite_token=*"
+  to = "/identity-callback#invite_token=:splat"
+  status = 302
+  force = true
+
+# Handle Netlify Identity confirmation tokens
+[[redirects]]
+  from = "/#confirmation_token=*"
+  to = "/identity-callback#confirmation_token=:splat"
+  status = 302
+  force = true
+
+# Handle Netlify Identity recovery tokens
+[[redirects]]
+  from = "/#recovery_token=*"
+  to = "/identity-callback#recovery_token=:splat"
+  status = 302
+  force = true

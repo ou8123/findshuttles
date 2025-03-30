@@ -1,124 +1,126 @@
 // src/app/login/page.tsx
-"use client"; // Sign-in pages often need client-side interactivity
+"use client";
 
-import { signIn, getProviders } from "next-auth/react";
-import { useState, useEffect } from "react";
-import type { ClientSafeProvider, LiteralUnion } from "next-auth/react";
-import type { BuiltInProviderType } from "next-auth/providers/index";
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useNetlifyAuth } from '@/lib/netlify-auth-context';
+import { signIn } from "next-auth/react";
 
-export default function SignInPage() {
-  const [providers, setProviders] = useState<Record<LiteralUnion<BuiltInProviderType>, ClientSafeProvider> | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null); // To display potential errors
-
+export default function LoginPage() {
+  const { user, login, isAdmin, isLoading } = useNetlifyAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/admin";
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'netlify' | 'nextauth'>('netlify');
+  
   useEffect(() => {
-    const fetchProviders = async () => {
-      const res = await getProviders();
-      setProviders(res);
-    };
-    fetchProviders();
-  }, []);
+    // If user is already logged in and is admin, redirect to admin
+    if (user && isAdmin) {
+      console.log("Already authenticated with Netlify Identity as admin");
+      router.push('/admin');
+    }
+    
+    // Check for invitation token in URL
+    if (typeof window !== 'undefined' && window.location.hash && window.location.hash.includes('invite_token=')) {
+      console.log("Detected invitation token in login page URL");
+      handleNetlifyLogin();
+    }
+  }, [user, isAdmin, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null); // Clear previous errors
-
+  // Handle Netlify Identity login
+  const handleNetlifyLogin = () => {
+    setError(null);
     try {
-      const result = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-      });
-
-      if (result?.error) {
-        console.error("Sign-in error:", result.error);
-        // Map common errors to user-friendly messages
-        if (result.error === "CredentialsSignin") {
-          setError("Invalid email or password. Please try again.");
-        } else {
-          setError("An unexpected error occurred. Please try again later.");
-        }
-      } else if (result?.ok) {
-        // Successful sign-in
-        window.location.href = '/admin';
-      }
-    } catch (error) {
-      console.error("Sign-in error:", error);
-      setError("An unexpected error occurred. Please try again later.");
+      login();
+    } catch (err) {
+      setError("Error initiating Netlify Identity login");
+      console.error("Netlify Identity error:", err);
     }
   };
 
-  if (!providers) {
-    return <div>Loading...</div>; // Show loading state while fetching providers
+  // Fallback to NextAuth (for transition period)
+  const switchToNextAuth = () => {
+    setMode('nextauth');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
+          <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication status...</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>Admin Sign In</h1>
-      
-      {error && (
-        <p style={{ color: 'red', marginBottom: '15px', textAlign: 'center' }}>{error}</p>
-      )}
-
-      {/* Render Credentials Form */}
-      {providers.credentials && (
-        <form 
-          id="login-form" 
-          name="login-form" 
-          onSubmit={handleSubmit} 
-          method="post" 
-          autoComplete="on"
-        >
-          <div style={{ marginBottom: '15px' }}>
-            <label htmlFor="email" style={{ display: 'block', marginBottom: '5px' }}>Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              autoComplete="username email"
-              placeholder="admin@example.com"
-            />
-          </div>
-          <div style={{ marginBottom: '20px' }}>
-            <label htmlFor="password" style={{ display: 'block', marginBottom: '5px' }}>Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              autoComplete="current-password"
-              placeholder="••••••••"
-            />
-          </div>
+  if (mode === 'netlify') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h1 className="text-2xl font-bold mb-2 text-center">Admin Login</h1>
+          <p className="text-gray-600 text-center mb-6">Sign in with Netlify Identity</p>
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-center">
+              {error}
+            </div>
+          )}
+          
           <button 
-            type="submit" 
-            name="signin"
-            style={{ width: '100%', padding: '10px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            onClick={handleNetlifyLogin}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded hover:bg-blue-700 transition"
           >
             Sign In
           </button>
-        </form>
-      )}
-
-      {/* Add buttons for other providers later if needed */}
-      {/* {Object.values(providers).map((provider) => {
-        if (provider.id === 'credentials') return null; // Don't show button for credentials
-        return (
-          <div key={provider.name} style={{ marginTop: '10px' }}>
-            <button onClick={() => signIn(provider.id)} style={{ width: '100%', padding: '10px' }}>
-              Sign in with {provider.name}
+          
+          <div className="mt-8 pt-4 border-t border-gray-200 text-center">
+            <p className="text-sm text-gray-500 mb-2">
+              Having trouble with Netlify Identity?
+            </p>
+            <button 
+              onClick={switchToNextAuth}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Try legacy login method
             </button>
           </div>
-        );
-      })} */}
+          
+          <p className="mt-6 text-xs text-gray-500 text-center">
+            Protected area. Only authorized administrators can access.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy NextAuth login form - will be phased out
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+        <h1 className="text-2xl font-bold mb-2 text-center">Legacy Admin Login</h1>
+        <p className="text-gray-600 text-center mb-6">Using previous authentication system</p>
+        
+        <button 
+          onClick={() => signIn('credentials', { callbackUrl: '/admin' })}
+          className="w-full bg-gray-600 text-white py-3 px-4 rounded hover:bg-gray-700 transition"
+        >
+          Sign in with credentials
+        </button>
+        
+        <div className="mt-8 pt-4 border-t border-gray-200 text-center">
+          <p className="text-sm text-gray-500 mb-2">
+            Try our new authentication system:
+          </p>
+          <button 
+            onClick={() => setMode('netlify')}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            Switch to Netlify Identity
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
