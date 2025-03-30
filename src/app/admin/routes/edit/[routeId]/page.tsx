@@ -131,11 +131,32 @@ const EditRoutePage = () => {
       setIsLoadingRoute(true);
       setError(null);
       try {
-        const response = await fetch(`/api/admin/routes`);
-        if (!response.ok) throw new Error('Failed to fetch routes list');
-        const data = await response.json();
-        const routes: RouteData[] = data.routes; // Extract routes array from response
-        const routeData = routes.find(r => r.id === routeId);
+        // First try to fetch the specific route directly
+        let routeData = null;
+        try {
+          const specificResponse = await fetch(`/api/admin/routes/${routeId}`);
+          if (specificResponse.ok) {
+            routeData = await specificResponse.json();
+          }
+        } catch (specificErr) {
+          console.warn("Could not fetch specific route, falling back to list:", specificErr);
+        }
+        
+        // If specific route fetch failed, try fetching from the routes list
+        if (!routeData) {
+          const response = await fetch(`/api/admin/routes`);
+          if (!response.ok) throw new Error('Failed to fetch routes list');
+          const data = await response.json();
+          
+          // Make sure routes is an array before calling find()
+          const routes = Array.isArray(data.routes) 
+            ? data.routes 
+            : Array.isArray(data) 
+              ? data 
+              : [];
+              
+          routeData = routes.find((r: RouteData) => r.id === routeId);
+        }
 
         if (!routeData) throw new Error('Route not found');
 
