@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import RouteMap from '@/components/RouteMap';
 import SearchForm from '@/components/SearchForm';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
+import AutoScroller from '@/components/AutoScroller';
 
 interface RouteWithRelations {
   routeSlug: string;
@@ -141,67 +142,69 @@ export default async function RoutePage({
   });
 
   return (
-    <div>
-      {/* Search form with single shadow box - no extra container styling */}
-      <div id="search-form-container" className="mb-8 relative">
-        <SearchForm 
-          className="rounded-lg shadow-md max-w-2xl mx-auto !block" 
-        />
-      </div>
+    <AutoScroller scrollToSelector="#route-content">
+      <div>
+        {/* Search form with single shadow box - no extra container styling */}
+        <div id="search-form-container" className="mb-8 relative">
+          <SearchForm 
+            className="rounded-lg shadow-md max-w-2xl mx-auto !block" 
+          />
+        </div>
 
-      <div className="scroll-mt-4 mt-12">
-        <h1 className="text-3xl font-bold mb-4">
-          {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
-        </h1>
+        <div id="route-content" className="scroll-mt-4 mt-12">
+          <h1 className="text-3xl font-bold mb-4">
+            {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
+          </h1>
 
-        {/* No dates displayed as per client request */}
+          {/* No dates displayed as per client request */}
 
-        {/* Book Your Shuttle section and widget - remove ALL gaps/margins between sections */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, margin: 0, padding: 0 }}>
-          <div style={{ marginBottom: 0, paddingBottom: 0 }}>
-            <h2 className="text-xl font-semibold mb-0 pb-0">Book Your Shuttle</h2>
-            <div style={{ margin: 0, padding: 0, marginBottom: 0 }}>
-              {route.viatorWidgetCode ? (
-                <ViatorWidgetRenderer 
-                  key={`viator-${route.routeSlug}`} 
-                  widgetCode={route.viatorWidgetCode}
-                  routeSlug={route.routeSlug}
-                />
-              ) : (
-                <p>Booking widget not available for this route.</p>
-              )}
-            </div>
-          </div>
- 
-          {/* Description section - use negative margin for all routes, but less aggressive */}
-          {route.seoDescription && (
-            <div style={{ 
-              position: 'relative',
-              marginTop: '-10px', /* Less aggressive negative margin */
-              zIndex: 5
-            }}>
-              <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
-              <div className="p-4 bg-white rounded shadow-sm">
-                <p className="text-black">{route.seoDescription}</p>
+          {/* Book Your Shuttle section and widget - remove ALL gaps/margins between sections */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, margin: 0, padding: 0 }}>
+            <div style={{ marginBottom: 0, paddingBottom: 0 }}>
+              <h2 className="text-xl font-semibold mb-0 pb-0">Book Your Shuttle</h2>
+              <div style={{ margin: 0, padding: 0, marginBottom: 0 }}>
+                {route.viatorWidgetCode ? (
+                  <ViatorWidgetRenderer 
+                    key={`viator-${route.routeSlug}`} 
+                    widgetCode={route.viatorWidgetCode}
+                    routeSlug={route.routeSlug}
+                  />
+                ) : (
+                  <p>Booking widget not available for this route.</p>
+                )}
               </div>
             </div>
-          )}
+   
+            {/* Description section - use negative margin for all routes, but less aggressive */}
+            {route.seoDescription && (
+              <div style={{ 
+                position: 'relative',
+                marginTop: '-10px', /* Less aggressive negative margin */
+                zIndex: 5
+              }}>
+                <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
+                <div className="p-4 bg-white rounded shadow-sm">
+                  <p className="text-black">{route.seoDescription}</p>
+                </div>
+              </div>
+            )}
 
-          {/* Map Display Section - with added margin-top for spacing */}
-          {route.departureCity?.latitude && route.departureCity?.longitude &&
-          route.destinationCity?.latitude && route.destinationCity?.longitude && (
-            <div style={{ marginTop: '30px' }}>
-              <h2 className="text-xl font-semibold mb-3">Route Map</h2>
-              <RouteMap
-                departureLat={route.departureCity.latitude}
-                departureLng={route.departureCity.longitude}
-                destinationLat={route.destinationCity.latitude}
-                destinationLng={route.destinationCity.longitude}
-              />
-            </div>
-          )}
+            {/* Map Display Section - with added margin-top for spacing */}
+            {route.departureCity?.latitude && route.departureCity?.longitude &&
+            route.destinationCity?.latitude && route.destinationCity?.longitude && (
+              <div style={{ marginTop: '30px' }}>
+                <h2 className="text-xl font-semibold mb-3">Route Map</h2>
+                <RouteMap
+                  departureLat={route.departureCity.latitude}
+                  departureLng={route.departureCity.longitude}
+                  destinationLat={route.destinationCity.latitude}
+                  destinationLng={route.destinationCity.longitude}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </AutoScroller>
   );
 }
