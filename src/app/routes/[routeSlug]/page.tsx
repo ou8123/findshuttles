@@ -123,22 +123,25 @@ export default function RoutePage({
             {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
           </h1>
 
-          <div className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Book Your Shuttle</h2>
-              {route.viatorWidgetCode ? (
-                <ViatorWidgetRenderer 
-                  key={`viator-${routeSlug}-${Date.now()}`} 
-                  widgetCode={route.viatorWidgetCode}
-                />
-              ) : (
-                <p>Booking widget not available for this route.</p>
-              )}
+          {/* Book Your Shuttle section and widget - remove ALL gaps/margins between sections */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, margin: 0, padding: 0 }}>
+            <div style={{ marginBottom: 0, paddingBottom: 0 }}>
+              <h2 className="text-xl font-semibold mb-0 pb-0">Book Your Shuttle</h2>
+              <div style={{ margin: 0, padding: 0, marginBottom: 0 }}>
+                {route.viatorWidgetCode ? (
+                  <ViatorWidgetRenderer 
+                    key={`viator-${routeSlug}-${Date.now()}`} 
+                    widgetCode={route.viatorWidgetCode}
+                  />
+                ) : (
+                  <p>Booking widget not available for this route.</p>
+                )}
+              </div>
             </div>
-
-            {/* Display SEO Description with reduced top spacing */}
-             {route.seoDescription && (
-              <div className="mt-2 p-4 bg-white rounded shadow-sm">
+ 
+            {/* Description section - attached directly to widget with no margin */}
+            {route.seoDescription && (
+              <div style={{ margin: 0, padding: '8px', backgroundColor: 'white', borderRadius: '4px', marginTop: '-5px' }}>
                 <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
                 <p className="text-black">{route.seoDescription}</p>
               </div>

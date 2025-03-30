@@ -7,133 +7,135 @@ interface ViatorWidgetRendererProps {
 }
 
 /**
- * Enhanced Viator Widget Renderer with better error handling and reload capability.
+ * Simplified Viator Widget Renderer
  * 
- * This implementation improves reliability and handles edge cases better.
+ * This straightforward implementation focuses on reliability across different environments
+ * and eliminates spacing issues in the layout.
  */
 const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scriptRef = useRef<HTMLScriptElement | null>(null);
-  const widgetId = useRef<string>(`widget-${Math.random().toString(36).substring(2, 9)}`);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const attemptCountRef = useRef(0);
-  const maxAttempts = 3;
-
-  // Function to load the Viator script
-  const loadScript = () => {
-    // Clean up any existing script to avoid duplicates
-    if (scriptRef.current) {
-      document.body.removeChild(scriptRef.current);
-      scriptRef.current = null;
-    }
-
-    // Create and add the script tag
-    const script = document.createElement('script');
-    script.src = 'https://www.viator.com/orion/partner/widget.js';
-    script.async = true;
+  
+  // Create a unique widget ID to avoid collisions
+  const widgetId = useRef<string>(`widget-${Math.random().toString(36).substring(2, 9)}`);
+  
+  // Basic initialization function
+  useEffect(() => {
+    if (!containerRef.current || !widgetCode) return;
     
-    // Handle script load success
-    script.onload = () => {
-      console.log('Viator script loaded successfully');
-      setIsLoaded(true);
-      setHasError(false);
+    try {
+      // Clear any previous content
+      containerRef.current.innerHTML = '';
       
-      // Trigger resize events to help widget render correctly
-      triggerResizeEvents();
-    };
-    
-    // Handle script load failure
-    script.onerror = (e) => {
-      console.error('Failed to load Viator script:', e);
+      // Insert the widget HTML
+      containerRef.current.innerHTML = widgetCode;
+      
+      // Create a script element to load the Viator widget script
+      const script = document.createElement('script');
+      script.src = 'https://www.viator.com/orion/partner/widget.js';
+      script.async = true;
+      
+      // Handle script load successfully
+      script.onload = () => {
+        console.log('Viator widget script loaded successfully');
+        setIsLoaded(true);
+        
+        // Trigger resize events to help widget render correctly
+        triggerResizeEvents();
+        
+        // Check for iframe and apply styles if needed
+        setTimeout(adjustIframeStyles, 800);
+      };
+      
+      // Handle script load failure
+      script.onerror = () => {
+        console.error('Failed to load Viator widget script');
+        setHasError(true);
+      };
+      
+      // Add script to document body
+      document.body.appendChild(script);
+      
+      // Cleanup function
+      return () => {
+        try {
+          // Only remove if it's still in the document
+          if (script && script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        } catch (e) {
+          console.warn('Error cleaning up Viator script:', e);
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing Viator widget:', error);
       setHasError(true);
-      attemptRetryIfNeeded();
-    };
+    }
+  }, [widgetCode]);
+  
+  // Function to adjust iframe styles after it's created
+  const adjustIframeStyles = () => {
+    if (!containerRef.current) return;
     
-    document.body.appendChild(script);
-    scriptRef.current = script;
+    const iframe = containerRef.current.querySelector('iframe');
+    if (iframe) {
+      // Remove any margins or spacing that could cause gaps
+      iframe.style.margin = '0';
+      iframe.style.padding = '0';
+      iframe.style.display = 'block';
+      iframe.style.marginBottom = '0';
+    }
   };
-
-  // Schedule resize events with increasing delays
+  
+  // Schedule multiple resize events to ensure proper widget rendering
   const triggerResizeEvents = () => {
-    // More comprehensive resize scheduling
-    [100, 300, 600, 1000, 1500, 2000, 3000, 5000].forEach(delay => {
+    // Trigger initial resize
+    window.dispatchEvent(new Event('resize'));
+    
+    // Schedule more resize events at different intervals
+    [200, 500, 1000, 2000, 3000].forEach(delay => {
       setTimeout(() => {
         if (document.visibilityState === 'visible') {
           window.dispatchEvent(new Event('resize'));
+          adjustIframeStyles();
         }
       }, delay);
     });
   };
-
-  // Attempt to retry loading if needed
-  const attemptRetryIfNeeded = () => {
-    if (attemptCountRef.current < maxAttempts) {
-      attemptCountRef.current += 1;
-      console.log(`Retrying Viator widget load (attempt ${attemptCountRef.current} of ${maxAttempts})...`);
-      
-      // Exponential backoff for retries
-      const backoffDelay = 1000 * Math.pow(2, attemptCountRef.current - 1);
-      setTimeout(() => {
-        initializeWidget();
-      }, backoffDelay);
-    }
-  };
-
-  // Initialize the widget with error handling
-  const initializeWidget = () => {
-    if (!containerRef.current || !widgetCode) return;
-
-    try {
-      // Clear any previous content and set widget HTML
-      containerRef.current.innerHTML = '';
-      containerRef.current.innerHTML = widgetCode;
-      console.log(`Viator widget inserted with ID: ${widgetId.current}`);
-      
-      // Load the Viator script
-      loadScript();
-    } catch (error) {
-      console.error("Error initializing Viator widget:", error);
-      setHasError(true);
-      attemptRetryIfNeeded();
-    }
-  };
-
-  // Initialize the widget when component mounts or when widgetCode changes
+  
+  // Handle visibility changes to help with tab switching
   useEffect(() => {
-    initializeWidget();
-    
-    // Visibility change handler to help with tab switching
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab became visible, triggering resize');
-        window.dispatchEvent(new Event('resize'));
+        triggerResizeEvents();
+        adjustIframeStyles();
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('resize', adjustIframeStyles);
     
-    // Ensure cleanup when component unmounts
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
-      if (scriptRef.current) {
-        document.body.removeChild(scriptRef.current);
-      }
+      window.removeEventListener('resize', adjustIframeStyles);
     };
-  }, [widgetCode]);
+  }, []);
   
   return (
-    <div className="viator-widget-container">
+    <div className="viator-widget-container" style={{ margin: 0, padding: 0 }}>
       <div 
         ref={containerRef}
-        className="w-full min-h-[400px]"
+        className="w-full min-h-[400px] mb-0 pb-0"
         id={widgetId.current}
         style={{
           height: 'auto',
           overflow: 'visible',
           display: 'block',
           visibility: 'visible',
-          zIndex: 1,
+          margin: 0,
+          padding: 0,
+          border: 0,
         }}
       />
       
