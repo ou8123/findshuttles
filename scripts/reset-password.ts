@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 // The email must match the admin email in the seed file
 const ADMIN_EMAIL = 'aiaffiliatecom@gmail.com';
 // This will be the new admin password - set this to your preferred password
-const NEW_PASSWORD = 'shuttle1234';
+// Strong password with uppercase, lowercase, numbers and special characters
+const NEW_PASSWORD = 'Bsssap1!';
 
 async function main() {
   console.log(`Setting password for admin user: ${ADMIN_EMAIL}`);
