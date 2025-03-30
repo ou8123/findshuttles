@@ -1,7 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET(request: NextRequest, { params }: { params: { routeSlug: string }}) {
+// Correct type signature for Next.js route handlers
+export async function GET(
+  request: Request, 
+  context: { params: { routeSlug: string } }
+) {
+  const { params } = context;
   try {
     // Get the full route slug from the URL params
     let { routeSlug } = params;
