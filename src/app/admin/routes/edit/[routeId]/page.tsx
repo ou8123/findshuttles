@@ -132,11 +132,15 @@ const EditRoutePage = () => {
       setError(null);
       try {
         // First try to fetch the specific route directly
-        let routeData = null;
+        let routeData: RouteData | null = null;
         try {
           const specificResponse = await fetch(`/api/admin/routes/${routeId}`);
           if (specificResponse.ok) {
-            routeData = await specificResponse.json();
+            const specificData = await specificResponse.json();
+            // Verify the data has the expected shape
+            if (specificData && typeof specificData === 'object' && 'id' in specificData) {
+              routeData = specificData as RouteData;
+            }
           }
         } catch (specificErr) {
           console.warn("Could not fetch specific route, falling back to list:", specificErr);
@@ -155,7 +159,12 @@ const EditRoutePage = () => {
               ? data 
               : [];
               
-          routeData = routes.find((r: RouteData) => r.id === routeId);
+          const foundRoute = routes.find((r: any) => r.id === routeId);
+          
+          // Verify the found route has the expected shape
+          if (foundRoute && typeof foundRoute === 'object' && 'id' in foundRoute) {
+            routeData = foundRoute as RouteData;
+          }
         }
 
         if (!routeData) throw new Error('Route not found');
@@ -163,16 +172,19 @@ const EditRoutePage = () => {
         // Store original data
         setOriginalData(routeData);
 
+        // Use a type-safe way to populate form state
+        const safeRouteData: RouteData = routeData;
+        
         // Populate form state
-        setDepartureCityId(routeData.departureCityId);
-        setDestinationCityId(routeData.destinationCityId);
-        setRouteSlug(routeData.routeSlug);
-        setDisplayName(routeData.displayName);
-        setViatorWidgetCode(routeData.viatorWidgetCode);
-        setMetaTitle(routeData.metaTitle ?? '');
-        setMetaDescription(routeData.metaDescription ?? '');
-        setMetaKeywords(routeData.metaKeywords ?? '');
-        setSeoDescription(routeData.seoDescription ?? '');
+        setDepartureCityId(safeRouteData.departureCityId);
+        setDestinationCityId(safeRouteData.destinationCityId);
+        setRouteSlug(safeRouteData.routeSlug);
+        setDisplayName(safeRouteData.displayName);
+        setViatorWidgetCode(safeRouteData.viatorWidgetCode);
+        setMetaTitle(safeRouteData.metaTitle ?? '');
+        setMetaDescription(safeRouteData.metaDescription ?? '');
+        setMetaKeywords(safeRouteData.metaKeywords ?? '');
+        setSeoDescription(safeRouteData.seoDescription ?? '');
 
         // Check if display name is customized
         const defaultDisplayName = `Shuttles from ${routeData.departureCity.name} to ${routeData.destinationCity.name}`;
