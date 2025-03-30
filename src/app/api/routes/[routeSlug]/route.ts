@@ -129,6 +129,11 @@ export async function GET(req: Request, context: any) {
         displayName: true,
         viatorWidgetCode: true,
         seoDescription: true,
+        metaTitle: true,
+        metaDescription: true,
+        metaKeywords: true,
+        createdAt: true,
+        updatedAt: true,
         departureCity: {
           select: { 
             name: true, 

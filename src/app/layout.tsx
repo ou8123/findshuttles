@@ -16,7 +16,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shuttle Finder",
+  title: {
+    template: '%s | FindTours.com',
+    default: 'Shuttle Finder | FindTours.com',
+  },
   description: "Find shuttle routes worldwide",
   viewport: {
     width: 'device-width',
