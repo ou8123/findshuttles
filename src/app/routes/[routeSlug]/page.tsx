@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
+import { use } from 'react';
 import RouteMap from '@/components/RouteMap';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 
@@ -28,13 +29,18 @@ interface RouteWithRelations {
   };
 }
 
-export default function RoutePage({ params }: any) {
+export default function RoutePage({ 
+  params 
+}: { 
+  params: Promise<{ routeSlug: string }> 
+}) {
+  const { routeSlug } = use(params);
   const [route, setRoute] = useState<RouteWithRelations | null>(null);
 
   useEffect(() => {
     const fetchRoute = async () => {
       try {
-        const response = await fetch(`/api/routes/${params.routeSlug}`);
+        const response = await fetch(`/api/routes/${routeSlug}`);
         if (!response.ok) {
           if (response.status === 404) {
             notFound();
@@ -49,7 +55,7 @@ export default function RoutePage({ params }: any) {
     };
 
     fetchRoute();
-  }, [params.routeSlug]);
+  }, [routeSlug]);
 
   if (!route) {
     return (
