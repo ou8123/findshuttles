@@ -24,15 +24,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch the city slugs needed to construct the route URL
+    // Fetch city data with country info to properly construct route URLs
     const departureCity = await prisma.city.findUnique({
       where: { id: departureCityId },
-      select: { slug: true },
+      select: { 
+        slug: true, 
+        name: true,
+        country: {
+          select: { name: true }
+        }
+      },
     });
 
     const destinationCity = await prisma.city.findUnique({
       where: { id: destinationCityId },
-      select: { slug: true },
+      select: { 
+        slug: true,
+        name: true,
+        country: {
+          select: { name: true }
+        }
+      },
     });
 
     // Verify both cities were found
@@ -46,8 +58,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Construct the route slug for the redirect
-    const routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
+    // Get environment to determine URL format (Netlify uses different format than dev)
+    const isNetlify = process.env.NETLIFY === 'true' || 
+                     request.headers.get('host')?.includes('netlify');
+    
+    // Use proper URL format based on environment (Netlify includes country names)
+    let routeSlug;
+    if (isNetlify) {
+      // Format city-country slugs for Netlify URLs
+      const departureSlug = `${departureCity.slug.replace(/-/g, '-')}-${departureCity.country.name.toLowerCase().replace(/\s+/g, '-')}`;
+      const destinationSlug = `${destinationCity.slug.replace(/-/g, '-')}-${destinationCity.country.name.toLowerCase().replace(/\s+/g, '-')}`;
+      routeSlug = `${departureSlug}-to-${destinationSlug}`;
+      console.log(`Netlify URL format: ${routeSlug}`);
+    } else {
+      // Simple format for local development
+      routeSlug = `${departureCity.slug}-to-${destinationCity.slug}`;
+      console.log(`Local URL format: ${routeSlug}`);
+    }
     
     // Perform a 302 (temporary) redirect to the route page
     // 302 is used instead of 301 to ensure no browser caching of the redirect
