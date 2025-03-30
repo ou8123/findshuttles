@@ -163,7 +163,7 @@ export default async function RoutePage({
             <div style={{ margin: 0, padding: 0, marginBottom: 0 }}>
               {route.viatorWidgetCode ? (
                 <ViatorWidgetRenderer 
-                  key={`viator-${route.routeSlug}-${Date.now()}`} 
+                  key={`viator-${route.routeSlug}`} 
                   widgetCode={route.viatorWidgetCode}
                   routeSlug={route.routeSlug}
                 />
