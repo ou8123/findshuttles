@@ -1,7 +1,7 @@
 # netlify.toml
 [build]
   # Run prisma commands in sequence to ensure proper database setup
-  command = "cp .env.production .env && npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-reset-password.js && node netlify-build.js"
+  command = "echo 'Creating .env file for build...' && touch .env && npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-reset-password.js && node netlify-build.js"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
@@ -40,12 +40,8 @@
   status = 200
   force = true
   
-# Add redirect for Netlify Identity callback handling
-[[redirects]]
-  from = "/.netlify/identity/*"
-  to = "/.netlify/identity/:splat"
-  status = 200
-  force = true
+# Note: We can't redirect /.netlify/* paths as they're reserved by Netlify
+# The Netlify Identity API is handled automatically by Netlify
 
 # Handle Netlify Identity invite tokens
 [[redirects]]
