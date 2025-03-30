@@ -11,6 +11,30 @@ export default [
       'seed-production.js'
     ]
   },
+  // JavaScript and JSX files configuration
+  {
+    files: ['**/*.js', '**/*.jsx'],
+    plugins: {
+      '@next': nextPlugin,
+    },
+    rules: {
+      // Next.js specific rules
+      '@next/next/no-html-link-for-pages': 'error',
+      '@next/next/no-img-element': 'error',
+      '@next/next/no-unwanted-polyfillio': 'error',
+
+      // React specific rules
+      'react/prop-types': 'off',
+      'react/react-in-jsx-scope': 'off',
+
+      // General rules
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-unused-expressions': 'off'
+    }
+  },
+  // TypeScript and TSX files configuration
   {
     files: ['**/*.ts', '**/*.tsx'],
     plugins: {
