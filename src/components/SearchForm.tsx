@@ -162,9 +162,20 @@ const SearchForm: React.FC<SearchFormProps> = ({
     fetchPopularCities();
   }, []);
 
-  // Search cities when the debounced query changes, with retry logic
+  // Cache of previously fetched cities for autocomplete
+  const [citiesCache, setCitiesCache] = useState<{[query: string]: City[]}>({});
+  
+  // Search cities when the debounced query changes, with retry logic and caching
   useEffect(() => {
     if (!debouncedDepartureQuery) return;
+    
+    // Check cache first
+    if (citiesCache[debouncedDepartureQuery]) {
+      console.log(`Using cached results for "${debouncedDepartureQuery}"`);
+      setDepartureCities(citiesCache[debouncedDepartureQuery]);
+      setIsLoadingLocationsLookup(false);
+      return;
+    }
     
     let retryCount = 0;
     const maxRetries = 2;
@@ -195,6 +206,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
         );
         
         console.log(`Found ${matchingCities.length} cities matching "${debouncedDepartureQuery}"`);
+        
+        // Update the cities cache
+        setCitiesCache(prev => ({
+          ...prev,
+          [debouncedDepartureQuery]: matchingCities
+        }));
+        
         setDepartureCities(matchingCities);
       } catch (err: unknown) {
         console.error("Failed to search cities:", err);
@@ -219,7 +237,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     };
     
     searchCities();
-  }, [debouncedDepartureQuery]);
+  }, [debouncedDepartureQuery, citiesCache]);
 
   // Fetch valid destinations when a valid departure city is selected
   useEffect(() => {

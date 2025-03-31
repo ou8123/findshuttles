@@ -1,36 +1,40 @@
 'use client';
 
 /**
- * Global Error Logger Utility
+ * Lightweight Error Logger Utility - Production Optimized
  * 
- * This file provides global error handling for the application.
- * It can be imported and initialized in the root layout or specific pages.
+ * This file provides error handling for the application,
+ * with performance optimizations for production builds.
  */
 
-// Function to log errors to console and optionally to a server
+// Only activate full error logging in development
+const isDev = process.env.NODE_ENV === 'development';
+
+// Function to log errors with minimal overhead in production
 export function logError(error: Error | unknown, info?: string): void {
-  // Create a timestamp for the error
-  const timestamp = new Date().toISOString();
-  
-  // Get browser information
-  const browserInfo = typeof navigator !== 'undefined' 
-    ? `${navigator.userAgent} | ${window.innerWidth}x${window.innerHeight}`
-    : 'Server-side';
-  
-  // Format the error for logging
-  const errorDetails = {
-    timestamp,
-    message: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
-    info,
-    browserInfo,
-  };
-  
-  // Log to console
-  console.error('[Error Logger]', errorDetails);
-  
-  // Here you could also send the error to a server endpoint
-  // Example: fetch('/api/log-error', { method: 'POST', body: JSON.stringify(errorDetails) })
+  if (isDev) {
+    // Detailed logging for development only
+    const timestamp = new Date().toISOString();
+    const browserInfo = typeof navigator !== 'undefined' 
+      ? `${navigator.userAgent} | ${window.innerWidth}x${window.innerHeight}`
+      : 'Server-side';
+    
+    const errorDetails = {
+      timestamp,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      info,
+      browserInfo,
+    };
+    
+    console.error('[Error Logger]', errorDetails);
+  } else {
+    // Minimal logging for production - just the basics
+    console.error('[Error]', 
+      error instanceof Error ? error.message : String(error),
+      info || ''
+    );
+  }
 }
 
 // Function to initialize global error listeners
@@ -43,9 +47,9 @@ export function initializeErrorListeners(): () => void {
   const originalOnError = window.onerror;
   const originalOnUnhandledRejection = window.onunhandledrejection;
   
-  // Set up global error handler
+  // Set up global error handler - simpler in production
   window.onerror = function(message, source, lineno, colno, error) {
-    logError(error || new Error(String(message)), `${source}:${lineno}:${colno}`);
+    logError(error || new Error(String(message)), isDev ? `${source}:${lineno}:${colno}` : undefined);
     
     // Call original handler if it exists
     if (typeof originalOnError === 'function') {
@@ -65,55 +69,49 @@ export function initializeErrorListeners(): () => void {
     }
   };
   
-  // Set up console.error interceptor to capture console errors
-  const originalConsoleError = console.error;
-  console.error = function(...args) {
-    // First, call the original console.error
-    originalConsoleError.apply(this, args);
-    
-    // Then log it as a captured error if the first argument is an Error
-    if (args[0] instanceof Error) {
-      logError(args[0], 'Captured from console.error');
-    } else if (typeof args[0] === 'string' && args[0].includes('Error')) {
-      // Try to handle string errors
-      const errorMessage = args.join(' ');
-      logError(new Error(errorMessage), 'String error from console.error');
-    }
-  };
+  // Only intercept console.error in development
+  let originalConsoleError: typeof console.error | undefined;
+  if (isDev) {
+    originalConsoleError = console.error;
+    console.error = function(...args) {
+      // First, call the original console.error
+      originalConsoleError!.apply(this, args);
+      
+      // Only capture actual errors to avoid overhead
+      if (args[0] instanceof Error) {
+        logError(args[0], 'Captured from console.error');
+      }
+    };
+  }
   
   // Return cleanup function
   return () => {
     window.onerror = originalOnError;
     window.onunhandledrejection = originalOnUnhandledRejection;
-    console.error = originalConsoleError;
+    if (isDev && originalConsoleError) {
+      console.error = originalConsoleError;
+    }
   };
 }
 
-// Create a component that will initialize error listeners
+// Create error handler with minimal overhead in production
 export function createGlobalErrorHandler() {
   if (typeof window !== 'undefined') {
     const cleanup = initializeErrorListeners();
     
-    // Add additional device info logging
-    console.info('[Device Info]', {
-      userAgent: navigator.userAgent,
-      screen: `${window.innerWidth}x${window.innerHeight}`,
-      pixelRatio: window.devicePixelRatio,
-      touchEnabled: 'ontouchstart' in window,
-      online: navigator.onLine,
-    });
+    // Only log device info in development
+    if (isDev) {
+      console.info('[Device Info]', {
+        userAgent: navigator.userAgent,
+        screen: `${window.innerWidth}x${window.innerHeight}`,
+        pixelRatio: window.devicePixelRatio,
+      });
+    }
     
-    // Return cleanup function
     return cleanup;
   }
   
   return () => {}; // No-op for server-side
 }
 
-// Auto-initialize when this module is imported
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    createGlobalErrorHandler();
-    console.log('[Error Logger] Global error handler initialized');
-  }, 0);
-}
+// No auto-initialization to prevent performance impact

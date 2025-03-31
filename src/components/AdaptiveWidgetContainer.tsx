@@ -5,28 +5,60 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 interface AdaptiveWidgetContainerProps {
   children: ReactNode;
   className?: string;
+  maxHeight?: number;
 }
 
 /**
- * Universal Adaptive Widget Container
+ * Universal Adaptive Widget Container - Performance Optimized
  * 
- * A streamlined container component that adapts to exactly match the height
- * of its content across all devices without over-expansion.
+ * A streamlined container component that adapts to match the height
+ * of its content with optimizations for performance and mobile usability:
+ * - Respects maximum height constraint for mobile viewports
+ * - Reduced polling frequency and duration
+ * - Better cleanup of resources
+ * - Handles content overflow properly
  */
 const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
   children,
   className = '',
+  maxHeight = 800, // Apply a reasonable max height for mobile
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
   // Start with a modest initial height
   const [containerHeight, setContainerHeight] = useState(250);
-  
-  // Track loading state to handle transitions properly
   const [isStabilized, setIsStabilized] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
-  // Setup one-time measurement to get exact content height
+  // Detect mobile devices once on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    
+    // Only add event listener if needed
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handleChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    
+    // Use modern event listener if available, fallback for older browsers
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', handleChange);
+      return () => mql.removeEventListener('change', handleChange);
+    } else if (typeof mql.addListener === 'function') {
+      // @ts-ignore - Older browser support
+      mql.addListener(handleChange);
+      return () => {
+        // @ts-ignore - Older browser support
+        mql.removeListener(handleChange);
+      };
+    }
+  }, []);
+  
+  // Setup measurement to get content height - with reduced polling
   useEffect(() => {
     if (!contentRef.current) return;
     
@@ -34,103 +66,77 @@ const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
     let observerRef: ResizeObserver | null = null;
     const timers: ReturnType<typeof setTimeout>[] = [];
     
-    // Simple measurement function that uses scrollHeight directly
+    // Simple measurement function that uses scrollHeight
     const updateHeight = () => {
       if (!contentRef.current) return;
       
-      // Get the exact scrollHeight which is the most reliable cross-platform
+      // Get the exact scrollHeight
       const height = contentRef.current.scrollHeight;
       
+      // Apply maxHeight constraint on mobile
+      const constrainedHeight = isMobile ? Math.min(height, maxHeight) : height;
+      
       // Only update if there's a meaningful difference to avoid loops
-      if (Math.abs(height - containerHeight) > 5) {
-        setContainerHeight(height);
+      if (Math.abs(constrainedHeight - containerHeight) > 5) {
+        setContainerHeight(constrainedHeight);
       }
     };
     
     // Initialize with immediate measurement
     updateHeight();
     
-    // Add quick measurements for content that loads fast
-    const quickTimers = [50, 150, 300].map(delay => {
-      const timer = setTimeout(() => {
-        updateHeight();
-      }, delay);
-      timers.push(timer);
-      return timer;
-    });
+    // Reduced number of measurement timers - just two strategic ones
+    timers.push(setTimeout(updateHeight, 100));
     
     // Create one stable timer that marks the component as stabilized
     const stabilityTimer = setTimeout(() => {
       updateHeight();
       setIsStabilized(true);
-    }, 700);
+    }, 500); // Reduced from 700ms
     timers.push(stabilityTimer);
     
     // Set up ResizeObserver for dynamic content changes
     try {
       observerRef = new ResizeObserver(() => {
-        // Don't use entry dimensions as they're unreliable
-        // Instead directly measure the content
-        updateHeight();
+        requestAnimationFrame(updateHeight); // Use requestAnimationFrame for smoother updates
       });
       
       if (contentRef.current) {
         observerRef.observe(contentRef.current);
       }
     } catch (e) {
-      console.warn('ResizeObserver not available, using polling fallback');
+      // Fallback for browsers without ResizeObserver - less aggressive polling
+      const pollingInterval = setInterval(updateHeight, 500); // Increased interval from 300ms
+      
+      // Stop polling sooner
+      const cleanupTimer = setTimeout(() => {
+        clearInterval(pollingInterval);
+      }, 2000); // Reduced from 5000ms
+      
+      timers.push(cleanupTimer);
+      
+      return () => {
+        clearInterval(pollingInterval);
+      };
     }
     
-    // Polling fallback for browsers without ResizeObserver
-    // Also helps catch async content loads
-    const pollingInterval = setInterval(() => {
-      updateHeight();
-    }, 300);
-    
-    // Special handling for iframes since they're common in widgets
-    const checkIframes = () => {
-      if (!contentRef.current) return;
-      
-      const iframes = contentRef.current.querySelectorAll('iframe');
-      iframes.forEach(iframe => {
-        try {
-          // Try to add load listeners to all iframes
-          iframe.addEventListener('load', () => {
-            // When iframe loads, update immediately and after a small delay
-            updateHeight();
-            setTimeout(updateHeight, 200);
-          });
-        } catch (e) {
-          // Silent fail for cross-origin restrictions
-        }
-      });
+    // Handle window resize events with debounce for better performance
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(updateHeight, 150);
     };
     
-    // Check for iframes now and periodically
-    checkIframes();
-    const iframeCheckInterval = setInterval(checkIframes, 500);
-    
-    // Stop polling and checking once component is stabilized
-    const cleanupTimer = setTimeout(() => {
-      clearInterval(pollingInterval);
-      clearInterval(iframeCheckInterval);
-    }, 5000); // Stop all polling after 5 seconds
-    
-    timers.push(cleanupTimer);
-    
-    // Handle window resize events
-    const handleResize = () => updateHeight();
     window.addEventListener('resize', handleResize);
     
     // Clean up all observers and timers
     return () => {
       observerRef?.disconnect();
       timers.forEach(timer => clearTimeout(timer));
-      clearInterval(pollingInterval);
-      clearInterval(iframeCheckInterval);
       window.removeEventListener('resize', handleResize);
+      if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [containerHeight]);
+  }, [containerHeight, isMobile, maxHeight]);
   
   return (
     <div 
@@ -146,6 +152,10 @@ const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
         borderRadius: '8px',
         background: '#fff',
         overflow: 'hidden',
+        // Add max-height constraint with overflow for mobile
+        ...(isMobile && {
+          maxHeight: `${maxHeight}px`,
+        })
       }}
     >
       <div 
@@ -156,8 +166,12 @@ const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          // No height or overflow constraints
-          // Let content determine exact size
+          // Add overflow handling for mobile
+          ...(isMobile && containerHeight >= maxHeight ? {
+            height: '100%',
+            overflow: 'auto',
+            WebkitOverflowScrolling: 'touch', // Better scrolling on iOS
+          } : {})
         }}
       >
         {children}
