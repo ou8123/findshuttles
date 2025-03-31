@@ -134,22 +134,16 @@ export async function middleware(request: NextRequest) {
   
   // Handle login page security
   if (isLoginPath(pathname)) {
-    // If they used the internal path (/login), redirect to the secure path
-    if (pathname.startsWith('/login')) {
-      const securePath = getSecureLoginPath(pathname);
-      const url = new URL(securePath, request.url);
-      // Copy all search params
-      request.nextUrl.searchParams.forEach((value, key) => {
-        url.searchParams.set(key, value);
-      });
-      return NextResponse.redirect(url);
+    // If they used the obscured path, rewrite to the internal login path
+    if (pathname.startsWith(`/${LOGIN_PATH_TOKEN}`)) {
+      const url = request.nextUrl.clone();
+      url.pathname = getInternalLoginPath(pathname);
+      response = NextResponse.rewrite(url);
+      return addSecurityHeaders(response);
     }
     
-    // They used the correct secure path, rewrite internally to the login path
-    const url = request.nextUrl.clone();
-    url.pathname = getInternalLoginPath(pathname);
-    response = NextResponse.rewrite(url);
-    return addSecurityHeaders(response);
+    // For direct /login access, just continue without redirecting
+    return NextResponse.next();
   }
   
   // Skip middleware for API routes to allow direct access
@@ -210,22 +204,16 @@ export async function middleware(request: NextRequest) {
     
     // User is authenticated as admin
     
-    // If they used the internal path (/admin), redirect to the secure path
-    if (pathname.startsWith('/admin')) {
-      const securePath = getSecureAdminPath(pathname);
-      const url = new URL(securePath, request.url);
-      // Copy all search params
-      request.nextUrl.searchParams.forEach((value, key) => {
-        url.searchParams.set(key, value);
-      });
-      return NextResponse.redirect(url);
+    // If they used the obscured path, rewrite internally to the admin path
+    if (pathname.startsWith(`/${ADMIN_PATH_TOKEN}`)) {
+      const url = request.nextUrl.clone();
+      url.pathname = getInternalAdminPath(pathname);
+      response = NextResponse.rewrite(url);
+      return addSecurityHeaders(response);
     }
     
-    // They used the correct secure path, rewrite internally to the admin path
-    const url = request.nextUrl.clone();
-    url.pathname = getInternalAdminPath(pathname);
-    response = NextResponse.rewrite(url);
-    return addSecurityHeaders(response);
+    // For direct /admin access, just continue without redirecting
+    return NextResponse.next();
   }
   
   // Apply security headers to all responses

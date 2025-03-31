@@ -1,7 +1,7 @@
 "use client"; // This component needs client-side hooks
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
@@ -17,6 +17,32 @@ interface AdminSidebarNavProps {
 const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({ navItems }) => {
   const pathname = usePathname(); // Get the current path
   const { data: session } = useSession(); // Get NextAuth session
+  const router = useRouter();
+
+  // Enhanced logout function that uses our custom handler AND NextAuth signOut
+  const handleLogout = async () => {
+    try {
+      // First call our custom logout API to clear all cookies
+      const resp = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ redirectUrl: '/login' }),
+      });
+      
+      // Then use NextAuth signOut (without redirect since our API will handle it)
+      // This ensures NextAuth state is also cleared
+      await signOut({ redirect: false });
+      
+      // Manual redirect for cases where the API redirect might not work
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback to default NextAuth signOut if our custom API fails
+      signOut({ callbackUrl: '/login' });
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -27,7 +53,7 @@ const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({ navItems }) => {
           <p className="font-medium truncate">{session?.user?.email || 'Admin'}</p>
           
           <button 
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={handleLogout}
             className="mt-3 text-sm text-red-400 hover:text-red-300 flex items-center"
           >
             <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
