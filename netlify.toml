@@ -1,7 +1,7 @@
 # netlify.toml
 [build]
   # Run prisma commands in sequence to ensure proper database setup
-  command = "echo 'Creating .env file for build...' && touch .env && npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-reset-password.js && node netlify-build.js"
+  command = "npm install && npm run postinstall && echo 'Creating .env file for build...' && touch .env && npx prisma generate && npx prisma migrate deploy && npm run db:seed:prod && node netlify-reset-password.js && node netlify-build.js"
   # Directory containing the built site (relative to root)
   publish = ".next"
 
@@ -28,6 +28,8 @@
   NEXT_USE_NETLIFY_EDGE = "true"
   # JWT Default Secret - will be overridden by environment secret
   JWT_SECRET = "fallback-secret-for-netlify-testing"
+  # Auth0 configuration - these will be replaced by actual values in Netlify dashboard
+  AUTH0_BASE_URL = "https://findshuttles.netlify.app"
 
 # Configure the Next.js plugin without any inputs
 [[plugins]]
@@ -54,6 +56,13 @@
   status = 200
   force = true
   
+# Auth0 API endpoints
+[[redirects]]
+  from = "/api/auth/*"
+  to = "/api/auth/:splat"
+  status = 200
+  force = true
+
 # System access API endpoints
 [[redirects]]
   from = "/api/system-auth/*"
