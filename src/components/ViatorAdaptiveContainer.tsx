@@ -11,10 +11,11 @@ interface ViatorAdaptiveContainerProps {
  * Viator Adaptive Container
  * 
  * A specialized container component designed specifically for Viator widgets that:
- * - Dynamically adapts to content height
+ * - Dynamically adapts to content height with strict limits
  * - Implements stability detection to prevent height oscillation
  * - Has specific optimizations for mobile devices
  * - Handles iframes and dynamic content effectively
+ * - Prevents runaway height expansion
  */
 const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   children,
@@ -24,8 +25,15 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(350); // Initial height
   const [isStabilized, setIsStabilized] = useState(false);
+  const [maxHeightReached, setMaxHeightReached] = useState(false);
   const heightHistoryRef = useRef<number[]>([]);
   const isMobileDevice = useRef(false);
+  const lastHeightRef = useRef<number>(0);
+  
+  // Constants for safety limits
+  const MAX_MOBILE_HEIGHT = 800; // Strict limit for mobile
+  const MAX_DESKTOP_HEIGHT = 5000; // Safety limit for desktop
+  const FORCE_STABILITY_TIMEOUT = 3000; // Force stability after this time
   
   // Device detection (run once on client)
   useEffect(() => {
@@ -36,6 +44,20 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     if (isMobileDevice.current) {
       setContainerHeight(380);
     }
+    
+    // Add global styles to help constrain Viator's widget content
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .viator-adaptive-container * {
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+    
+    return () => {
+      document.head.removeChild(styleEl);
+    };
   }, []);
   
   // Core height management system
@@ -46,11 +68,22 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     const timers: ReturnType<typeof setTimeout>[] = [];
     let observerRef: ResizeObserver | null = null;
     
-    // Enhanced measurement function with stability detection
+    // Force stability after timeout
+    const stabilityTimer = setTimeout(() => {
+      if (!isStabilized) {
+        console.log("Forcing stability after timeout");
+        setIsStabilized(true);
+      }
+    }, FORCE_STABILITY_TIMEOUT);
+    
+    timers.push(stabilityTimer);
+    
+    // Enhanced measurement function with stability detection and safety limits
     const updateHeight = () => {
-      if (!contentRef.current) return;
+      if (!contentRef.current || maxHeightReached) return;
       
       const height = contentRef.current.scrollHeight;
+      const maxHeight = isMobileDevice.current ? MAX_MOBILE_HEIGHT : MAX_DESKTOP_HEIGHT;
       
       // Record this height measurement for stability detection
       heightHistoryRef.current.push(height);
@@ -58,6 +91,25 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
       // Only keep the last 5 measurements
       if (heightHistoryRef.current.length > 5) {
         heightHistoryRef.current.shift();
+      }
+      
+      // Check if height exceeds safety limit
+      if (height > maxHeight) {
+        console.warn(`Widget height ${height}px exceeded limit of ${maxHeight}px - capping height`);
+        setContainerHeight(maxHeight);
+        setMaxHeightReached(true);
+        setIsStabilized(true);
+        return;
+      }
+      
+      // Check for runaway growth (detect if height suddenly increases dramatically)
+      const previousHeight = lastHeightRef.current;
+      if (previousHeight > 100 && height > previousHeight * 1.5 && height > 1000) {
+        console.warn("Detected potential runaway height growth, stabilizing at", previousHeight);
+        setContainerHeight(previousHeight);
+        setMaxHeightReached(true);
+        setIsStabilized(true);
+        return;
       }
       
       // Check if height has stabilized by comparing recent measurements
@@ -68,12 +120,18 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
       // Update height if significant change detected or we haven't stabilized yet
       if (!isStabilized || Math.abs(height - containerHeight) > 10) {
         // Add slight padding to prevent scroll
-        const newHeight = height + (isMobileDevice.current ? 12 : 8);
+        const newHeight = Math.min(height + (isMobileDevice.current ? 12 : 8), maxHeight);
+        lastHeightRef.current = newHeight;
         setContainerHeight(newHeight);
         
-        // Mark as stabilized if we detect stable measurements
-        if (isHeightStable && !isStabilized && heightHistoryRef.current.length >= 3) {
-          console.log("Viator widget height has stabilized at", newHeight);
+        // Mobile devices should stabilize more quickly
+        if (isMobileDevice.current && heightHistoryRef.current.length >= 3) {
+          setIsStabilized(true);
+          console.log("Mobile widget height stabilized at", newHeight);
+        }
+        // Desktop stability detection
+        else if (isHeightStable && !isStabilized && heightHistoryRef.current.length >= 3) {
+          console.log("Widget height has stabilized at", newHeight);
           setIsStabilized(true);
         }
       }
@@ -81,8 +139,8 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     
     // Progressive measurement schedule with more frequent initial checks
     const measurementTimes = isMobileDevice.current ? 
-      [100, 250, 500, 1000, 1800, 3000] : // More aggressive for mobile
-      [100, 300, 600, 1000, 2000, 3500];  // Standard for desktop
+      [100, 250, 500, 750, 1000, 1400, 1800, 2200] : // More frequent for mobile
+      [100, 300, 600, 1000, 1500, 2000, 3000];       // Standard for desktop
     
     measurementTimes.forEach(delay => {
       const timer = setTimeout(() => {
@@ -93,7 +151,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     
     // Special handling for Viator widgets and iframes
     const checkViatorContent = () => {
-      if (!contentRef.current) return;
+      if (!contentRef.current || maxHeightReached) return;
       
       // Look for iframes
       const iframes = contentRef.current.querySelectorAll('iframe');
@@ -125,7 +183,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
       
       // Look for Viator's specific elements that might affect height
       const viatorElements = contentRef.current.querySelectorAll(
-        '[data-viator-widget], .viator-widget, [data-widget-id]'
+        '[data-viator-widget], .viator-widget, [data-widget-id], [id^="viator"]'
       );
       if (viatorElements.length > 0) {
         console.log("Viator widget elements found:", viatorElements.length);
@@ -133,6 +191,8 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
         // Use MutationObserver to monitor Viator's elements for changes
         try {
           const observer = new MutationObserver((mutations) => {
+            if (maxHeightReached) return;
+            
             let shouldUpdate = false;
             
             // Check if any mutations affect size
@@ -157,7 +217,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
             });
           });
           
-          // Add cleanup function
+          // Add cleanup function to disconnect after some time
           timers.push(setTimeout(() => observer.disconnect(), 10000));
         } catch (e) {
           console.warn('Error setting up Viator element observer:', e);
@@ -178,7 +238,9 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     // Set up ResizeObserver for dynamic content changes
     try {
       observerRef = new ResizeObserver(() => {
-        updateHeight();
+        if (!maxHeightReached) {
+          updateHeight();
+        }
       });
       
       if (contentRef.current) {
@@ -195,6 +257,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     const handleResize = () => {
       // Reset stability on window resize
       setIsStabilized(false);
+      setMaxHeightReached(false);
       heightHistoryRef.current = [];
       setTimeout(updateHeight, 100);
     };
@@ -218,7 +281,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [containerHeight, isStabilized]);
+  }, [containerHeight, isStabilized, maxHeightReached]);
   
   return (
     <div 
@@ -237,6 +300,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
         background: '#fff',
         overflow: 'hidden',
         willChange: 'height', // Optimize for height animations
+        maxHeight: isMobileDevice.current ? `${MAX_MOBILE_HEIGHT}px` : `${MAX_DESKTOP_HEIGHT}px`,
       }}
     >
       <div 
@@ -247,7 +311,9 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          // No height constraints to allow natural content flow
+          // Now including max-width constraint for safety
+          maxWidth: '100%',
+          boxSizing: 'border-box',
         }}
       >
         {children}
