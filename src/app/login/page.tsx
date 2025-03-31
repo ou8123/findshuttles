@@ -8,9 +8,10 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNetlifyAuth } from '@/lib/netlify-auth-context';
 import { signIn } from "next-auth/react";
+import Auth0LoginButton from '@/components/Auth0LoginButton';
 
 // These components use useSearchParams and must be wrapped in Suspense
-function LoginButton({ setError }: { setError: (error: string | null) => void }) {
+function NetlifyLoginButton({ setError }: { setError: (error: string | null) => void }) {
   const { login } = useNetlifyAuth();
   
   // Get searchParams within the client component
@@ -34,12 +35,12 @@ function LoginButton({ setError }: { setError: (error: string | null) => void })
       onClick={handleLogin}
       className="w-full bg-blue-600 text-white py-3 px-4 rounded hover:bg-blue-700 transition"
     >
-      Sign In
+      Sign In with Netlify Identity
     </button>
   );
 }
 
-function LegacyLoginButton({ setMode }: { setMode: (mode: 'netlify' | 'nextauth') => void }) {
+function LegacyLoginButton({ setMode }: { setMode: React.Dispatch<React.SetStateAction<'auth0' | 'netlify' | 'nextauth'>> }) {
   // Get searchParams within the client component
   const { useSearchParams } = require('next/navigation');
   const searchParams = useSearchParams();
@@ -50,7 +51,7 @@ function LegacyLoginButton({ setMode }: { setMode: (mode: 'netlify' | 'nextauth'
       onClick={() => signIn('credentials', { callbackUrl })}
       className="w-full bg-gray-600 text-white py-3 px-4 rounded hover:bg-gray-700 transition"
     >
-      Sign in with credentials
+      Sign in with Legacy Credentials
     </button>
   );
 }
@@ -59,7 +60,7 @@ export default function LoginPage() {
   const { user, isAdmin, isLoading, login } = useNetlifyAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'netlify' | 'nextauth'>('netlify');
+  const [mode, setMode] = useState<'auth0' | 'netlify' | 'nextauth'>('auth0');
   
   useEffect(() => {
     // If user is already logged in and is admin, redirect to admin
@@ -80,11 +81,6 @@ export default function LoginPage() {
     }
   }, [user, isAdmin, router, login]);
 
-  // Fallback to NextAuth (for transition period)
-  const switchToNextAuth = () => {
-    setMode('nextauth');
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -96,7 +92,48 @@ export default function LoginPage() {
     );
   }
 
-  if (mode === 'netlify') {
+  if (mode === 'auth0') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h1 className="text-2xl font-bold mb-2 text-center">Admin Login</h1>
+          <p className="text-gray-600 text-center mb-6">Sign in with Auth0</p>
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-center">
+              {error}
+            </div>
+          )}
+          
+          <Auth0LoginButton className="w-full" />
+          
+          <div className="mt-8 pt-4 border-t border-gray-200 text-center">
+            <p className="text-sm text-gray-500 mb-2">
+              Alternative login methods:
+            </p>
+            <div className="flex flex-col space-y-2">
+              <button 
+                onClick={() => setMode('netlify')}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Use Netlify Identity
+              </button>
+              <button 
+                onClick={() => setMode('nextauth')}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Use Legacy Login
+              </button>
+            </div>
+          </div>
+          
+          <p className="mt-6 text-xs text-gray-500 text-center">
+            Protected area. Only authorized administrators can access.
+          </p>
+        </div>
+      </div>
+    );
+  } else if (mode === 'netlify') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
         <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
@@ -117,19 +154,27 @@ export default function LoginPage() {
               Loading...
             </button>
           }>
-            <LoginButton setError={setError} />
+            <NetlifyLoginButton setError={setError} />
           </Suspense>
           
           <div className="mt-8 pt-4 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-500 mb-2">
-              Having trouble with Netlify Identity?
+              Alternative login methods:
             </p>
-            <button 
-              onClick={switchToNextAuth}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              Try legacy login method
-            </button>
+            <div className="flex flex-col space-y-2">
+              <button 
+                onClick={() => setMode('auth0')}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Use Auth0 (Recommended)
+              </button>
+              <button 
+                onClick={() => setMode('nextauth')}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Use Legacy Login
+              </button>
+            </div>
           </div>
           
           <p className="mt-6 text-xs text-gray-500 text-center">
@@ -160,14 +205,22 @@ export default function LoginPage() {
         
         <div className="mt-8 pt-4 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-500 mb-2">
-            Try our new authentication system:
+            Alternative login methods:
           </p>
-          <button 
-            onClick={() => setMode('netlify')}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            Switch to Netlify Identity
-          </button>
+          <div className="flex flex-col space-y-2">
+            <button 
+              onClick={() => setMode('auth0')}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Use Auth0 (Recommended)
+            </button>
+            <button 
+              onClick={() => setMode('netlify')}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Use Netlify Identity
+            </button>
+          </div>
         </div>
       </div>
     </div>
