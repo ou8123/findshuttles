@@ -24,7 +24,8 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState(350); // Initial height
+  const [containerHeight, setContainerHeight] = useState(180); // Lower initial height (was 350)
+  const [contentHeight, setContentHeight] = useState(0); // Actual content height
   const [isStabilized, setIsStabilized] = useState(false);
   const heightHistoryRef = useRef<number[]>([]);
   const isMobileDevice = useRef(false);
@@ -35,16 +36,15 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   const FORCE_STABILITY_TIMEOUT = 4000; // Force initial stability after this time
   const HEIGHT_PADDING = 20; // Padding added to calculated height to avoid scroll
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const actualContentRef = useRef<HTMLDivElement | null>(null);
   
   // Device detection (run once on client)
   useEffect(() => {
     isMobileDevice.current = window.innerWidth < 768 || 
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Set a more appropriate initial height based on device
-    if (isMobileDevice.current) {
-      setContainerHeight(380);
-    }
+    // Using universal 180px minimum height for all devices
+    // No device-specific initial height
     
     // No global styles - allow widget to expand naturally
   }, []);
@@ -86,6 +86,9 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     
     // Helper function to update container height
     const updateContainerHeight = (height) => {
+      // Store the actual content height for reference
+      setContentHeight(height);
+      
       // For mobile: cap height at MAX_MOBILE_HEIGHT and enable scroll indicator if needed
       if (isMobileDevice.current) {
         const newHeight = Math.min(height + HEIGHT_PADDING, MAX_MOBILE_HEIGHT);
@@ -110,8 +113,17 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     const updateHeight = () => {
       if (!contentRef.current) return;
       
-      const height = contentRef.current.scrollHeight;
-      console.log("Content height via getBoundingClientRect:", height + "px");
+      // Get the true content height by finding actual rendered elements
+      let height = contentRef.current.scrollHeight;
+      
+      // Try to find the actual Viator content
+      const viatorContent = contentRef.current.querySelector('[data-viator-widget], .viator-widget, [data-widget-id], [id^="viator"]');
+      if (viatorContent && viatorContent.scrollHeight > 100) {
+        actualContentRef.current = viatorContent as HTMLDivElement;
+        height = viatorContent.scrollHeight;
+      }
+      
+      console.log("Content height via measurement:", height + "px");
       
       // Record this height measurement for stability detection
       heightHistoryRef.current.push(height);
@@ -306,10 +318,14 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          height: isMobileDevice.current ? '100%' : 'auto',
+          height: isMobileDevice.current ? 'auto' : 'auto',
+          maxHeight: isMobileDevice.current ? '100%' : 'none',
           overflowY: isMobileDevice.current ? 'auto' : 'visible',
+          overscrollBehavior: 'contain', // Prevent scroll chaining
           WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
-          // No width constraints
+          contain: 'content', // Improve scroll containment
+          // Make sure scroll area is limited to actual content
+          paddingBottom: isMobileDevice.current && contentHeight > MAX_MOBILE_HEIGHT ? '5px' : '0',
         }}
       >
         {children}
@@ -327,7 +343,8 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
             background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,1) 100%)',
             pointerEvents: 'none', // Allow clicks to pass through
             zIndex: 2,
-            opacity: 0.8,
+            opacity: 0.9,
+            boxShadow: '0 -3px 6px rgba(0,0,0,0.05)', // Subtle shadow to emphasize indicator
           }}
         />
       )}
