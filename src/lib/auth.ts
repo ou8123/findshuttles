@@ -66,16 +66,31 @@ function resetLoginAttempts(identifier: string): void {
   delete loginAttemptStore[identifier];
 }
 
+// Extract domain from NEXTAUTH_URL
+function extractDomainFromUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.hostname; // This returns just the hostname without port
+  } catch (error) {
+    console.error('Failed to parse NEXTAUTH_URL:', error);
+    return undefined;
+  }
+}
+
 // Configure using available environment variables with fallbacks
 const isProduction = process.env.NODE_ENV === 'production';
 const isNetlify = !!process.env.NETLIFY || !!process.env.NEXT_USE_NETLIFY_EDGE;
 // Use a shorter name to avoid hitting cookie size limits
 const cookiePrefix = isProduction ? '__Secure-' : '';
-// Ensure domain is set correctly for Netlify
-const domain = process.env.NEXTAUTH_COOKIE_DOMAIN || (isProduction ? 'findshuttles.netlify.app' : undefined);
+// Extract domain from NEXTAUTH_URL instead of hardcoding
+const domain = process.env.NEXTAUTH_COOKIE_DOMAIN || 
+               extractDomainFromUrl(process.env.NEXTAUTH_URL) || 
+               (isProduction ? undefined : undefined); // Remove hardcoded fallback
 
 // Log startup configuration for debugging
-console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}`);
+console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}`);
 
 export const authOptions: AuthOptions = {
   // Later: adapter: PrismaAdapter(prisma),
