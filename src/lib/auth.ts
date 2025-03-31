@@ -106,21 +106,22 @@ const domain = process.env.NEXTAUTH_COOKIE_DOMAIN ||
                extractDomainFromUrl(nextAuthUrl) || 
                undefined; // No fallback for better security
 
-// Log startup configuration for debugging
-console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}`);
+// More verbose logging for debugging
+console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}, SecureCookie: ${isProduction}`);
 
 export const authOptions: AuthOptions = {
   // Later: adapter: PrismaAdapter(prisma),
-  // Enhanced cookie configuration for Netlify
+  // More relaxed cookie configuration to fix cross-site issues
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: isNetlify ? "none" : "lax", // use "none" for Netlify to allow cross-site cookies
+        sameSite: "lax", // Use lax for all environments to avoid fetch issues
         path: "/",
         secure: isProduction,
-        domain: domain,
+        // Only set domain if explicitly provided
+        ...(domain ? { domain } : {}),
         // Set max-age explicitly to ensure the cookie persists
         maxAge: 24 * 60 * 60, // 24 hours
       },
@@ -129,17 +130,17 @@ export const authOptions: AuthOptions = {
       name: `${cookiePrefix}next-auth.callback-url`,
       options: {
         httpOnly: true,
-        sameSite: isNetlify ? "none" : "lax",
+        sameSite: "lax", // Changed to lax for all environments
         path: "/",
         secure: isProduction,
-        domain: domain,
+        ...(domain ? { domain } : {}),
       },
     },
     csrfToken: {
       name: `${cookiePrefix}next-auth.csrf-token`,
       options: {
         httpOnly: true,
-        sameSite: isNetlify ? "none" : "lax",
+        sameSite: "lax", // Changed to lax for all environments
         path: "/",
         secure: isProduction,
       },

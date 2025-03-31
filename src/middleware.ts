@@ -157,10 +157,15 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Skip middleware for API routes to allow direct access
-  if (pathname.startsWith('/api/auth/')) {
-    return NextResponse.next();
-  }
+// Skip middleware for all auth-related API routes to prevent interference with NextAuth
+if (pathname.startsWith('/api/auth/') || 
+    pathname.includes('auth0') || 
+    pathname.includes('nextauth') ||
+    pathname.includes('system-auth')) {
+  // Add debug for auth route handling
+  console.log(`Middleware bypassed for auth route: ${pathname}`);
+  return NextResponse.next();
+}
   
   // Check for admin routes - both the real internal path and the obscured path
   if (isAdminPath(pathname)) {
