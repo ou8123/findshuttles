@@ -7,7 +7,7 @@ import RouteMap from '@/components/RouteMap';
 import SearchForm from '@/components/SearchForm';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 import AutoScroller from '@/components/AutoScroller';
-import FixedHeightWidgetContainer from '@/components/FixedHeightWidgetContainer';
+import AdaptiveWidgetContainer from '@/components/AdaptiveWidgetContainer';
 
 // Generate viewport metadata as a simple JavaScript function
 export function generateViewport() {
@@ -145,16 +145,14 @@ export default async function RoutePage({ params }) {
 
           {/* No dates displayed as per client request */}
 
-          {/* Content sections using tabbed layout for stability */}
-          <div className="route-content-sections" style={{
-            overscrollBehavior: 'none', // Prevent bounce effects
-          }}>
-            {/* Book Your Shuttle section - with fixed height container */}
-            <div className="booking-section mb-12">
-              <h2 className="text-xl font-semibold mb-5 px-2">Book Your Shuttle</h2>
+          {/* Content sections with responsive spacing */}
+          <div className="route-content-sections">
+            {/* Book Your Shuttle section - with adaptive container */}
+            <div className="booking-section mb-8">
+              <h2 className="text-xl font-semibold mb-4">Book Your Shuttle</h2>
               
-              {/* Widget in completely isolated container */}
-              <FixedHeightWidgetContainer height={480}>
+              {/* Widget in adaptive container */}
+              <AdaptiveWidgetContainer>
                 {route.viatorWidgetCode ? (
                   <ViatorWidgetRenderer 
                     key={`viator-${route.routeSlug}`} 
@@ -166,40 +164,25 @@ export default async function RoutePage({ params }) {
                     <p className="text-gray-500">Booking widget not available for this route.</p>
                   </div>
                 )}
-              </FixedHeightWidgetContainer>
+              </AdaptiveWidgetContainer>
             </div>
             
-            {/* Large fixed height spacer to ensure clear visual separation */}
-            <div style={{ height: '80px', background: 'transparent' }} aria-hidden="true" />
-            
-            {/* Description section - with stable spacing and styling */}
-            <div className="description-section mb-16 px-2">
-              {route.seoDescription ? (
-                <>
-                  <h2 className="text-xl font-semibold mb-5 text-black sticky top-0 bg-gray-100 py-3 z-10">
-                    Route Description
-                  </h2>
-                  <div className="p-6 bg-white rounded shadow-sm border border-gray-100">
-                    <p className="text-black leading-relaxed">{route.seoDescription}</p>
-                  </div>
-                </>
-              ) : (
-                /* Empty spacer div to maintain consistent layout when no description */
-                <div style={{ height: '40px' }} aria-hidden="true" />
-              )}
-            </div>
+            {/* Description section with natural spacing */}
+            {route.seoDescription && (
+              <div className="description-section my-8">
+                <h2 className="text-xl font-semibold mb-3 text-black">
+                  Route Description
+                </h2>
+                <div className="p-4 bg-white rounded shadow-sm">
+                  <p className="text-black">{route.seoDescription}</p>
+                </div>
+              </div>
+            )}
 
-            {/* Another large fixed height spacer */}
-            <div style={{ height: '60px', background: 'transparent' }} aria-hidden="true" />
-
-            {/* Map Display Section - completely separated and isolated */}
+            {/* Map Display Section */}
             {route.departureCity?.latitude && route.departureCity?.longitude &&
             route.destinationCity?.latitude && route.destinationCity?.longitude && (
-              <div style={{ 
-                marginTop: '60px', 
-                paddingTop: '20px',
-                borderTop: '1px solid rgba(0,0,0,0.1)' 
-              }} className="map-section mt-12 px-2">
+              <div className="map-section my-8">
                 <h2 className="text-xl font-semibold mb-3">Route Map</h2>
                 <RouteMap
                   departureLat={route.departureCity.latitude}
