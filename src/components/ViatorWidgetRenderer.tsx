@@ -396,47 +396,29 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       try {
         // Mobile-specific measurements with more stability
         if (isMobile) {
-          // More conservative approach for mobile
-          const viewportHeight = window.innerHeight;
-          const boundingRect = iframe.getBoundingClientRect();
+          // Fixed approach for mobile: use a more conservative and stable height
+          // to prevent layout shifts and scrolling issues
           
-          // Use smaller percentage and more conservative cap
-          const maxMobileHeight = Math.min(viewportHeight * 0.6, 500);
-          // Ensure minimum height to prevent collapse
-          const minMobileHeight = 300;
+          // Set fixed height for mobile - this prevents the jumpy behavior
+          // that happens when height continuously recalculates
+          const fixedMobileHeight = 450; // Fixed height that works well for most widgets
           
-          if (boundingRect.height > 0) {
-            // More conservative height adjustments
-            const visibleHeight = Math.max(boundingRect.height, minMobileHeight);
+          // Only update once to avoid continuous layout shifts
+          if (heightChecks <= 2) {
+            console.log(`Setting fixed mobile height: ${fixedMobileHeight}px`);
+            iframe.style.height = `${fixedMobileHeight}px`;
+            setContainerHeight(fixedMobileHeight);
             
-            // Cap at maximum height for mobile viewport
-            const newHeight = Math.min(visibleHeight, maxMobileHeight);
+            // Apply additional styles to prevent scroll fighting
+            iframe.style.overflow = 'hidden'; // Prevent scrollbars
+            iframe.style.maxHeight = `${fixedMobileHeight}px`; 
+            iframe.style.overflowAnchor = 'none'; // Prevent scroll anchoring
             
-            // Only update if significantly different to reduce layout shifts
-            if (Math.abs(newHeight - containerHeight) > 50) {
-              console.log(`Mobile height update: ${newHeight}px`);
-              iframe.style.height = `${newHeight}px`;
-              setContainerHeight(newHeight);
+            // Apply styles to parent container for stability
+            if (containerRef.current) {
+              containerRef.current.style.marginBottom = '40px'; // Add spacing after widget
+              containerRef.current.style.overflowAnchor = 'none'; // Prevent scroll anchoring
             }
-            return;
-          }
-          
-          // More stable fallback for mobile
-          if (iframe.offsetHeight > 0) {
-            const newHeight = Math.min(
-              Math.max(iframe.offsetHeight, minMobileHeight),
-              maxMobileHeight
-            );
-            
-            // Only update if necessary
-            if (Math.abs(newHeight - containerHeight) > 50) {
-              iframe.style.height = `${newHeight}px`;
-              setContainerHeight(newHeight);
-            }
-          } else {
-            // Ensure we have at least a minimum height
-            iframe.style.height = `${minMobileHeight}px`;
-            setContainerHeight(minMobileHeight);
           }
           
           return; // Exit early for mobile
@@ -597,11 +579,12 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         margin: 0, 
         padding: 0,
         position: 'relative',
-        minHeight: isMobile ? '300px' : '400px', // Adjust minimum height based on device
+        minHeight: isMobile ? '450px' : '400px', // Increased height for mobile
         height: 'auto',
-        paddingBottom: isMobile ? '10px' : '20px', // Smaller padding for mobile
+        paddingBottom: isMobile ? '40px' : '20px', // Increased padding for mobile
         maxWidth: '100vw', // Ensure it doesn't overflow viewport
         overflowX: 'hidden', // Prevent horizontal scrolling on mobile
+        marginBottom: isMobile ? '40px' : '20px', // Extra spacing after widget on mobile
       }}
     >
       <div 
@@ -616,6 +599,9 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
           margin: 0,
           padding: 0,
           border: 0,
+          // Add more stable behavior for iframe content
+          contain: 'content', // Use CSS containment for better performance
+          willChange: 'height', // Optimize height transitions for performance
         }}
       />
       

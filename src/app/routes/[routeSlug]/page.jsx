@@ -144,10 +144,10 @@ export default async function RoutePage({ params }) {
 
           {/* No dates displayed as per client request */}
 
-          {/* Content sections with stable layout - no negative margins */}
+          {/* Content sections with stable layout - improved spacing for mobile */}
           <div className="route-content-sections">
             {/* Book Your Shuttle section */}
-            <div className="booking-section mb-6">
+            <div className="booking-section mb-8">
               <h2 className="text-xl font-semibold mb-3">Book Your Shuttle</h2>
               <div style={{ position: 'relative' }} className="widget-container">
                 {route.viatorWidgetCode ? (
@@ -162,8 +162,11 @@ export default async function RoutePage({ params }) {
               </div>
             </div>
             
+            {/* Spacer div to create consistent separation */}
+            <div style={{ height: '40px' }} aria-hidden="true" />
+            
             {/* Description section - with stable spacing whether it exists or not */}
-            <div className="description-section my-6">
+            <div className="description-section my-8">
               {route.seoDescription ? (
                 <>
                   <h2 className="text-xl font-semibold mb-3 text-black">Route Description</h2>
@@ -177,10 +180,10 @@ export default async function RoutePage({ params }) {
               )}
             </div>
 
-            {/* Map Display Section - with added margin-top for spacing */}
+            {/* Map Display Section - with increased margin-top for spacing */}
             {route.departureCity?.latitude && route.departureCity?.longitude &&
             route.destinationCity?.latitude && route.destinationCity?.longitude && (
-              <div style={{ marginTop: '30px' }}>
+              <div style={{ marginTop: '50px' }} className="map-section mt-8">
                 <h2 className="text-xl font-semibold mb-3">Route Map</h2>
                 <RouteMap
                   departureLat={route.departureCity.latitude}

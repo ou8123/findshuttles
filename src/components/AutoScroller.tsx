@@ -27,16 +27,45 @@ const AutoScroller: React.FC<AutoScrollerProps> = ({
   const isMobile = typeof window !== 'undefined' && 
     (window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
+  // Track user scroll state to prevent programmatic scrolling after user interaction
+  const userHasScrolledRef = useRef(false);
+
   useEffect(() => {
-    // Skip on first server render and if we've already attempted scrolling
+    // Track user scrolling to prevent interrupting their experience
+    const handleUserScroll = () => {
+      userHasScrolledRef.current = true;
+    };
+
+    // Add scroll listener
+    window.addEventListener('scroll', handleUserScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleUserScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Skip on first server render, if we've already attempted scrolling, or on mobile devices
     if (mountedRef.current || scrollAttemptedRef.current) return;
     mountedRef.current = true;
     
     // Mark as loaded via client navigation
     document.body.classList.add('route-loaded');
     
+    // Early exit for mobile devices - disable auto-scrolling completely
+    if (isMobile) {
+      console.log('Auto-scroll disabled on mobile device');
+      return;
+    }
+    
     // Function to check if the content is ready for scrolling
     const checkContentReady = () => {
+      // If user has scrolled, respect their input and don't auto-scroll
+      if (userHasScrolledRef.current) {
+        console.log('User has scrolled - cancelling auto-scroll');
+        return false;
+      }
+      
       const element = document.querySelector(scrollToSelector);
       const widget = document.querySelector('.viator-widget-container');
       
@@ -52,26 +81,39 @@ const AutoScroller: React.FC<AutoScrollerProps> = ({
     };
     
     // Auto-scroll with more intelligent delay and stability checks
+    // Use a longer delay to give widget more time to stabilize
     const timer = setTimeout(() => {
       scrollAttemptedRef.current = true;
+      
+      // Skip if user has scrolled manually
+      if (userHasScrolledRef.current) {
+        console.log('Auto-scroll skipped - user already scrolled');
+        return;
+      }
       
       if (checkContentReady()) {
         const element = document.querySelector(scrollToSelector);
         if (element) {
-          // Use different scroll behavior for mobile vs desktop
+          // Use smooth scrolling for desktop only
           element.scrollIntoView({ 
-            behavior: isMobile ? 'auto' : 'smooth',
+            behavior: 'smooth',
             block: 'start' 
           });
           console.log('Auto-scrolled to content section');
         }
       } else {
-        // If content not ready, try once more after an additional delay
+        // If content not ready and user hasn't scrolled, try once more after an additional delay
         const retryTimer = setTimeout(() => {
+          // Skip retry if user has scrolled manually
+          if (userHasScrolledRef.current) {
+            console.log('Auto-scroll retry skipped - user already scrolled');
+            return;
+          }
+          
           const element = document.querySelector(scrollToSelector);
           if (element) {
             element.scrollIntoView({ 
-              behavior: 'auto', 
+              behavior: 'smooth', 
               block: 'start' 
             });
           }
@@ -79,7 +121,7 @@ const AutoScroller: React.FC<AutoScrollerProps> = ({
         
         return () => clearTimeout(retryTimer);
       }
-    }, delay);
+    }, delay > 600 ? delay : 1200); // Minimum 1200ms delay to allow widget to stabilize
     
     return () => {
       clearTimeout(timer);
