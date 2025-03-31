@@ -106,8 +106,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
     };
   }, [departureQuery, isMobile]);
   
-  // Load popular cities on initial render
+  // Load popular cities on initial render with retry logic
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+    
     const fetchPopularCities = async () => {
       setIsLoadingLocationsLookup(true);
       setLocationLookupError(null);
@@ -125,33 +129,60 @@ const SearchForm: React.FC<SearchFormProps> = ({
           }))
         );
         
-        console.log(`Loaded ${popularCities.length} popular cities for initial display`);
-        setDepartureCities(popularCities);
+        // Only update if we actually got cities back
+        if (popularCities.length > 0) {
+          console.log(`Loaded ${popularCities.length} popular cities for initial display`);
+          setDepartureCities(popularCities);
+          retryCount = 0; // Reset retry count on success
+        } else {
+          throw new Error("No cities returned from API");
+        }
       } catch (err: unknown) {
         console.error("Failed to fetch popular cities:", err);
         let message = "Could not load cities.";
         if (err instanceof Error) {
-            message = err.message;
+          message = err.message;
         }
         setLocationLookupError(message);
+        
+        // Retry logic
+        if (retryCount < maxRetries) {
+          console.log(`Retrying fetch (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          setTimeout(fetchPopularCities, retryDelay);
+          return; // Exit to avoid setting isLoadingLocationsLookup to false
+        }
       } finally {
-        setIsLoadingLocationsLookup(false);
+        if (retryCount >= maxRetries || !locationLookupError) {
+          setIsLoadingLocationsLookup(false);
+        }
       }
     };
     
     fetchPopularCities();
   }, []);
 
-  // Search cities when the debounced query changes
+  // Search cities when the debounced query changes, with retry logic
   useEffect(() => {
     if (!debouncedDepartureQuery) return;
+    
+    let retryCount = 0;
+    const maxRetries = 2;
+    const retryDelay = 800; // 800ms
     
     const searchCities = async () => {
       setIsLoadingLocationsLookup(true);
       setLocationLookupError(null);
       try {
+        // Cache buster to prevent stale responses
+        const cacheBuster = new Date().getTime();
+        
         // Search cities based on the debounced query
-        const response = await fetch(`/api/locations?departures_only=true&q=${encodeURIComponent(debouncedDepartureQuery)}&limit=20`);
+        const response = await fetch(
+          `/api/locations?departures_only=true&q=${encodeURIComponent(debouncedDepartureQuery)}&limit=20&_=${cacheBuster}`,
+          { cache: 'no-store' } // Ensure fresh response
+        );
+        
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: CountryWithCities[] = await response.json();
         
@@ -169,11 +200,21 @@ const SearchForm: React.FC<SearchFormProps> = ({
         console.error("Failed to search cities:", err);
         let message = "Search failed.";
         if (err instanceof Error) {
-            message = err.message;
+          message = err.message;
         }
         setLocationLookupError(message);
+        
+        // Retry logic for transient errors
+        if (retryCount < maxRetries) {
+          console.log(`Retrying search (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          setTimeout(searchCities, retryDelay);
+          return; // Exit to avoid setting isLoadingLocationsLookup to false
+        }
       } finally {
-        setIsLoadingLocationsLookup(false);
+        if (retryCount >= maxRetries || !locationLookupError) {
+          setIsLoadingLocationsLookup(false);
+        }
       }
     };
     
@@ -417,7 +458,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
               
               <Transition
                 as={Fragment}
-                show={isInputFocused && departureCities.length > 0}
+                show={isInputFocused && departureQuery.length >= 2 && departureCities.length > 0}
                 enter="transition ease-out duration-200"
                 enterFrom="opacity-0 translate-y-1"
                 enterTo="opacity-100 translate-y-0"
