@@ -170,11 +170,10 @@ export async function middleware(request: NextRequest) {
   // Check for admin routes - both the real internal path and the obscured path
   if (isAdminPath(pathname)) {
     // Authentication check strategy:
-    // 1. Try Auth0 session first (new preferred method)
-    // 2. Try Netlify Identity token (transitional method)
-    // 3. Try system auth token (reliable backup method)
-    // 4. Fall back to direct-admin-auth token (emergency bypass)
-    // 5. Finally try NextAuth token (legacy support)
+    // 1. Try Auth0 session first (primary method)
+    // 2. Try system auth token (reliable backup method)
+    // 3. Fall back to direct-admin-auth token (emergency bypass)
+    // 4. Finally try NextAuth token (legacy support)
     let isAuthenticated = false;
     
     // 1. Check for Auth0 session
@@ -198,24 +197,7 @@ export async function middleware(request: NextRequest) {
       }
     }
     
-    // 2. Check for Netlify Identity token
-    const netlifyToken = request.cookies.get('nf_jwt');
-    if (netlifyToken) {
-      // Netlify Identity tokens are verified by the Netlify platform
-      // We just need to check presence here
-      try {
-        // We could decode (not verify) the token to check for admin role
-        // but since we'll assign the role in Netlify Identity dashboard,
-        // mere presence of the token from Netlify Identity is enough
-        isAuthenticated = true;
-        console.log('Admin authenticated using Netlify Identity');
-      } catch (error) {
-        console.error('Error with Netlify Identity token:', error);
-        // Try other auth methods if Netlify Identity fails
-      }
-    }
-    
-    // 3. If not authenticated, check system auth token
+    // 2. If not authenticated, check system auth token
     if (!isAuthenticated) {
       const systemAuthToken = request.cookies.get(SYSTEM_AUTH_COOKIE);
       if (systemAuthToken) {
@@ -234,7 +216,7 @@ export async function middleware(request: NextRequest) {
       }
     }
     
-    // 4. If still not authenticated, check direct auth token (emergency bypass)
+    // 3. If still not authenticated, check direct auth token (emergency bypass)
     if (!isAuthenticated) {
       const directAuthToken = request.cookies.get('direct-admin-auth');
       if (directAuthToken) {
@@ -255,7 +237,7 @@ export async function middleware(request: NextRequest) {
       }
     }
     
-    // 5. If still not authenticated, try NextAuth token (legacy)
+    // 4. If still not authenticated, try NextAuth token (legacy)
     if (!isAuthenticated) {
       try {
         // Enhanced token retrieval with Netlify-specific options

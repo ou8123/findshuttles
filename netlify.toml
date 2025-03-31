@@ -5,12 +5,9 @@
   # Directory containing the built site (relative to root)
   publish = ".next"
 
-# Netlify Identity configuration
+# Development configuration
 [dev]
   framework = "nextjs"
-  
-[template.environment]
-  NETLIFY_IDENTITY_INVITE_ONLY = "true"
 
 [build.environment]
   # Set Node.js version to match Next.js requirements
@@ -73,23 +70,5 @@
 # Note: We can't redirect /.netlify/* paths as they're reserved by Netlify
 # The Netlify Identity API is handled automatically by Netlify
 
-# Handle Netlify Identity invite tokens
-[[redirects]]
-  from = "/#invite_token=*"
-  to = "/identity-callback#invite_token=:splat"
-  status = 302
-  force = true
-
-# Handle Netlify Identity confirmation tokens
-[[redirects]]
-  from = "/#confirmation_token=*"
-  to = "/identity-callback#confirmation_token=:splat"
-  status = 302
-  force = true
-
-# Handle Netlify Identity recovery tokens
-[[redirects]]
-  from = "/#recovery_token=*"
-  to = "/identity-callback#recovery_token=:splat"
-  status = 302
-  force = true
+# Auth0 login specific redirects will be handled by Auth0 itself
+# No need for additional redirects as Auth0 handles callback URLs directly
