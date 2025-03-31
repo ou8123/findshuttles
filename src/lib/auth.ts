@@ -70,8 +70,14 @@ function resetLoginAttempts(identifier: string): void {
 function extractDomainFromUrl(url?: string): string | undefined {
   if (!url) return undefined;
   
+  // Adding protocol if missing
+  let fullUrl = url;
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    fullUrl = `https://${url}`;
+  }
+  
   try {
-    const parsedUrl = new URL(url);
+    const parsedUrl = new URL(fullUrl);
     return parsedUrl.hostname; // This returns just the hostname without port
   } catch (error) {
     console.error('Failed to parse NEXTAUTH_URL:', error);
@@ -84,10 +90,17 @@ const isProduction = process.env.NODE_ENV === 'production';
 const isNetlify = !!process.env.NETLIFY || !!process.env.NEXT_USE_NETLIFY_EDGE;
 // Use a shorter name to avoid hitting cookie size limits
 const cookiePrefix = isProduction ? '__Secure-' : '';
+
+// Get the NEXTAUTH_URL and ensure it has a protocol
+let nextAuthUrl = process.env.NEXTAUTH_URL;
+if (nextAuthUrl && !nextAuthUrl.startsWith('http://') && !nextAuthUrl.startsWith('https://')) {
+  nextAuthUrl = `https://${nextAuthUrl}`;
+}
+
 // Extract domain from NEXTAUTH_URL instead of hardcoding
 const domain = process.env.NEXTAUTH_COOKIE_DOMAIN || 
-               extractDomainFromUrl(process.env.NEXTAUTH_URL) || 
-               (isProduction ? undefined : undefined); // Remove hardcoded fallback
+               extractDomainFromUrl(nextAuthUrl) || 
+               undefined; // No fallback for better security
 
 // Log startup configuration for debugging
 console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}`);
