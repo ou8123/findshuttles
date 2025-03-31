@@ -1,32 +1,42 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from "@/lib/auth"; // Import from new location
-import { redirect } from 'next/navigation';
-import AddRouteForm from '@/components/AddRouteForm'; // Import the form component
+'use client';
 
-export default async function AdminPage() {
-  const session = await getServerSession(authOptions);
+import { useSession } from 'next-auth/react';
+import { useNetlifyAuth } from '@/lib/netlify-auth-context';
+import AdminAuthWrapper from '@/components/admin/AdminAuthWrapper';
+import AddRouteForm from '@/components/AddRouteForm';
 
-  // Check if user is logged in and has the ADMIN role
-  if (!session || session.user?.role !== 'ADMIN') {
-    // Redirect non-admins to the sign-in page or home page
-    console.log("Admin page access denied for user:", session?.user?.email ?? 'Not logged in');
-    redirect('/api/auth/signin?callbackUrl=/admin'); // Redirect to signin, then back to admin if successful
-    // Or redirect('/');
-  }
-
-  // If authorized, render the admin content
+export default function AdminPage() {
+  // Get user info from both auth providers
+  const { data: session } = useSession();
+  const { user: netlifyUser } = useNetlifyAuth();
+  
+  // Display the appropriate welcome message based on which auth system is active
+  const userEmail = netlifyUser?.email || session?.user?.email || 'Admin User';
+  
+  // The AdminAuthWrapper handles all the authentication checking and redirects
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
-      <p className="mb-4">Welcome, {session.user?.email}!</p>
+    <AdminAuthWrapper>
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+        <p className="mb-4">Welcome, {userEmail}!</p>
+        
+        {/* Diagnostic information */}
+        <div className="mb-6 rounded-md bg-blue-50 p-4">
+          <p className="font-medium">Authentication Info:</p>
+          <ul className="mt-1 list-inside list-disc text-sm text-gray-700">
+            <li>NextAuth: {session ? 'Authenticated' : 'Not authenticated'}</li>
+            <li>Netlify Identity: {netlifyUser ? 'Authenticated' : 'Not authenticated'}</li>
+          </ul>
+        </div>
 
-      {/* Placeholder for the Add Route Form */}
-      <div className="mt-8 p-6 border rounded-lg shadow-md bg-white">
-        <h2 className="text-xl font-semibold mb-4">Add New Route</h2>
-        <AddRouteForm />
+        {/* Placeholder for the Add Route Form */}
+        <div className="mt-8 rounded-lg border bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-xl font-semibold">Add New Route</h2>
+          <AddRouteForm />
+        </div>
+
+        {/* Add other admin sections later */}
       </div>
-
-      {/* Add other admin sections later */}
-    </div>
+    </AdminAuthWrapper>
   );
 }

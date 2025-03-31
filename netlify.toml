@@ -33,9 +33,16 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Add redirect for direct admin access
+# Emergency admin bypass access
 [[redirects]]
   from = "/emergency-admin"
+  to = "/admin-bypass"
+  status = 200
+  force = true
+
+# Direct admin access - this provides a more reliable bypass
+[[redirects]]
+  from = "/direct-admin"
   to = "/admin-bypass"
   status = 200
   force = true
