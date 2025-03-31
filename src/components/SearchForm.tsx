@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Fragment } from 'react';
+import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { Combobox, Transition } from '@headlessui/react';
 import { XCircleIcon, CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 
@@ -41,6 +41,9 @@ interface CountryWithCities {
 const SearchForm: React.FC<SearchFormProps> = ({ 
   className = "max-w-2xl mx-auto"
 }) => {
+  // Create a ref for the combobox input
+  const inputRef = useRef<HTMLInputElement>(null);
+  
   // State for our internal locations data
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(false);
   const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
@@ -51,12 +54,35 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<City | null>(null);
   const [debouncedDepartureQuery, setDebouncedDepartureQuery] = useState('');
   const [activeOption, setActiveOption] = useState<number>(-1);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   // State for destination city
   const [validDestinations, setValidDestinations] = useState<City[]>([]);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState<boolean>(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [selectedDestinationCityId, setSelectedDestinationCityId] = useState<string>('');
+
+  // Detect mobile devices
+  useEffect(() => {
+    // Check if the device is mobile using screen width and/or user agent
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth <= 768 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
+    };
+    
+    // Initialize on mount
+    checkMobile();
+    
+    // Re-check on window resize
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Create a debounce function for the search query
   useEffect(() => {
@@ -66,16 +92,19 @@ const SearchForm: React.FC<SearchFormProps> = ({
       return;
     }
     
-    // Set a timeout to update the debounced value after 300ms
+    // Shorter debounce time for mobile to make it feel more responsive
+    const debounceTime = isMobile ? 150 : 300;
+    
+    // Set a timeout to update the debounced value
     const handler = setTimeout(() => {
       setDebouncedDepartureQuery(departureQuery);
-    }, 300);
+    }, debounceTime);
     
     // Clean up the timeout if the query changes before the delay expires
     return () => {
       clearTimeout(handler);
     };
-  }, [departureQuery]);
+  }, [departureQuery, isMobile]);
   
   // Load popular cities on initial render
   useEffect(() => {
@@ -250,21 +279,46 @@ const SearchForm: React.FC<SearchFormProps> = ({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             From:
           </label>
-          <Combobox value={selectedDepartureCity} onChange={setSelectedDepartureCity}>
+          <Combobox 
+            value={selectedDepartureCity} 
+            onChange={(city) => {
+              setSelectedDepartureCity(city);
+              // Close dropdown and remove focus when a city is selected
+              setIsInputFocused(false);
+              inputRef.current?.blur();
+            }}
+          >
             <div className="relative">
               <div className="relative w-full">
                 <Combobox.Input
-                  className="w-full h-10 px-3 pr-10 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black"
+                  ref={inputRef}
+                  className={`w-full border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black ${
+                    isMobile ? 'h-12 px-3 pr-10 text-base' : 'h-10 px-3 pr-10 text-base'
+                  }`}
                   displayValue={(city: any) => city ? `${city.name}, ${city.countryName}` : ''}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                     setDepartureQuery(event.target.value);
                     // Reset active option when query changes
                     setActiveOption(-1);
                   }}
+                  onFocus={() => {
+                    // Set focus state and show cities when input is focused
+                    setIsInputFocused(true);
+                    setIsComboboxOpen(true);
+                  }}
+                  onBlur={() => {
+                    // Reset focus state when input loses focus
+                    setTimeout(() => {
+                      setIsInputFocused(false);
+                    }, 150); // Small delay to allow option selection before closing
+                  }}
                   placeholder="Enter city or country name"
                   autoComplete="off"
                   spellCheck="false"
                   aria-autocomplete="list"
+                  // Add these attributes to improve mobile experience
+                  inputMode={isMobile ? "search" : undefined}
+                  enterKeyHint="search"
                   onKeyDown={(e) => {
                     // Handle keyboard navigation
                     const filteredCities = departureCities.filter(city => {
@@ -293,6 +347,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           e.preventDefault();
                           setSelectedDepartureCity(filteredCities[activeOption]);
                           setDepartureQuery(`${filteredCities[activeOption].name}, ${filteredCities[activeOption].countryName}`);
+                          setIsInputFocused(false);
+                          inputRef.current?.blur();
                         }
                         break;
                       case 'Escape':
@@ -302,7 +358,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           setSelectedDepartureCity(null);
                           setDepartureQuery('');
                         }
-                        // Close dropdown handled by Headless UI
+                        setIsInputFocused(false);
+                        inputRef.current?.blur();
                         break;
                     }
                   }}
@@ -326,33 +383,60 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           }
                         }
                       }}
-                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                      className={`text-gray-400 hover:text-gray-600 focus:outline-none ${
+                        isMobile ? 'p-2 -mr-2' : ''
+                      }`}
+                      aria-label="Clear input"
                     >
-                      <XCircleIcon className="h-5 w-5" aria-hidden="true" />
+                      <XCircleIcon className={`${isMobile ? 'h-6 w-6' : 'h-5 w-5'}`} aria-hidden="true" />
                       <span className="sr-only">Clear input</span>
                     </button>
                   ) : (
-                    <ChevronUpDownIcon
-                      className="h-5 w-5 text-gray-400"
-                      aria-hidden="true"
-                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        // Toggle dropdown visibility on mobile
+                        if (isMobile) {
+                          if (inputRef.current) {
+                            inputRef.current.focus();
+                          }
+                        }
+                      }}
+                      className={isMobile ? 'p-2 -mr-2' : ''}
+                      aria-label="Show options"
+                    >
+                      <ChevronUpDownIcon
+                        className={`text-gray-400 ${isMobile ? 'h-6 w-6' : 'h-5 w-5'}`}
+                        aria-hidden="true"
+                      />
+                    </button>
                   )}
                 </div>
               </div>
               
               <Transition
                 as={Fragment}
-                leave="transition ease-in duration-100"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
+                show={isInputFocused && departureCities.length > 0}
+                enter="transition ease-out duration-200"
+                enterFrom="opacity-0 translate-y-1"
+                enterTo="opacity-100 translate-y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="opacity-100 translate-y-0"
+                leaveTo="opacity-0 translate-y-1"
                 afterLeave={() => {
                   // Only clear the query if no city was selected
                   if (!selectedDepartureCity) {
                     setDepartureQuery('');
                   }
+                  setIsComboboxOpen(false);
                 }}
               >
-                <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200">
+                <Combobox.Options 
+                  className={`absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200 ${
+                    isMobile ? 'max-h-[50vh]' : 'max-h-60'
+                  }`}
+                >
                   {isLoadingLocationsLookup && (
                     <div className="py-2 px-3 text-sm text-gray-500 flex items-center">
                       <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -388,9 +472,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                       key={city.id}
                       value={city}
                       className={({ active }) =>
-                        `relative cursor-default select-none py-2 px-3 ${
+                        `relative cursor-default select-none ${isMobile ? 'py-3' : 'py-2'} px-3 ${
                           active || index === activeOption ? 'bg-indigo-50 text-black' : 'text-gray-900'
-                        }`
+                        } ${isMobile ? 'touch-manipulation' : ''}`
                       }
                     >
                       {({ selected, active }) => (
@@ -429,32 +513,53 @@ const SearchForm: React.FC<SearchFormProps> = ({
           <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
             To:
           </label>
-          <select
-            id="destination"
-            value={selectedDestinationCityId}
-            onChange={(e) => setSelectedDestinationCityId(e.target.value)}
-            required
-            disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
-            className="w-full h-10 px-3 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
-            autoComplete="off"
-          >
-            <option value="">
-              {selectedDepartureCity 
-                ? (isLoadingDestinations 
-                  ? 'Loading destinations...' 
-                  : (validDestinations.length === 0 
-                    ? 'No routes found' 
-                    : 'Select destination'))
-                : 'Select departure first'}
-            </option>
-            {validDestinations.map((city) => (
-              <option key={city.id} value={city.id}>
-                {`${city.name}, ${city.country?.name}`}
+          <div className="relative">
+            <select
+              id="destination"
+              value={selectedDestinationCityId}
+              onChange={(e) => setSelectedDestinationCityId(e.target.value)}
+              required
+              disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
+              className={`w-full border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none ${
+                isMobile ? 'h-12 px-3 pr-10 text-base' : 'h-10 px-3 pr-10 text-base' 
+              }`}
+              autoComplete="off"
+              aria-label="Select destination city"
+            >
+              <option value="">
+                {selectedDepartureCity 
+                  ? (isLoadingDestinations 
+                    ? 'Loading destinations...' 
+                    : (validDestinations.length === 0 
+                      ? 'No routes found' 
+                      : 'Select destination'))
+                  : 'Select departure first'}
               </option>
-            ))}
-          </select>
+              {validDestinations.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {`${city.name}, ${city.country?.name}`}
+                </option>
+              ))}
+            </select>
+            {/* Custom dropdown arrow for consistent styling */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+              <ChevronUpDownIcon 
+                className={`text-gray-400 ${isMobile ? 'h-6 w-6' : 'h-5 w-5'}`} 
+                aria-hidden="true" 
+              />
+            </div>
+          </div>
           {destinationError && !isLoadingDestinations && (
-            <p className="text-xs text-red-600 mt-1">{destinationError}</p>
+            <p className="text-xs text-red-600 mt-1" role="alert">{destinationError}</p>
+          )}
+          {isLoadingDestinations && (
+            <p className="text-xs text-gray-500 mt-1 flex items-center">
+              <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Loading destinations...
+            </p>
           )}
         </div>
       </div>
@@ -462,7 +567,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
       <button
         type="submit"
         disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
-        className="w-full mt-4 bg-indigo-600 text-white py-2 px-4 text-base rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+        className={`w-full mt-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${
+          isMobile ? 'py-3 px-4 text-lg' : 'py-2 px-4 text-base'
+        }`}
       >
         Find Shuttles
       </button>
