@@ -21,7 +21,7 @@ export function generateViewport() {
 // Generate metadata as a simple JavaScript function
 export async function generateMetadata({ params }) {
   // Properly access the route slug with await
-  const routeSlug = params?.routeSlug;
+  const routeSlug = await params?.routeSlug;
   
   // Fetch route data
   const route = await fetchRouteData(routeSlug);
@@ -98,7 +98,7 @@ async function fetchRouteData(routeSlug) {
  */
 export default async function RoutePage({ params }) {
   // Properly access the route slug with await
-  const routeSlug = params?.routeSlug;
+  const routeSlug = await params?.routeSlug;
   
   // Validate we have a route slug
   if (!routeSlug) {
