@@ -1,17 +1,15 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useNetlifyAuth } from '@/lib/netlify-auth-context';
 import AdminAuthWrapper from '@/components/admin/AdminAuthWrapper';
 import AddRouteForm from '@/components/AddRouteForm';
 
 export default function AdminPage() {
-  // Get user info from both auth providers
+  // Get user info from NextAuth
   const { data: session } = useSession();
-  const { user: netlifyUser } = useNetlifyAuth();
   
-  // Display the appropriate welcome message based on which auth system is active
-  const userEmail = netlifyUser?.email || session?.user?.email || 'Admin User';
+  // Display welcome message
+  const userEmail = session?.user?.email || 'Admin User';
   
   // The AdminAuthWrapper handles all the authentication checking and redirects
   return (
@@ -25,7 +23,6 @@ export default function AdminPage() {
           <p className="font-medium">Authentication Info:</p>
           <ul className="mt-1 list-inside list-disc text-sm text-gray-700">
             <li>NextAuth: {session ? 'Authenticated' : 'Not authenticated'}</li>
-            <li>Netlify Identity: {netlifyUser ? 'Authenticated' : 'Not authenticated'}</li>
           </ul>
         </div>
 

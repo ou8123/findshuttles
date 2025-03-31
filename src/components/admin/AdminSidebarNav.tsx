@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
-import { useNetlifyAuth } from '@/lib/netlify-auth-context';
+import { useSession, signOut } from 'next-auth/react';
 
 interface NavItem {
   href: string;
@@ -16,7 +16,7 @@ interface AdminSidebarNavProps {
 
 const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({ navItems }) => {
   const pathname = usePathname(); // Get the current path
-  const { user, logout } = useNetlifyAuth(); // Get Netlify Auth context
+  const { data: session } = useSession(); // Get NextAuth session
 
   return (
     <div className="flex flex-col h-full">
@@ -24,10 +24,10 @@ const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({ navItems }) => {
       <div className="mb-6 pb-4 border-b border-gray-700">
         <div className="px-3 py-2">
           <p className="text-sm text-gray-300 mb-1">Logged in as:</p>
-          <p className="font-medium truncate">{user?.email || 'Admin'}</p>
+          <p className="font-medium truncate">{session?.user?.email || 'Admin'}</p>
           
           <button 
-            onClick={() => logout()}
+            onClick={() => signOut({ callbackUrl: '/login' })}
             className="mt-3 text-sm text-red-400 hover:text-red-300 flex items-center"
           >
             <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

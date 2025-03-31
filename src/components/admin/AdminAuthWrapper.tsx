@@ -2,7 +2,6 @@
 
 import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useNetlifyAuth } from '@/lib/netlify-auth-context';
 import { useSession } from 'next-auth/react';
 
 interface AdminAuthWrapperProps {
@@ -14,45 +13,32 @@ interface AdminAuthWrapperProps {
  * AdminAuthWrapper
  * 
  * Client-side wrapper that handles authentication for admin pages.
- * Supports both NextAuth and Netlify Identity authentication methods.
- * Will redirect unauthenticated users to the login page after a timeout.
+ * Redirects unauthenticated users to the login page after a timeout.
  */
 export default function AdminAuthWrapper({ 
   children, 
   fallback = <AdminLoadingState />
 }: AdminAuthWrapperProps) {
-  // Check both authentication systems
-  const { user, isAdmin, isLoading: netlifyLoading, error: netlifyError, isTimedOut } = useNetlifyAuth();
   const { data: session, status: nextAuthStatus } = useSession();
   
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   
-  // Determine authentication status based on both systems
+  // Determine authentication status
   useEffect(() => {
-    const nextAuthReady = nextAuthStatus !== 'loading';
-    const netlifyReady = !netlifyLoading || isTimedOut;
-    
-    // Only make a decision when both auth systems have loaded (or timed out)
-    if (nextAuthReady && netlifyReady) {
-      // Check if authenticated through either system
-      const nextAuthAuthenticated = nextAuthStatus === 'authenticated' && 
-                                   session?.user?.role === 'ADMIN';
+    if (nextAuthStatus !== 'loading') {
+      const isAdmin = nextAuthStatus === 'authenticated' && session?.user?.role === 'ADMIN';
       
-      const netlifyAuthenticated = isAdmin;
+      // Set authentication status
+      setIsAuthenticated(isAdmin);
       
-      // Set authentication status - true if either auth system shows as authenticated
-      setIsAuthenticated(nextAuthAuthenticated || netlifyAuthenticated);
-      
-      // Combine error states
-      if (!nextAuthAuthenticated && !netlifyAuthenticated) {
+      // Set error if not authenticated
+      if (!isAdmin) {
         setError('Not authenticated as admin user');
-      } else if (netlifyError) {
-        setError(netlifyError);
       }
     }
-  }, [session, nextAuthStatus, user, isAdmin, netlifyLoading, netlifyError, isTimedOut]);
+  }, [session, nextAuthStatus]);
   
   // Redirect if not authenticated after a delay
   useEffect(() => {
@@ -61,7 +47,7 @@ export default function AdminAuthWrapper({
     if (isAuthenticated === false) { // Explicitly false, not null (still loading)
       redirectTimer = setTimeout(() => {
         console.log('Admin auth failed, redirecting to login...');
-        router.push('/admin-bypass'); // Redirect to the admin bypass page
+        router.push('/login'); // Redirect to the login page
       }, 3000); // 3 second delay before redirect
     }
     
