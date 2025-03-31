@@ -11,7 +11,8 @@ interface ViatorAdaptiveContainerProps {
  * Viator Adaptive Container
  * 
  * A specialized container component designed specifically for Viator widgets that:
- * - Dynamically adapts to content height with unlimited expansion
+ * - Dynamically adapts to content height with unlimited expansion on desktop
+ * - Uses fixed height with internal scrolling on mobile devices
  * - Implements gentle stability detection to prevent height oscillation
  * - Has specific optimizations for mobile devices
  * - Handles iframes and dynamic content effectively
@@ -29,9 +30,11 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   const isMobileDevice = useRef(false);
   
   // Constants for adjustments
+  const MAX_MOBILE_HEIGHT = 800; // Height limit for mobile devices with scrolling
   const STABILITY_VARIANCE = 20; // Allow more variance (was 10)
   const FORCE_STABILITY_TIMEOUT = 4000; // Force initial stability after this time
   const HEIGHT_PADDING = 20; // Padding added to calculated height to avoid scroll
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   
   // Device detection (run once on client)
   useEffect(() => {
@@ -83,10 +86,24 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     
     // Helper function to update container height
     const updateContainerHeight = (height) => {
-      // Add padding to prevent scroll
-      const newHeight = height + HEIGHT_PADDING;
-      console.log("Setting container height to:", newHeight);
-      setContainerHeight(newHeight);
+      // For mobile: cap height at MAX_MOBILE_HEIGHT and enable scroll indicator if needed
+      if (isMobileDevice.current) {
+        const newHeight = Math.min(height + HEIGHT_PADDING, MAX_MOBILE_HEIGHT);
+        console.log("Setting container height to (mobile):", newHeight);
+        setContainerHeight(newHeight);
+        
+        // Show scroll indicator if content exceeds container
+        if (height > MAX_MOBILE_HEIGHT - HEIGHT_PADDING) {
+          setShowScrollIndicator(true);
+        } else {
+          setShowScrollIndicator(false);
+        }
+      } else {
+        // For desktop: unlimited height
+        const newHeight = height + HEIGHT_PADDING;
+        console.log("Setting container height to (desktop):", newHeight);
+        setContainerHeight(newHeight);
+      }
     };
     
     // Enhanced measurement function with gentler stability detection
@@ -289,11 +306,31 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
+          height: isMobileDevice.current ? '100%' : 'auto',
+          overflowY: isMobileDevice.current ? 'auto' : 'visible',
+          WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
           // No width constraints
         }}
       >
         {children}
       </div>
+      
+      {/* Scroll indicator for mobile */}
+      {isMobileDevice.current && showScrollIndicator && (
+        <div 
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '30px',
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,1) 100%)',
+            pointerEvents: 'none', // Allow clicks to pass through
+            zIndex: 2,
+            opacity: 0.8,
+          }}
+        />
+      )}
     </div>
   );
 };
