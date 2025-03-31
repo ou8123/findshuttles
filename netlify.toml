@@ -47,6 +47,20 @@
   status = 200
   force = true
   
+# System access - reliable direct authentication system
+[[redirects]]
+  from = "/system-access"
+  to = "/system-access"
+  status = 200
+  force = true
+  
+# System access API endpoints
+[[redirects]]
+  from = "/api/system-auth/*"
+  to = "/api/system-auth/:splat"
+  status = 200
+  force = true
+  
 # Note: We can't redirect /.netlify/* paths as they're reserved by Netlify
 # The Netlify Identity API is handled automatically by Netlify
 
