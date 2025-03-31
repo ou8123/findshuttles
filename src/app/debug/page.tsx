@@ -51,9 +51,10 @@ export default function DebugPage() {
   // Intentional error trigger function (for testing)
   const triggerIntentionalError = () => {
     try {
-      // @ts-ignore - We're intentionally causing an error
-      const obj = null;
-      obj.nonExistentMethod();
+      // INTENTIONAL ERROR - The TypeScript error here is expected and desired!
+      // @ts-ignore -- We're intentionally causing a ReferenceError at runtime
+      // eslint-disable-next-line
+      const nonExistentVar = undefinedVariable; // This variable doesn't exist!
     } catch (err) {
       console.error('Intentional error triggered for testing', err);
     }

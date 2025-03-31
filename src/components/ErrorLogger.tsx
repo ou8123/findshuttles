@@ -65,9 +65,10 @@ const ErrorLogger: React.FC<ErrorLoggerProps> = ({
   // Test error function (for debug purposes)
   const triggerTestError = () => {
     try {
-      // @ts-ignore - Intentional error for testing
-      const obj = null;
-      obj.nonExistentMethod();
+      // INTENTIONAL ERROR - The TypeScript error here is expected and desired!
+      // @ts-ignore -- We're intentionally causing a ReferenceError at runtime
+      // eslint-disable-next-line
+      const nonExistentVar = undefinedVariable; // This variable doesn't exist!
     } catch (err) {
       addError({
         type: 'custom',
