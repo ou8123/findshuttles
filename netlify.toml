@@ -1,0 +1,9 @@
+[build]
+  command = "PRISMA_MIGRATE_TIMEOUT=30000 prisma generate && (prisma migrate deploy || true) && next build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
