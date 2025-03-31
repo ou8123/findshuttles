@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import prisma from '@/lib/prisma';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,18 +10,54 @@ export async function POST(request: Request) {
   try {
     // Parse the request body once to get all needed variables
     const requestData = await request.json();
+    
+    // We need to fetch the city and country names from the database using the IDs
     const { 
-      departureCityName, 
-      destinationCityName, 
-      destinationCountryName,
-      additionalInfo = '' 
+      departureCityId, 
+      destinationCityId,
+      additionalInstructions = '' // This is what the user provides in the form
     } = requestData;
+
+    // Validate required fields
+    if (!departureCityId || !destinationCityId) {
+      return NextResponse.json(
+        { error: 'Missing required fields: departureCityId and destinationCityId' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch city information from database
+    const departureCity = await prisma.city.findUnique({
+      where: { id: departureCityId },
+      include: { country: true }
+    });
+
+    const destinationCity = await prisma.city.findUnique({
+      where: { id: destinationCityId },
+      include: { country: true }
+    });
+
+    if (!departureCity || !destinationCity) {
+      return NextResponse.json(
+        { error: 'Could not find departure or destination city' },
+        { status: 404 }
+      );
+    }
+
+    // Extract needed information
+    const departureCityName = departureCity.name;
+    const destinationCityName = destinationCity.name;
+    const destinationCountryName = destinationCity.country.name;
+
+    // Debug log
+    console.log(`Generating content for: ${departureCityName} to ${destinationCityName}, ${destinationCountryName}`);
+    console.log(`Additional instructions: ${additionalInstructions.substring(0, 100)}${additionalInstructions.length > 100 ? '...' : ''}`);
 
     // Prepare prompt for OpenAI
     const systemMessage = `You are a professional travel writer creating SEO-optimized descriptions for intercity and airport shuttle services. Your goal is to produce clean, concise, and informative content for travelers. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown or extra formatting.`;
 
     // Check if additional info was provided
-    const hasAdditionalInfo = additionalInfo && additionalInfo.trim().length > 0;
+    const hasAdditionalInfo = additionalInstructions && additionalInstructions.trim().length > 0;
 
     const userMessage = `Create a concise, factual description for a shuttle service between ${departureCityName} and ${destinationCityName} in ${destinationCountryName}.
 
@@ -36,7 +73,7 @@ Return a JSON object in the following format:
 ${hasAdditionalInfo ? 
 `I've provided additional information that should be used verbatim as the first paragraph:
 
-"${additionalInfo}"
+"${additionalInstructions}"
 
 For the second paragraph (70-90 words), condense what would normally be two paragraphs into one coherent paragraph that includes:
 - Brief practical information about the shuttle service (route details, purpose)

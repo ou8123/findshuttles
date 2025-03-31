@@ -66,8 +66,53 @@ function resetLoginAttempts(identifier: string): void {
   delete loginAttemptStore[identifier];
 }
 
+// Configure using available environment variables with fallbacks
+const isProduction = process.env.NODE_ENV === 'production';
+const isNetlify = !!process.env.NETLIFY || !!process.env.NEXT_USE_NETLIFY_EDGE;
+// Use a shorter name to avoid hitting cookie size limits
+const cookiePrefix = isProduction ? '__Secure-' : '';
+// Ensure domain is set correctly for Netlify
+const domain = process.env.NEXTAUTH_COOKIE_DOMAIN || (isProduction ? 'findshuttles.netlify.app' : undefined);
+
+// Log startup configuration for debugging
+console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}`);
+
 export const authOptions: AuthOptions = {
   // Later: adapter: PrismaAdapter(prisma),
+  // Enhanced cookie configuration for Netlify
+  cookies: {
+    sessionToken: {
+      name: `${cookiePrefix}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: isNetlify ? "none" : "lax", // use "none" for Netlify to allow cross-site cookies
+        path: "/",
+        secure: isProduction,
+        domain: domain,
+        // Set max-age explicitly to ensure the cookie persists
+        maxAge: 24 * 60 * 60, // 24 hours
+      },
+    },
+    callbackUrl: {
+      name: `${cookiePrefix}next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: isNetlify ? "none" : "lax",
+        path: "/",
+        secure: isProduction,
+        domain: domain,
+      },
+    },
+    csrfToken: {
+      name: `${cookiePrefix}next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: isNetlify ? "none" : "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+  },
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -159,9 +204,13 @@ export const authOptions: AuthOptions = {
   // Explicitly define secure paths using the obscured login path
   pages: {
     signIn: '/secure-access-9b1c3f5d7e', // This matches our middleware token
-    signOut: '/api/auth/signout',
+    // Don't set custom signOut path, use the default NextAuth behavior
     error: '/secure-access-9b1c3f5d7e', // Use the same secure path
   },
+  // Allow origin header for Netlify
+  useSecureCookies: isProduction,
+  // Increase debug info
+  debug: isNetlify || process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, user }) {
       // Add user details to JWT
@@ -181,6 +230,5 @@ export const authOptions: AuthOptions = {
     },
   },
   // Enhanced security options
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
+  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret-for-netlify-testing-only',
 };
