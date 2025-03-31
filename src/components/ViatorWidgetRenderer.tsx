@@ -9,6 +9,19 @@ declare global {
   }
 }
 
+// Helper function to detect mobile devices
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  
+  // Check for mobile user agent patterns
+  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+  
+  // Check viewport width
+  const isMobileWidth = window.innerWidth < 768;
+  
+  return mobileRegex.test(navigator.userAgent) || isMobileWidth;
+};
+
 interface ViatorWidgetRendererProps {
   widgetCode: string;
   routeSlug?: string; // Optional but no longer used for special handling
@@ -40,8 +53,24 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
   // Store a reference to the iframe element for height adjustments
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   
+  // Check if we're on a mobile device (client-side only)
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Set up mobile detection on client side
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+    
+    // Update on resize
+    const handleResize = () => {
+      setIsMobile(isMobileDevice());
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // Store measurements for height tracking
-  const [containerHeight, setContainerHeight] = useState(400); // Start modest
+  const [containerHeight, setContainerHeight] = useState(isMobile ? 300 : 400); // Smaller initial height for mobile
   const [detectedContentHeight, setDetectedContentHeight] = useState(0);
   const [heightChecks, setHeightChecks] = useState(0);
   
@@ -109,10 +138,10 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
     // Force a complete re-render when the widgetCode changes
     setForceRenderKey(Date.now());
     
-    // Reset states
+    // Reset states with appropriate height based on device
     setWidgetId(`widget-${Math.random().toString(36).substring(2, 9)}`);
     setHasError(false);
-    setContainerHeight(400);
+    setContainerHeight(isMobile ? 300 : 400);
     setDetectedContentHeight(0);
     setHeightChecks(0);
     
@@ -252,7 +281,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       }
     };
     
-    // Apply basic anti-flicker styles
+    // Apply basic anti-flicker styles with mobile-specific optimizations
     const applyBasicStyles = (iframe: HTMLIFrameElement) => {
       iframe.style.margin = '0';
       iframe.style.padding = '0';
@@ -261,9 +290,20 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       iframe.style.transform = 'translateZ(0)'; // Hardware acceleration
       iframe.style.backfaceVisibility = 'hidden'; // Prevent flickering
       
-      // Set reasonable initial height
-      iframe.style.minHeight = '400px';
-      iframe.style.height = '400px';
+      // Mobile-specific adjustments
+      if (isMobile) {
+        // Smaller height for mobile devices
+        iframe.style.minHeight = '300px';
+        iframe.style.height = '300px';
+        // Mobile optimization - set max-width and scale to fit viewport
+        iframe.style.maxWidth = '100%';
+        iframe.style.width = '100%';
+        iframe.style.overflow = 'hidden'; // Prevent scrollbars on mobile
+      } else {
+        // Desktop settings
+        iframe.style.minHeight = '400px';
+        iframe.style.height = '400px';
+      }
       
       // Setup load event to check actual content height
       iframe.onload = () => measureFrameHeight();
@@ -340,7 +380,7 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       }
     };
     
-    // Measure the iframe's content height
+    // Measure the iframe's content height with mobile optimizations
     const measureFrameHeight = () => {
       // Increment check count for debugging
       setHeightChecks(prev => prev + 1);
@@ -350,7 +390,42 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       if (!iframe) return;
       
       try {
-        // First try: direct measurement through contentWindow (might fail due to cross-origin)
+        // Mobile-specific measurements
+        if (isMobile) {
+          // For mobile, we prioritize viewport fitting and user experience
+          const viewportHeight = window.innerHeight;
+          const boundingRect = iframe.getBoundingClientRect();
+          
+          // Use a more conservative approach for mobile to avoid excessive height
+          // Cap the height to a percentage of viewport for better mobile UX
+          const maxMobileHeight = Math.min(viewportHeight * 0.7, 600);
+          
+          if (boundingRect.height > 0) {
+            // On mobile, allow the widget to be smaller than desktop minimum
+            const visibleHeight = Math.max(boundingRect.height, 250);
+            
+            // Cap at maximum height for mobile viewport
+            const newHeight = Math.min(visibleHeight, maxMobileHeight);
+            
+            console.log(`Mobile height via getBoundingClientRect: ${newHeight}px`);
+            
+            // Adjust heights
+            iframe.style.height = `${newHeight}px`;
+            setContainerHeight(newHeight);
+            return;
+          }
+          
+          // Fallback for mobile if bounding rect not available
+          if (iframe.offsetHeight > 0) {
+            const newHeight = Math.min(iframe.offsetHeight + 20, maxMobileHeight);
+            iframe.style.height = `${newHeight}px`;
+            setContainerHeight(newHeight);
+          }
+          
+          return; // Exit early for mobile
+        }
+        
+        // Desktop measurements - keep original logic
         try {
           if (iframe.contentWindow && iframe.contentWindow.document.body) {
             const height = iframe.contentWindow.document.body.scrollHeight;
@@ -505,9 +580,11 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
         margin: 0, 
         padding: 0,
         position: 'relative',
-        minHeight: '400px', // Modest minimum height
+        minHeight: isMobile ? '300px' : '400px', // Adjust minimum height based on device
         height: 'auto',
-        paddingBottom: '20px', // Small padding at bottom
+        paddingBottom: isMobile ? '10px' : '20px', // Smaller padding for mobile
+        maxWidth: '100vw', // Ensure it doesn't overflow viewport
+        overflowX: 'hidden', // Prevent horizontal scrolling on mobile
       }}
     >
       <div 
