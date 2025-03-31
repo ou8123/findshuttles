@@ -5,195 +5,110 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 interface AdaptiveWidgetContainerProps {
   children: ReactNode;
   className?: string;
-  initialHeight?: number;
 }
 
 /**
- * Exact-Fit Widget Container
+ * Simple Widget Container
  * 
- * A container component that adapts to the EXACT height of its content.
- * Unlike other approaches, this container will expand to match content precisely
- * with no scrolling or height constraints.
+ * A lightweight container that adapts to the exact height of its content without
+ * any maximum height constraints or scrolling. Uses a simple and efficient approach
+ * that works consistently across all devices.
  */
 const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
   children,
   className = '',
-  initialHeight = 200, // Just a starting point, will quickly adjust to actual content
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState(initialHeight);
-  const [measureAttempts, setMeasureAttempts] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(300); // Initial height just for rendering
+  const [isLoaded, setIsLoaded] = useState(false);
   
-  // Highly aggressive content measurement
+  // Core widget measurement logic - simpler, more direct approach
   useEffect(() => {
     if (!contentRef.current) return;
     
-    // Track all timers for cleanup
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let observer: ResizeObserver | null = null;
-    let mutationObserver: MutationObserver | null = null;
-    let isComponentMounted = true;
-    
-    // Main measurement function - get most accurate height possible
-    const measureContentHeight = () => {
-      if (!contentRef.current || !isComponentMounted) return;
-
-      // Get all possible height measurements and use the largest
-      const element = contentRef.current;
-      const scrollHeight = element.scrollHeight || 0;
-      const offsetHeight = element.offsetHeight || 0;
-      const clientHeight = element.clientHeight || 0;
-      const boundingHeight = element.getBoundingClientRect().height || 0;
+    // Update height function
+    const updateHeight = () => {
+      if (!contentRef.current) return;
       
-      // Check for all nested elements including iframes
-      let maxNestedHeight = 0;
-      const allElements = element.querySelectorAll('*');
-      allElements.forEach(el => {
-        // Include position offsets for absolute positioned elements
-        const rect = el.getBoundingClientRect();
-        const bottomPosition = rect.top + rect.height;
-        if (bottomPosition > maxNestedHeight) {
-          maxNestedHeight = bottomPosition;
-        }
-      });
+      // Use the most reliable height measurement
+      const height = contentRef.current.scrollHeight;
       
-      // Add a small buffer to prevent any chance of scrolling (10px)
-      const bestHeightEstimate = Math.max(
-        scrollHeight,
-        offsetHeight,
-        clientHeight,
-        boundingHeight,
-        maxNestedHeight - (element.getBoundingClientRect().top || 0)
-      ) + 10;
-      
-      setContainerHeight(bestHeightEstimate);
+      // Add a small buffer to prevent any scrolling (15px)
+      setContainerHeight(height + 15);
     };
     
-    // Poll content height aggressively during initial load
-    // Starting with rapid measurements, then slowing down
-    const setupPolling = () => {
-      // Immediate measurement
-      measureContentHeight();
+    // Create observer for content changes
+    const resizeObserver = new ResizeObserver(() => {
+      updateHeight();
       
-      // Fast sequence of early measurements (captures most content)
-      [50, 100, 250, 500, 1000].forEach((delay, i) => {
-        const timer = setTimeout(() => {
-          measureContentHeight();
-          setMeasureAttempts(prev => prev + 1);
-        }, delay);
-        timers.push(timer);
-      });
-      
-      // Additional measurements over time for slow-loading content
-      [2000, 3000, 4000, 5000].forEach((delay) => {
-        const timer = setTimeout(measureContentHeight, delay);
-        timers.push(timer);
-      });
-      
-      // Final fallback measurements
-      const timer = setTimeout(measureContentHeight, 7000);
-      timers.push(timer);
-    };
-    
-    // Setup resize observer for dynamic changes
-    const setupResizeObserver = () => {
-      observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.target === contentRef.current) {
-            measureContentHeight();
-          }
-        }
-      });
-      
-      if (contentRef.current) {
-        observer.observe(contentRef.current);
+      // Mark as loaded after first measurement
+      if (!isLoaded) {
+        setIsLoaded(true);
       }
+    });
+    
+    // Also set up polling for slower-loading content
+    const checkHeight = () => {
+      updateHeight();
     };
     
-    // Setup mutation observer to catch DOM changes
-    const setupMutationObserver = () => {
-      mutationObserver = new MutationObserver((mutations) => {
-        // Only trigger for meaningful changes
-        const shouldMeasure = mutations.some(mutation => 
-          mutation.type === 'childList' || 
-          (mutation.type === 'attributes' && 
-           (mutation.attributeName === 'style' || 
-            mutation.attributeName === 'class'))
-        );
-        
-        if (shouldMeasure) {
-          measureContentHeight();
-        }
-      });
-      
-      if (contentRef.current) {
-        mutationObserver.observe(contentRef.current, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['style', 'class']
-        });
-      }
-    };
+    // Initial quick measurements
+    updateHeight();
+    setTimeout(updateHeight, 100);
+    setTimeout(updateHeight, 300);
+    setTimeout(updateHeight, 700);
     
-    // Special handling for iframes
-    const handleIframes = () => {
+    // Start observing size changes
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+    
+    // Check for slow-loading iframe content
+    const iframeCheck = setInterval(() => {
       const iframes = contentRef.current?.querySelectorAll('iframe');
+      let iframeLoading = false;
+      
       if (iframes && iframes.length > 0) {
+        // Add load listener to iframes
         iframes.forEach(iframe => {
-          // Try to add load event if possible
+          iframeLoading = true;
           try {
-            iframe.addEventListener('load', measureContentHeight);
+            iframe.addEventListener('load', checkHeight, { once: true });
           } catch (e) {
-            // Silently fail - cross-origin restrictions
+            // Silent fail for cross-origin restrictions
           }
         });
       }
-    };
+      
+      // If no iframes or they're all loaded, stop checking
+      if (!iframeLoading) {
+        clearInterval(iframeCheck);
+      }
+      
+      // Always update height just in case
+      updateHeight();
+    }, 500);
     
-    // Initialize all measurement strategies
-    setupPolling();
-    setupResizeObserver();
-    setupMutationObserver();
-    handleIframes();
+    // Handle any window resize
+    window.addEventListener('resize', updateHeight);
     
-    // Additional special case for window resize
-    const handleWindowResize = () => {
-      measureContentHeight();
-    };
-    window.addEventListener('resize', handleWindowResize);
-    
-    // Cleanup
+    // Clean up all listeners
     return () => {
-      isComponentMounted = false;
-      timers.forEach(timer => clearTimeout(timer));
-      observer?.disconnect();
-      mutationObserver?.disconnect();
-      window.removeEventListener('resize', handleWindowResize);
-      
-      const iframes = contentRef.current?.querySelectorAll('iframe');
-      if (iframes && iframes.length > 0) {
-        iframes.forEach(iframe => {
-          try {
-            iframe.removeEventListener('load', measureContentHeight);
-          } catch (e) {
-            // Silently fail
-          }
-        });
-      }
+      resizeObserver.disconnect();
+      clearInterval(iframeCheck);
+      window.removeEventListener('resize', updateHeight);
     };
-  }, []);
+  }, [isLoaded]);
   
   return (
     <div 
       ref={containerRef}
-      className={`adaptive-widget-container ${className}`}
+      className={`widget-container ${isLoaded ? 'loaded' : 'loading'} ${className}`}
       style={{
         height: `${containerHeight}px`,
+        transition: isLoaded ? 'height 0.2s ease-in-out' : 'none',
         position: 'relative',
-        overflow: 'visible', // Allow content to overflow
-        transition: 'height 0.15s ease-out', // Smooth height changes
         margin: '1rem 0',
         borderRadius: '8px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
@@ -209,8 +124,6 @@ const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          height: 'auto', // Let content determine height
-          overflow: 'visible', // No scrolling, full height display
         }}
       >
         {children}
