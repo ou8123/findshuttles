@@ -50,6 +50,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const [departureQuery, setDepartureQuery] = useState('');
   const [selectedDepartureCity, setSelectedDepartureCity] = useState<City | null>(null);
   const [debouncedDepartureQuery, setDebouncedDepartureQuery] = useState('');
+  const [activeOption, setActiveOption] = useState<number>(-1);
   
   // State for destination city
   const [validDestinations, setValidDestinations] = useState<City[]>([]);
@@ -255,11 +256,56 @@ const SearchForm: React.FC<SearchFormProps> = ({
                 <Combobox.Input
                   className="w-full h-10 px-3 pr-10 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black"
                   displayValue={(city: any) => city ? `${city.name}, ${city.countryName}` : ''}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    setDepartureQuery(event.target.value);
+                    // Reset active option when query changes
+                    setActiveOption(-1);
+                  }}
                   placeholder="Enter city or country name"
                   autoComplete="off"
                   spellCheck="false"
-                  aria-autocomplete="none"
+                  aria-autocomplete="list"
+                  onKeyDown={(e) => {
+                    // Handle keyboard navigation
+                    const filteredCities = departureCities.filter(city => {
+                      if (!departureQuery || departureQuery.length < 2) return true;
+                      const query = departureQuery.toLowerCase();
+                      const cityName = city.name.toLowerCase();
+                      const countryName = city.countryName?.toLowerCase() || '';
+                      return cityName.includes(query) || cityName.startsWith(query) || countryName.includes(query);
+                    });
+                    
+                    switch (e.key) {
+                      case 'ArrowDown':
+                        e.preventDefault();
+                        setActiveOption(prev => 
+                          prev < filteredCities.length - 1 ? prev + 1 : 0
+                        );
+                        break;
+                      case 'ArrowUp':
+                        e.preventDefault();
+                        setActiveOption(prev => 
+                          prev > 0 ? prev - 1 : filteredCities.length - 1
+                        );
+                        break;
+                      case 'Enter':
+                        if (activeOption >= 0 && activeOption < filteredCities.length) {
+                          e.preventDefault();
+                          setSelectedDepartureCity(filteredCities[activeOption]);
+                          setDepartureQuery(`${filteredCities[activeOption].name}, ${filteredCities[activeOption].countryName}`);
+                        }
+                        break;
+                      case 'Escape':
+                        e.preventDefault();
+                        // Clear selection if already selected, otherwise just close dropdown
+                        if (selectedDepartureCity) {
+                          setSelectedDepartureCity(null);
+                          setDepartureQuery('');
+                        }
+                        // Close dropdown handled by Headless UI
+                        break;
+                    }
+                  }}
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                   {departureQuery && !isLoadingLocationsLookup ? (
@@ -337,13 +383,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
                       const countryName = city.countryName?.toLowerCase() || '';
                       return cityName.includes(query) || cityName.startsWith(query) || countryName.includes(query);
                     })
-                    .map((city) => (
+                    .map((city, index) => (
                     <Combobox.Option
                       key={city.id}
                       value={city}
                       className={({ active }) =>
                         `relative cursor-default select-none py-2 px-3 ${
-                          active ? 'bg-indigo-50 text-black' : 'text-gray-900'
+                          active || index === activeOption ? 'bg-indigo-50 text-black' : 'text-gray-900'
                         }`
                       }
                     >
