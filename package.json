@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:seed:prod": "npx prisma db seed"
+    "db:seed:prod": "npx prisma db seed",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -29,8 +30,9 @@
     "eslint-config-next": "15.2.4",
     "jsdom": "^26.0.0",
     "jsonwebtoken": "^9.0.2",
+    "@auth0/nextjs-auth0": "^3.5.0",
     "netlify-identity-widget": "^1.9.2",
-    "next": "15.2.4",
+    "next": "15.2.4", 
     "next-auth": "^4.24.11",
     "openai": "^4.90.0",
     "react": "^19.0.0",

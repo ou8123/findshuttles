@@ -1,15 +1,25 @@
+// src/app/api/auth/logout/route.ts
+import { auth0 } from '@/lib/auth0-config';
 import { NextRequest } from 'next/server';
-import { handleLogout } from '@/lib/auth0-config';
 
+// This route handles user logouts
 export async function GET(req: NextRequest) {
   try {
-    // Process logout and clear the session
-    return await handleLogout(req as any, {
-      returnTo: '/', // Redirect to home page after logout
+    // Get the URL to redirect to after logout (default to homepage)
+    const url = new URL(req.url);
+    const returnTo = url.searchParams.get('returnTo') || '/';
+    
+    // Process the logout request
+    return await auth0.handleLogout(req as any, {
+      returnTo
     });
   } catch (error) {
     console.error('Auth0 logout error:', error);
-    // If there's an error, just redirect to home
-    return Response.redirect(new URL('/', req.url));
+    return new Response(JSON.stringify({ error: 'Logout error' }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
