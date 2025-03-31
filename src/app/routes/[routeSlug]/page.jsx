@@ -8,6 +8,7 @@ import SearchForm from '@/components/SearchForm';
 import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 import AutoScroller from '@/components/AutoScroller';
 import AdaptiveWidgetContainer from '@/components/AdaptiveWidgetContainer';
+import ViatorAdaptiveContainer from '@/components/ViatorAdaptiveContainer';
 
 // Generate viewport metadata as a simple JavaScript function
 export function generateViewport() {
@@ -19,8 +20,8 @@ export function generateViewport() {
 
 // Generate metadata as a simple JavaScript function
 export async function generateMetadata({ params }) {
-  // Properly destructure and access the route slug
-  const { routeSlug } = params;
+  // Properly access the route slug with await
+  const routeSlug = params?.routeSlug;
   
   // Fetch route data
   const route = await fetchRouteData(routeSlug);
@@ -96,8 +97,8 @@ async function fetchRouteData(routeSlug) {
  * with Next.js on Netlify
  */
 export default async function RoutePage({ params }) {
-  // Properly destructure and access the route slug
-  const { routeSlug } = params || {};
+  // Properly access the route slug with await
+  const routeSlug = params?.routeSlug;
   
   // Validate we have a route slug
   if (!routeSlug) {
@@ -151,8 +152,8 @@ export default async function RoutePage({ params }) {
             <div className="booking-section mb-8">
               <h2 className="text-xl font-semibold mb-4">Book Your Shuttle</h2>
               
-              {/* Widget in adaptive container */}
-              <AdaptiveWidgetContainer>
+              {/* Widget in specialized Viator adaptive container */}
+              <ViatorAdaptiveContainer>
                 {route.viatorWidgetCode ? (
                   <ViatorWidgetRenderer 
                     key={`viator-${route.routeSlug}`} 
@@ -164,7 +165,7 @@ export default async function RoutePage({ params }) {
                     <p className="text-gray-500">Booking widget not available for this route.</p>
                   </div>
                 )}
-              </AdaptiveWidgetContainer>
+              </ViatorAdaptiveContainer>
             </div>
             
             {/* Description section with natural spacing */}

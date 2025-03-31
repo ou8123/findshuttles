@@ -1,7 +1,7 @@
 "use client"; // Mark as client component
 
 import dynamic from 'next/dynamic';
-import AdaptiveWidgetContainer from './AdaptiveWidgetContainer';
+import ViatorAdaptiveContainer from './ViatorAdaptiveContainer';
 
 // Dynamically import the SearchForm component with no SSR
 const SearchForm = dynamic(() => import('@/components/SearchForm'), {
@@ -16,8 +16,8 @@ const SearchForm = dynamic(() => import('@/components/SearchForm'), {
 
 export default function SearchFormWrapper() {
   return (
-    <AdaptiveWidgetContainer>
+    <ViatorAdaptiveContainer>
       <SearchForm />
-    </AdaptiveWidgetContainer>
+    </ViatorAdaptiveContainer>
   );
 }
