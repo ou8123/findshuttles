@@ -100,6 +100,15 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
+// Create a 404 Not Found response
+function create404Response(): NextResponse {
+  const response = NextResponse.json(
+    { error: 'Not Found' },
+    { status: 404 }
+  );
+  return addSecurityHeaders(response);
+}
+
 // The middleware function
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -134,6 +143,11 @@ export async function middleware(request: NextRequest) {
   
   // Handle login page security
   if (isLoginPath(pathname)) {
+    // If they used the standard /login path, return a 404 to hide its existence
+    if (pathname.startsWith('/login')) {
+      return create404Response();
+    }
+    
     // If they used the obscured path, rewrite to the internal login path
     if (pathname.startsWith(`/${LOGIN_PATH_TOKEN}`)) {
       const url = request.nextUrl.clone();
@@ -141,9 +155,6 @@ export async function middleware(request: NextRequest) {
       response = NextResponse.rewrite(url);
       return addSecurityHeaders(response);
     }
-    
-    // For direct /login access, just continue without redirecting
-    return NextResponse.next();
   }
   
   // Skip middleware for API routes to allow direct access
@@ -153,67 +164,67 @@ export async function middleware(request: NextRequest) {
   
   // Check for admin routes - both the real internal path and the obscured path
   if (isAdminPath(pathname)) {
-    // Authentication check using NextAuth
-    let isAuthenticated = false;
-    
-    try {
-      // Enhanced token retrieval with options
-      const isProduction = process.env.NODE_ENV === 'production';
-      const cookiePrefix = isProduction ? '__Secure-' : '';
-      const cookieName = `${cookiePrefix}next-auth.session-token`;
-      
-      // Get token with enhanced options
-      const token = await getToken({ 
-        req: request,
-        secureCookie: isProduction,
-        cookieName: cookieName,
-        secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-netlify-testing-only',
-      });
-      
-      // Enhanced logging for debugging
-      console.log(`Middleware auth check for ${pathname}:`, {
-        authMethod: 'NextAuth',
-        hasToken: !!token,
-        tokenRole: token?.role,
-        cookieName: cookieName,
-        allCookies: request.cookies.getAll().map(c => c.name),
-        host: request.headers.get('host'),
-        referer: request.headers.get('referer'),
-        isProduction: isProduction,
-      });
-      
-      // Check if user is admin via NextAuth token
-      isAuthenticated = token?.role === 'ADMIN';
-      
-      // Special case - if token exists but role is wrong, log it
-      if (token && !isAuthenticated) {
-        console.log(`Token found but not admin role: ${token.role}`);
-      }
-    } catch (error) {
-      console.error('Error verifying auth token in middleware:', error);
+    // If they used the standard /admin path, return a 404 to hide its existence
+    if (pathname.startsWith('/admin')) {
+      return create404Response();
     }
     
-    // Not authenticated or not an admin
-    if (!isAuthenticated) {
-      // Redirect to login page
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', request.url);
-      
-      return NextResponse.redirect(loginUrl);
-    }
-    
-    // User is authenticated as admin
-    
-    // If they used the obscured path, rewrite internally to the admin path
+    // Authentication check using NextAuth - only for stealth admin paths
     if (pathname.startsWith(`/${ADMIN_PATH_TOKEN}`)) {
+      let isAuthenticated = false;
+      
+      try {
+        // Enhanced token retrieval with options
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cookiePrefix = isProduction ? '__Secure-' : '';
+        const cookieName = `${cookiePrefix}next-auth.session-token`;
+        
+        // Get token with enhanced options
+        const token = await getToken({ 
+          req: request,
+          secureCookie: isProduction,
+          cookieName: cookieName,
+          secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-netlify-testing-only',
+        });
+        
+        // Enhanced logging for debugging
+        console.log(`Middleware auth check for ${pathname}:`, {
+          authMethod: 'NextAuth',
+          hasToken: !!token,
+          tokenRole: token?.role,
+          cookieName: cookieName,
+          allCookies: request.cookies.getAll().map(c => c.name),
+          host: request.headers.get('host'),
+          referer: request.headers.get('referer'),
+          isProduction: isProduction,
+        });
+        
+        // Check if user is admin via NextAuth token
+        isAuthenticated = token?.role === 'ADMIN';
+        
+        // Special case - if token exists but role is wrong, log it
+        if (token && !isAuthenticated) {
+          console.log(`Token found but not admin role: ${token.role}`);
+        }
+      } catch (error) {
+        console.error('Error verifying auth token in middleware:', error);
+      }
+      
+      // Not authenticated or not an admin
+      if (!isAuthenticated) {
+        // Redirect to stealth login path - not the regular login path
+        const loginUrl = new URL(`/${LOGIN_PATH_TOKEN}`, request.url);
+        loginUrl.searchParams.set('callbackUrl', request.url);
+        
+        return NextResponse.redirect(loginUrl);
+      }
+      
+      // If authenticated, rewrite the stealth path to the internal admin path
       const url = request.nextUrl.clone();
       url.pathname = getInternalAdminPath(pathname);
       response = NextResponse.rewrite(url);
       return addSecurityHeaders(response);
     }
-    
-    // For direct /admin access, just continue without redirecting
-    return NextResponse.next();
   }
   
   // Apply security headers to all responses

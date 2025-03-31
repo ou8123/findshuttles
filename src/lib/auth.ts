@@ -14,6 +14,10 @@ interface LoginAttemptStore {
   };
 }
 
+// Import the stealth path tokens from middleware
+const ADMIN_PATH_TOKEN = 'management-portal-8f7d3e2a1c';
+const LOGIN_PATH_TOKEN = 'secure-access-9b1c3f5d7e';
+
 const loginAttemptStore: LoginAttemptStore = {};
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_TIME_MS = 15 * 60 * 1000; // 15 minutes
@@ -229,11 +233,10 @@ export const authOptions: AuthOptions = {
   jwt: {
     maxAge: 24 * 60 * 60, // 24 hours (shorter than default)
   },
-  // Explicitly define secure paths using the obscured login path
+  // Use the stealth paths for security through obscurity
   pages: {
-    signIn: '/secure-access-9b1c3f5d7e', // This matches our middleware token
-    // Don't set custom signOut path, use the default NextAuth behavior
-    error: '/secure-access-9b1c3f5d7e', // Use the same secure path
+    signIn: `/${LOGIN_PATH_TOKEN}`, // Use the stealth login path
+    error: `/${LOGIN_PATH_TOKEN}`, // Also use stealth login path for errors
   },
   // Allow origin header for Netlify
   useSecureCookies: isProduction,
