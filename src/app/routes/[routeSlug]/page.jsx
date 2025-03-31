@@ -17,9 +17,9 @@ export function generateViewport() {
 }
 
 // Generate metadata as a simple JavaScript function
-export async function generateMetadata(props) {
-  // Safely access route slug without TypeScript constraints
-  const routeSlug = props?.params?.routeSlug;
+export async function generateMetadata({ params }) {
+  // Properly destructure and access the route slug
+  const { routeSlug } = params;
   
   // Fetch route data
   const route = await fetchRouteData(routeSlug);
@@ -94,9 +94,9 @@ async function fetchRouteData(routeSlug) {
  * This version removes all TypeScript annotations to be compatible
  * with Next.js on Netlify
  */
-export default async function RoutePage(props) {
-  // Access route slug using plain JavaScript pattern
-  const routeSlug = props && props.params ? props.params.routeSlug : null;
+export default async function RoutePage({ params }) {
+  // Properly destructure and access the route slug
+  const { routeSlug } = params || {};
   
   // Validate we have a route slug
   if (!routeSlug) {
