@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import * as jwt from 'jsonwebtoken';
 import { SYSTEM_AUTH_COOKIE, verifyToken } from '@/lib/system-auth';
+import { getSession } from '@/lib/auth0-config';
 // No need to import netlify-identity-widget as it's client-side only
 
 // Define a simple in-memory store for rate limiting 
@@ -161,21 +162,43 @@ export async function middleware(request: NextRequest) {
     return addSecurityHeaders(response);
   }
   
-  // Skip middleware for system access path to allow direct login
-  if (isSystemAccessPath(pathname)) {
+  // Skip middleware for system access path and Auth0 api routes to allow direct access
+  if (isSystemAccessPath(pathname) || pathname.startsWith('/api/auth/')) {
     return NextResponse.next();
   }
   
   // Check for admin routes - both the real internal path and the obscured path
   if (isAdminPath(pathname)) {
     // Authentication check strategy:
-    // 1. Try Netlify Identity token first (preferred method)
-    // 2. Try system auth token (new reliable method)
-    // 3. Fall back to direct-admin-auth token (emergency bypass)
-    // 4. Finally try NextAuth token (legacy support)
+    // 1. Try Auth0 session first (new preferred method)
+    // 2. Try Netlify Identity token (transitional method)
+    // 3. Try system auth token (reliable backup method)
+    // 4. Fall back to direct-admin-auth token (emergency bypass)
+    // 5. Finally try NextAuth token (legacy support)
     let isAuthenticated = false;
     
-    // 1. Check for Netlify Identity token
+    // 1. Check for Auth0 session
+    if (!isAuthenticated) {
+      try {
+        const session = await getSession(request as any);
+        if (session?.user) {
+          // Check if user has admin role or is admin email
+          const isAdmin = 
+            session.user.role === 'ADMIN' || 
+            session.user.email === 'aiaffiliatecom@gmail.com';
+          
+          if (isAdmin) {
+            isAuthenticated = true;
+            console.log('Admin authenticated using Auth0');
+          }
+        }
+      } catch (error) {
+        console.error('Error with Auth0 session:', error);
+        // Continue to other auth methods if Auth0 fails
+      }
+    }
+    
+    // 2. Check for Netlify Identity token
     const netlifyToken = request.cookies.get('nf_jwt');
     if (netlifyToken) {
       // Netlify Identity tokens are verified by the Netlify platform
