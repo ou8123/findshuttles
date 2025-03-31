@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Combobox } from '@headlessui/react';
+import React, { useState, useEffect, useCallback, Fragment } from 'react';
+import { Combobox, Transition } from '@headlessui/react';
+import { XCircleIcon, CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 
 interface SearchFormProps {
   className?: string;
@@ -35,6 +36,7 @@ interface CountryWithCities {
  * - Uses server-side search instead of loading all cities at once
  * - Implements debouncing to reduce API calls
  * - Shows popular cities by default for immediate options
+ * - Enhanced autocomplete with text highlighting and better keyboard navigation
  */
 const SearchForm: React.FC<SearchFormProps> = ({ 
   className = "max-w-2xl mx-auto"
@@ -187,6 +189,29 @@ const SearchForm: React.FC<SearchFormProps> = ({
   }, [selectedDepartureCity]);
 
   /**
+   * Highlights the matching portion of text in search results
+   */
+  const highlightMatch = (text: string, query: string) => {
+    if (!query || query.length < 2) return text;
+    
+    try {
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      const parts = text.split(regex);
+      
+      return (
+        <>
+          {parts.map((part, i) => 
+            regex.test(part) ? <mark key={i} className="bg-yellow-100 px-0.5 rounded">{part}</mark> : part
+          )}
+        </>
+      );
+    } catch (e) {
+      // Fallback in case the regex is invalid
+      return text;
+    }
+  };
+
+  /**
    * Client-side validation before server-side form submission
    * This will be the fallback if the HTML5 validation fails
    */
@@ -226,37 +251,115 @@ const SearchForm: React.FC<SearchFormProps> = ({
           </label>
           <Combobox value={selectedDepartureCity} onChange={setSelectedDepartureCity}>
             <div className="relative">
-              <Combobox.Input
-                className="w-full h-10 px-3 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black"
-                displayValue={(city: any) => city ? `${city.name}, ${city.countryName}` : ''}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
-                placeholder="Enter city or country name"
-                autoComplete="off"
-                spellCheck="false"
-                aria-autocomplete="none"
-              />
-              <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200">
-                {departureCities.map((city) => (
-                  <Combobox.Option
-                    key={city.id}
-                    value={city}
-                    className={({ active }: { active: boolean }) =>
-                      `relative cursor-pointer select-none py-2 px-3 ${
-                        active ? 'bg-indigo-50 text-black' : 'text-gray-900'
-                      }`
-                    }
-                  >
-                    {`${city.name}, ${city.countryName}`}
-                  </Combobox.Option>
-                ))}
-                {departureCities.length === 0 && departureQuery !== '' && (
-                  <div className="py-2 px-3 text-gray-500">No cities found</div>
-                )}
-              </Combobox.Options>
+              <div className="relative w-full">
+                <Combobox.Input
+                  className="w-full h-10 px-3 pr-10 text-base border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black"
+                  displayValue={(city: any) => city ? `${city.name}, ${city.countryName}` : ''}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDepartureQuery(event.target.value)}
+                  placeholder="Enter city or country name"
+                  autoComplete="off"
+                  spellCheck="false"
+                  aria-autocomplete="none"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                  {departureQuery && !isLoadingLocationsLookup ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setDepartureQuery('');
+                        setDebouncedDepartureQuery('');
+                        setSelectedDepartureCity(null);
+                        // Ensure input field is cleared
+                        const parent = e.currentTarget.closest('.relative');
+                        if (parent) {
+                          const input = parent.querySelector('input');
+                          if (input) {
+                            input.value = '';
+                            input.focus();
+                          }
+                        }
+                      }}
+                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      <XCircleIcon className="h-5 w-5" aria-hidden="true" />
+                      <span className="sr-only">Clear input</span>
+                    </button>
+                  ) : (
+                    <ChevronUpDownIcon
+                      className="h-5 w-5 text-gray-400"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+              </div>
+              
+              <Transition
+                as={Fragment}
+                leave="transition ease-in duration-100"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
+                afterLeave={() => {
+                  // Only clear the query if no city was selected
+                  if (!selectedDepartureCity) {
+                    setDepartureQuery('');
+                  }
+                }}
+              >
+                <Combobox.Options className="absolute z-10 w-full mt-1 bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200">
+                  {isLoadingLocationsLookup && (
+                    <div className="py-2 px-3 text-sm text-gray-500 flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Loading cities...
+                    </div>
+                  )}
+                  
+                  {!isLoadingLocationsLookup && departureCities.length === 0 && departureQuery !== '' && (
+                    <div className="py-2 px-3 text-gray-500">No cities found</div>
+                  )}
+                  
+                  {!isLoadingLocationsLookup && departureCities.map((city) => (
+                    <Combobox.Option
+                      key={city.id}
+                      value={city}
+                      className={({ active }) =>
+                        `relative cursor-default select-none py-2 px-3 ${
+                          active ? 'bg-indigo-50 text-black' : 'text-gray-900'
+                        }`
+                      }
+                    >
+                      {({ selected, active }) => (
+                        <>
+                          <div className="flex items-center">
+                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                              {highlightMatch(city.name, departureQuery)},&nbsp;
+                              <span className="text-gray-500">{city.countryName}</span>
+                            </span>
+                          </div>
+                          
+                          {selected && (
+                            <span
+                              className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
+                                active ? 'text-indigo-600' : 'text-indigo-500'
+                              }`}
+                            >
+                              <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Combobox.Option>
+                  ))}
+                </Combobox.Options>
+              </Transition>
             </div>
           </Combobox>
-          {isLoadingLocationsLookup && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
-          {locationLookupError && <p className="text-xs text-red-600 mt-1">{locationLookupError}</p>}
+          {locationLookupError && (
+            <p className="text-xs text-red-600 mt-1">{locationLookupError}</p>
+          )}
         </div>
 
         {/* Destination Dropdown */}

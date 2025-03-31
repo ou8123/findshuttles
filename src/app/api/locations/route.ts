@@ -13,11 +13,15 @@ export async function GET(request: Request) {
 
     // If there's a search query, perform an optimized search directly on cities
     if (searchQuery && searchQuery.length >= 2) {
-      // Search in both city names and country names
+      // Enhanced search with better prioritization for autocomplete
       const cities = await prisma.city.findMany({
         where: {
           OR: [
+            // Priority 1: City names that start with the query (best match for autocomplete)
+            { name: { startsWith: searchQuery, mode: 'insensitive' } },
+            // Priority 2: City names that contain the query
             { name: { contains: searchQuery, mode: 'insensitive' } },
+            // Priority 3: Country names that contain the query
             { country: { name: { contains: searchQuery, mode: 'insensitive' } } }
           ],
           // Only include departure cities if the flag is set
@@ -34,13 +38,32 @@ export async function GET(request: Request) {
             }
           }
         },
-        orderBy: { name: 'asc' },
         take: limit
       });
+      
+      // Custom sorting for autocomplete relevance
+      const sortedCities = cities.sort((a, b) => {
+        const aNameLower = a.name.toLowerCase();
+        const bNameLower = b.name.toLowerCase();
+        const queryLower = searchQuery.toLowerCase();
+        
+        // First priority: exact matches
+        if (aNameLower === queryLower && bNameLower !== queryLower) return -1;
+        if (bNameLower === queryLower && aNameLower !== queryLower) return 1;
+        
+        // Second priority: starts with query
+        const aStartsWith = aNameLower.startsWith(queryLower);
+        const bStartsWith = bNameLower.startsWith(queryLower);
+        if (aStartsWith && !bStartsWith) return -1;
+        if (bStartsWith && !aStartsWith) return 1;
+        
+        // Third priority: alphabetical order
+        return aNameLower.localeCompare(bNameLower);
+      });
 
-      // Group cities by country for consistent response format
+      // Group sorted cities by country for consistent response format
       const countryMap = new Map();
-      cities.forEach(city => {
+      sortedCities.forEach(city => {
         if (!countryMap.has(city.country.id)) {
           countryMap.set(city.country.id, {
             id: city.country.id,
