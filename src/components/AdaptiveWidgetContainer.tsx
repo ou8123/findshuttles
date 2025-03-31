@@ -5,141 +5,195 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 interface AdaptiveWidgetContainerProps {
   children: ReactNode;
   className?: string;
-  minHeight?: number;
-  maxHeight?: number;
+  initialHeight?: number;
 }
 
 /**
- * AdaptiveWidgetContainer
+ * Exact-Fit Widget Container
  * 
- * A container component that adapts to its content while maintaining stability.
- * Unlike a fixed height container, this observes content size changes and
- * smoothly adjusts its height while preventing layout thrashing.
- * 
- * Now with optimized speed and device-specific adjustments.
+ * A container component that adapts to the EXACT height of its content.
+ * Unlike other approaches, this container will expand to match content precisely
+ * with no scrolling or height constraints.
  */
 const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
   children,
   className = '',
-  minHeight, // Allow override but use sensible defaults
-  maxHeight, // Allow override but use sensible defaults
+  initialHeight = 200, // Just a starting point, will quickly adjust to actual content
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const [isStabilized, setIsStabilized] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [containerHeight, setContainerHeight] = useState(initialHeight);
+  const [measureAttempts, setMeasureAttempts] = useState(0);
   
-  // Detect mobile devices
-  useEffect(() => {
-    // Check if we're on a mobile device
-    const checkMobile = () => {
-      const isMobileDevice = window.innerWidth < 768 || 
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      setIsMobile(isMobileDevice);
-    };
-    
-    // Initial check
-    checkMobile();
-    
-    // Re-check on resize
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  // Determine device-specific settings
-  const deviceMinHeight = minHeight || (isMobile ? 450 : 380);  
-  const deviceMaxHeight = maxHeight || (isMobile ? 600 : 520); // Much more conservative max heights
-  const heightPadding = isMobile ? 40 : 10; // More padding on mobile, but not too much
-  const transitionSpeed = '0.15s'; // Fast transitions for both
-  
-  // Set initial height
-  useEffect(() => {
-    setContainerHeight(deviceMinHeight);
-  }, [deviceMinHeight, isMobile]); 
-
-  // Setup resize observation for the content
+  // Highly aggressive content measurement
   useEffect(() => {
     if (!contentRef.current) return;
     
-    let stabilityTimeout: ReturnType<typeof setTimeout>;
-    let initialMeasureTimeout: ReturnType<typeof setTimeout>;
+    // Track all timers for cleanup
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let observer: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+    let isComponentMounted = true;
     
-    // Immediately take an initial measurement for faster startup
-    const immediateHeight = contentRef.current.scrollHeight;
-    if (immediateHeight > 0) {
-      // Use the lower of content height or max height + a small buffer
-      const constrainedHeight = Math.max(
-        deviceMinHeight,
-        Math.min(deviceMaxHeight, Math.min(immediateHeight + heightPadding, 500))
-      );
-      setContainerHeight(constrainedHeight);
-    }
+    // Main measurement function - get most accurate height possible
+    const measureContentHeight = () => {
+      if (!contentRef.current || !isComponentMounted) return;
 
-    // Init ResizeObserver to watch content size changes
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        // Get content height (use scrollHeight as backup)
-        const contentHeight = entry.contentRect.height || entry.target.scrollHeight;
-        
-        // Apply strict height constraint
-        const newHeight = Math.max(
-          deviceMinHeight,
-          Math.min(deviceMaxHeight, contentHeight + heightPadding) 
-        );
-        
-        // Update if there's a significant difference
-        if (Math.abs(newHeight - containerHeight) > 20) {
-          setContainerHeight(newHeight);
+      // Get all possible height measurements and use the largest
+      const element = contentRef.current;
+      const scrollHeight = element.scrollHeight || 0;
+      const offsetHeight = element.offsetHeight || 0;
+      const clientHeight = element.clientHeight || 0;
+      const boundingHeight = element.getBoundingClientRect().height || 0;
+      
+      // Check for all nested elements including iframes
+      let maxNestedHeight = 0;
+      const allElements = element.querySelectorAll('*');
+      allElements.forEach(el => {
+        // Include position offsets for absolute positioned elements
+        const rect = el.getBoundingClientRect();
+        const bottomPosition = rect.top + rect.height;
+        if (bottomPosition > maxNestedHeight) {
+          maxNestedHeight = bottomPosition;
         }
-        
-        // Stabilize quickly for all devices
-        if (!isStabilized) {
-          setIsStabilized(true);
-        }
-      }
-    });
-    
-    // Initialize with minimal delay
-    initialMeasureTimeout = setTimeout(() => {
-      if (contentRef.current) {
-        resizeObserver.observe(contentRef.current);
-      }
-    }, 50); // Much faster initial delay
-    
-    // Set timeout to stabilize quickly regardless of measurements
-    stabilityTimeout = setTimeout(() => {
-      if (!isStabilized && contentRef.current) {
-        // Take final measurement before stabilizing
-        const height = contentRef.current.scrollHeight;
-        const constrainedHeight = Math.max(
-          deviceMinHeight, 
-          Math.min(deviceMaxHeight, Math.min(height + heightPadding, 500))
-        );
-        setContainerHeight(constrainedHeight);
-        setIsStabilized(true);
-      }
-    }, 800); // Quick stabilization
-    
-    return () => {
-      resizeObserver.disconnect();
-      clearTimeout(stabilityTimeout);
-      clearTimeout(initialMeasureTimeout);
+      });
+      
+      // Add a small buffer to prevent any chance of scrolling (10px)
+      const bestHeightEstimate = Math.max(
+        scrollHeight,
+        offsetHeight,
+        clientHeight,
+        boundingHeight,
+        maxNestedHeight - (element.getBoundingClientRect().top || 0)
+      ) + 10;
+      
+      setContainerHeight(bestHeightEstimate);
     };
-  }, [containerHeight, deviceMinHeight, deviceMaxHeight, heightPadding, isStabilized]);
+    
+    // Poll content height aggressively during initial load
+    // Starting with rapid measurements, then slowing down
+    const setupPolling = () => {
+      // Immediate measurement
+      measureContentHeight();
+      
+      // Fast sequence of early measurements (captures most content)
+      [50, 100, 250, 500, 1000].forEach((delay, i) => {
+        const timer = setTimeout(() => {
+          measureContentHeight();
+          setMeasureAttempts(prev => prev + 1);
+        }, delay);
+        timers.push(timer);
+      });
+      
+      // Additional measurements over time for slow-loading content
+      [2000, 3000, 4000, 5000].forEach((delay) => {
+        const timer = setTimeout(measureContentHeight, delay);
+        timers.push(timer);
+      });
+      
+      // Final fallback measurements
+      const timer = setTimeout(measureContentHeight, 7000);
+      timers.push(timer);
+    };
+    
+    // Setup resize observer for dynamic changes
+    const setupResizeObserver = () => {
+      observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === contentRef.current) {
+            measureContentHeight();
+          }
+        }
+      });
+      
+      if (contentRef.current) {
+        observer.observe(contentRef.current);
+      }
+    };
+    
+    // Setup mutation observer to catch DOM changes
+    const setupMutationObserver = () => {
+      mutationObserver = new MutationObserver((mutations) => {
+        // Only trigger for meaningful changes
+        const shouldMeasure = mutations.some(mutation => 
+          mutation.type === 'childList' || 
+          (mutation.type === 'attributes' && 
+           (mutation.attributeName === 'style' || 
+            mutation.attributeName === 'class'))
+        );
+        
+        if (shouldMeasure) {
+          measureContentHeight();
+        }
+      });
+      
+      if (contentRef.current) {
+        mutationObserver.observe(contentRef.current, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['style', 'class']
+        });
+      }
+    };
+    
+    // Special handling for iframes
+    const handleIframes = () => {
+      const iframes = contentRef.current?.querySelectorAll('iframe');
+      if (iframes && iframes.length > 0) {
+        iframes.forEach(iframe => {
+          // Try to add load event if possible
+          try {
+            iframe.addEventListener('load', measureContentHeight);
+          } catch (e) {
+            // Silently fail - cross-origin restrictions
+          }
+        });
+      }
+    };
+    
+    // Initialize all measurement strategies
+    setupPolling();
+    setupResizeObserver();
+    setupMutationObserver();
+    handleIframes();
+    
+    // Additional special case for window resize
+    const handleWindowResize = () => {
+      measureContentHeight();
+    };
+    window.addEventListener('resize', handleWindowResize);
+    
+    // Cleanup
+    return () => {
+      isComponentMounted = false;
+      timers.forEach(timer => clearTimeout(timer));
+      observer?.disconnect();
+      mutationObserver?.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+      
+      const iframes = contentRef.current?.querySelectorAll('iframe');
+      if (iframes && iframes.length > 0) {
+        iframes.forEach(iframe => {
+          try {
+            iframe.removeEventListener('load', measureContentHeight);
+          } catch (e) {
+            // Silently fail
+          }
+        });
+      }
+    };
+  }, []);
   
   return (
     <div 
       ref={containerRef}
-      className={`adaptive-widget-container ${className} ${isStabilized ? 'stable' : 'adapting'}`}
+      className={`adaptive-widget-container ${className}`}
       style={{
         height: `${containerHeight}px`,
-        minHeight: `${deviceMinHeight}px`,
-        maxHeight: `${deviceMaxHeight}px`,
         position: 'relative',
-        overflow: 'hidden',
-        transition: `height ${transitionSpeed} ease-out`, // Faster transitions
-        contain: 'content', // Better containment mode
+        overflow: 'visible', // Allow content to overflow
+        transition: 'height 0.15s ease-out', // Smooth height changes
         margin: '1rem 0',
         borderRadius: '8px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
@@ -155,10 +209,8 @@ const AdaptiveWidgetContainer: React.FC<AdaptiveWidgetContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          height: '100%',
-          overflowY: 'auto', // Always enable scrolling for overflow content
-          overscrollBehavior: 'none', // Prevent bounce effects
-          WebkitOverflowScrolling: 'touch', // Better scrolling on iOS
+          height: 'auto', // Let content determine height
+          overflow: 'visible', // No scrolling, full height display
         }}
       >
         {children}
