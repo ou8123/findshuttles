@@ -144,11 +144,12 @@ export default async function RoutePage(props) {
 
           {/* No dates displayed as per client request */}
 
-          {/* Book Your Shuttle section and widget - remove ALL gaps/margins between sections */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, margin: 0, padding: 0 }}>
-            <div style={{ marginBottom: 0, paddingBottom: 0 }}>
-              <h2 className="text-xl font-semibold mb-0 pb-0">Book Your Shuttle</h2>
-              <div style={{ margin: 0, padding: 0, marginBottom: 0 }}>
+          {/* Content sections with stable layout - no negative margins */}
+          <div className="route-content-sections">
+            {/* Book Your Shuttle section */}
+            <div className="booking-section mb-6">
+              <h2 className="text-xl font-semibold mb-3">Book Your Shuttle</h2>
+              <div style={{ position: 'relative' }} className="widget-container">
                 {route.viatorWidgetCode ? (
                   <ViatorWidgetRenderer 
                     key={`viator-${route.routeSlug}`} 
@@ -160,20 +161,21 @@ export default async function RoutePage(props) {
                 )}
               </div>
             </div>
-   
-            {/* Description section - use negative margin for all routes, but less aggressive */}
-            {route.seoDescription && (
-              <div style={{ 
-                position: 'relative',
-                marginTop: '-10px', /* Less aggressive negative margin */
-                zIndex: 5
-              }}>
-                <h2 className="text-xl font-semibold mb-2 text-black">Route Description</h2>
-                <div className="p-4 bg-white rounded shadow-sm">
-                  <p className="text-black">{route.seoDescription}</p>
-                </div>
-              </div>
-            )}
+            
+            {/* Description section - with stable spacing whether it exists or not */}
+            <div className="description-section my-6">
+              {route.seoDescription ? (
+                <>
+                  <h2 className="text-xl font-semibold mb-3 text-black">Route Description</h2>
+                  <div className="p-4 bg-white rounded shadow-sm">
+                    <p className="text-black">{route.seoDescription}</p>
+                  </div>
+                </>
+              ) : (
+                /* Empty spacer div to maintain consistent layout when no description */
+                <div style={{ height: '20px' }} aria-hidden="true" />
+              )}
+            </div>
 
             {/* Map Display Section - with added margin-top for spacing */}
             {route.departureCity?.latitude && route.departureCity?.longitude &&

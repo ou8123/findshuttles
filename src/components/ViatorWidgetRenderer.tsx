@@ -380,46 +380,63 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       }
     };
     
-    // Measure the iframe's content height with mobile optimizations
+    // Measure the iframe's content height with stability controls
     const measureFrameHeight = () => {
-      // Increment check count for debugging
-      setHeightChecks(prev => prev + 1);
+      // Limit the number of height checks to prevent continuous adjustments
+      setHeightChecks(prev => {
+        // If we've already checked too many times, skip further measurements to prevent loops
+        if (prev > 10) return prev;
+        return prev + 1;
+      });
       
       // Skip if we don't have an iframe reference
       const iframe = iframeRef.current;
       if (!iframe) return;
       
       try {
-        // Mobile-specific measurements
+        // Mobile-specific measurements with more stability
         if (isMobile) {
-          // For mobile, we prioritize viewport fitting and user experience
+          // More conservative approach for mobile
           const viewportHeight = window.innerHeight;
           const boundingRect = iframe.getBoundingClientRect();
           
-          // Use a more conservative approach for mobile to avoid excessive height
-          // Cap the height to a percentage of viewport for better mobile UX
-          const maxMobileHeight = Math.min(viewportHeight * 0.7, 600);
+          // Use smaller percentage and more conservative cap
+          const maxMobileHeight = Math.min(viewportHeight * 0.6, 500);
+          // Ensure minimum height to prevent collapse
+          const minMobileHeight = 300;
           
           if (boundingRect.height > 0) {
-            // On mobile, allow the widget to be smaller than desktop minimum
-            const visibleHeight = Math.max(boundingRect.height, 250);
+            // More conservative height adjustments
+            const visibleHeight = Math.max(boundingRect.height, minMobileHeight);
             
             // Cap at maximum height for mobile viewport
             const newHeight = Math.min(visibleHeight, maxMobileHeight);
             
-            console.log(`Mobile height via getBoundingClientRect: ${newHeight}px`);
-            
-            // Adjust heights
-            iframe.style.height = `${newHeight}px`;
-            setContainerHeight(newHeight);
+            // Only update if significantly different to reduce layout shifts
+            if (Math.abs(newHeight - containerHeight) > 50) {
+              console.log(`Mobile height update: ${newHeight}px`);
+              iframe.style.height = `${newHeight}px`;
+              setContainerHeight(newHeight);
+            }
             return;
           }
           
-          // Fallback for mobile if bounding rect not available
+          // More stable fallback for mobile
           if (iframe.offsetHeight > 0) {
-            const newHeight = Math.min(iframe.offsetHeight + 20, maxMobileHeight);
-            iframe.style.height = `${newHeight}px`;
-            setContainerHeight(newHeight);
+            const newHeight = Math.min(
+              Math.max(iframe.offsetHeight, minMobileHeight),
+              maxMobileHeight
+            );
+            
+            // Only update if necessary
+            if (Math.abs(newHeight - containerHeight) > 50) {
+              iframe.style.height = `${newHeight}px`;
+              setContainerHeight(newHeight);
+            }
+          } else {
+            // Ensure we have at least a minimum height
+            iframe.style.height = `${minMobileHeight}px`;
+            setContainerHeight(minMobileHeight);
           }
           
           return; // Exit early for mobile
