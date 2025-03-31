@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -13,6 +14,24 @@ interface City {
     };
     slug: string;
 }
+
+// Define the expected structure of the location data from the API (for lookup)
+interface CityLookup {
+  id: string;
+  name: string;
+  slug: string;
+  countryName: string; // Flat countryName for lookups
+}
+
+interface CountryWithCitiesLookup {
+  id: string;
+  name: string;
+  slug: string;
+  cities: CityLookup[];
+}
+
+// Define libraries for Google Maps API
+const libraries: ("places")[] = ['places'];
 
 interface RouteData {
     id: string;
@@ -33,6 +52,32 @@ const EditRoutePage = () => {
   const router = useRouter();
   const params = useParams();
   const routeId = params?.routeId as string;
+
+  // Google Maps API setup
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: apiKey || "",
+    libraries: libraries,
+  });
+
+  // State for internal locations lookup data
+  const [locationsLookup, setLocationsLookup] = useState<CountryWithCitiesLookup[]>([]);
+  const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
+  const [locationLookupError, setLocationLookupError] = useState<string | null>(null);
+
+  // State for Autocomplete instances and selected place names/matched cities
+  const [departureAutocomplete, setDepartureAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  const [destinationAutocomplete, setDestinationAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  const [departureName, setDepartureName] = useState<string>('');
+  const [destinationName, setDestinationName] = useState<string>('');
+  const [selectedDepartureCity, setSelectedDepartureCity] = useState<CityLookup | null>(null);
+  const [selectedDestinationCity, setSelectedDestinationCity] = useState<CityLookup | null>(null);
+  const [isCreatingLocation, setIsCreatingLocation] = useState<boolean>(false);
+  const [createLocationError, setCreateLocationError] = useState<string | null>(null);
+  
+  // Refs for inputs
+  const departureInputRef = useRef<HTMLInputElement>(null);
+  const destinationInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [departureCityId, setDepartureCityId] = useState('');
@@ -61,7 +106,31 @@ const EditRoutePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Fetch cities for dropdowns
+  // Fetch internal locations lookup data for Google Places matching
+  useEffect(() => {
+    const fetchLocationsLookup = async () => {
+      setIsLoadingLocationsLookup(true);
+      setLocationLookupError(null);
+      try {
+        const response = await fetch('/api/locations');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data: CountryWithCitiesLookup[] = await response.json();
+        setLocationsLookup(data);
+      } catch (err: unknown) {
+        console.error("Failed to fetch internal locations lookup:", err);
+        let message = "Could not load location data.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setLocationLookupError(message);
+      } finally {
+        setIsLoadingLocationsLookup(false);
+      }
+    };
+    fetchLocationsLookup();
+  }, []);
+
+  // Fetch cities for dropdowns (legacy)
   useEffect(() => {
     const fetchCities = async () => {
       setIsLoadingCities(true);
@@ -84,6 +153,211 @@ const EditRoutePage = () => {
     };
     fetchCities();
   }, []);
+
+  // --- Autocomplete Helper ---
+  const findMatchingCity = (placeName: string): CityLookup | null => {
+    const nameLower = placeName.trim().toLowerCase();
+    for (const country of locationsLookup) {
+      const cityMatch = country.cities.find(city => city.name.trim().toLowerCase() === nameLower);
+      if (cityMatch) {
+        return cityMatch;
+      }
+    }
+    return null;
+  };
+
+  // --- Helper to call the find-or-create API ---
+  const handleFindOrCreateLocation = async (
+    place: google.maps.places.PlaceResult,
+    setter: (city: CityLookup | null) => void
+  ): Promise<CityLookup | null> => {
+    console.log("Full place object:", place);
+    console.log("Address components:", place.address_components);
+    console.log("Geometry:", place.geometry);
+
+    if (!place.address_components) {
+      setCreateLocationError('Selected place is missing required details (address components).');
+      return null;
+    }
+
+    // Extract city and country from address components
+    let cityName = '';
+    let countryName = '';
+    
+    // Log each component for debugging
+    place.address_components.forEach(component => {
+      console.log("Component:", {
+        long_name: component.long_name,
+        short_name: component.short_name,
+        types: component.types
+      });
+    });
+
+    // Try multiple component types for city name
+    for (const component of place.address_components) {
+      if (component.types.includes('locality')) {
+        cityName = component.long_name;
+      } else if (!cityName && component.types.includes('administrative_area_level_1')) {
+        // Use administrative_area_level_1 as fallback for city name
+        cityName = component.long_name;
+      }
+      
+      if (component.types.includes('country')) {
+        countryName = component.long_name;
+      }
+    }
+
+    // If still no city name, try using the place name
+    if (!cityName && place.name) {
+      console.log("Using place name as city name:", place.name);
+      cityName = place.name;
+    }
+
+    // Extract coordinates if available
+    const latitude = place.geometry?.location?.lat();
+    const longitude = place.geometry?.location?.lng();
+
+    console.log("Extracted data:", {
+      cityName,
+      countryName,
+      latitude,
+      longitude
+    });
+
+    if (!cityName || !countryName) {
+      setCreateLocationError(`Could not extract city or country name for "${place.name}".`);
+      console.error("Missing city/country components:", place.address_components);
+      return null;
+    }
+
+    setIsCreatingLocation(true);
+    setCreateLocationError(null);
+    setSubmitStatus(null);
+
+    // Prepare payload including coordinates
+    const payload = {
+      cityName,
+      countryName,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null
+    };
+
+    console.log("Sending payload to API:", payload);
+
+    try {
+      const response = await fetch('/api/admin/locations/find-or-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      console.log("API response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to find or create location (HTTP ${response.status})`);
+      }
+
+      const createdCity: CityLookup = result;
+      setter(createdCity);
+      
+      // Also update the corresponding ID field for form submission
+      if (setter === setSelectedDepartureCity) {
+        setDepartureCityId(createdCity.id);
+      } else if (setter === setSelectedDestinationCity) {
+        setDestinationCityId(createdCity.id);
+      }
+      
+      console.log(`Successfully found/created and set city: ${createdCity.name}`);
+      return createdCity;
+
+    } catch (error: unknown) {
+      console.error("Error in handleFindOrCreateLocation:", error);
+      let message = "Failed to add the selected location to the database.";
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      setCreateLocationError(message);
+      setter(null);
+      return null;
+    } finally {
+      setIsCreatingLocation(false);
+    }
+  };
+
+  // --- Autocomplete Handlers ---
+  const onDepartureLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    console.log("Departure autocomplete loaded");
+    setDepartureAutocomplete(autocomplete);
+  };
+
+  const onDestinationLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    console.log("Destination autocomplete loaded");
+    setDestinationAutocomplete(autocomplete);
+  };
+
+  const onDeparturePlaceChanged = async () => {
+    setSelectedDepartureCity(null);
+    setCreateLocationError(null);
+    if (departureAutocomplete !== null) {
+      const place = departureAutocomplete.getPlace();
+      console.log("Departure place selected:", place);
+      if (place?.name) {
+        const selectedName = place.name;
+        setDepartureName(selectedName);
+        const matchedCity = findMatchingCity(selectedName);
+        if (matchedCity) {
+          setSelectedDepartureCity(matchedCity);
+          setDepartureCityId(matchedCity.id);
+          console.log("Matched Departure City:", matchedCity);
+        } else {
+          console.warn(`Selected departure "${selectedName}" not found in internal data. Attempting to find or create...`);
+          await handleFindOrCreateLocation(place, setSelectedDepartureCity);
+        }
+      } else {
+        setDepartureName('');
+      }
+    }
+  };
+
+  const onDestinationPlaceChanged = async () => {
+    setSelectedDestinationCity(null);
+    setCreateLocationError(null);
+    if (destinationAutocomplete !== null) {
+      const place = destinationAutocomplete.getPlace();
+      console.log("Destination place selected:", place);
+      if (place?.name) {
+        const selectedName = place.name;
+        setDestinationName(selectedName);
+        const matchedCity = findMatchingCity(selectedName);
+        if (matchedCity) {
+          setSelectedDestinationCity(matchedCity);
+          setDestinationCityId(matchedCity.id);
+          console.log("Matched Destination City:", matchedCity);
+        } else {
+          console.warn(`Selected destination "${selectedName}" not found in internal data. Attempting to find or create...`);
+          await handleFindOrCreateLocation(place, setSelectedDestinationCity);
+        }
+      } else {
+        setDestinationName('');
+      }
+    }
+  };
+
+  // Handle manual input clearing
+  const handleDepartureInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.value === '') {
+      setDepartureName('');
+      setSelectedDepartureCity(null);
+    }
+  };
+
+  const handleDestinationInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.value === '') {
+      setDestinationName('');
+      setSelectedDestinationCity(null);
+    }
+  };
 
   // Update route slug when cities change
   useEffect(() => {
@@ -118,6 +392,36 @@ const EditRoutePage = () => {
       }
     }
   }, [departureCityId, destinationCityId, cities, isSlugCustomized, isDisplayNameCustomized]);
+
+  // Set initial autocomplete input values when cities are loaded
+  useEffect(() => {
+    if (cities.length && departureCityId && destinationCityId) {
+      const departureCity = cities.find(c => c.id === departureCityId);
+      const destinationCity = cities.find(c => c.id === destinationCityId);
+      
+      if (departureCity && departureInputRef.current) {
+        departureInputRef.current.value = `${departureCity.name}, ${departureCity.country.name}`;
+        // Create a CityLookup object from the City object
+        setSelectedDepartureCity({
+          id: departureCity.id,
+          name: departureCity.name,
+          slug: departureCity.slug,
+          countryName: departureCity.country.name
+        });
+      }
+      
+      if (destinationCity && destinationInputRef.current) {
+        destinationInputRef.current.value = `${destinationCity.name}, ${destinationCity.country.name}`;
+        // Create a CityLookup object from the City object  
+        setSelectedDestinationCity({
+          id: destinationCity.id,
+          name: destinationCity.name,
+          slug: destinationCity.slug,
+          countryName: destinationCity.country.name
+        });
+      }
+    }
+  }, [cities, departureCityId, destinationCityId]);
 
   // Fetch the specific route data
   useEffect(() => {
@@ -279,9 +583,9 @@ const EditRoutePage = () => {
         seoDescription: currentSeoDesc
       });
 
-      // Only redirect if specified
+      // Only redirect if specified - Use stealth URL path
       if (shouldRedirect) {
-        router.push('/admin/routes');
+        router.push('/management-portal-8f7d3e2a1c/routes');
       }
 
     } catch (error: unknown) {
@@ -296,13 +600,23 @@ const EditRoutePage = () => {
     }
   };
 
-  if (isLoadingRoute || isLoadingCities) {
+  if (isLoadingRoute || isLoadingCities || isLoadingLocationsLookup) {
     return <div className="text-center p-4">Loading data...</div>;
+  }
+  if (loadError) {
+    console.error("Google Maps API load error:", loadError);
+    return <div className="text-center p-4 text-red-600">Error loading Google Maps services.</div>;
+  }
+  if (!isLoaded) {
+    return <div className="text-center p-4">Loading Map Services...</div>;
+  }
+  if (!apiKey) {
+    return <div className="text-center p-4 text-red-600">Configuration error: Google Maps API Key is missing.</div>;
   }
   if (error) {
     return (
         <div>
-             <Link href="/admin/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+             <Link href="/management-portal-8f7d3e2a1c/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
                 &larr; Back to Routes
             </Link>
             <p className="text-center p-4 text-red-600">{error}</p>
@@ -315,53 +629,64 @@ const EditRoutePage = () => {
 
   return (
     <div>
-      <Link href="/admin/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+      <Link href="/management-portal-8f7d3e2a1c/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
         &larr; Back to Routes
       </Link>
       <h1 className="text-2xl font-bold mb-6">Edit Route</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-lg bg-white p-6 rounded-lg shadow-md">
-        {/* Departure City Dropdown */}
+        {/* Departure City Autocomplete */}
         <div>
-          <label htmlFor="route-departure" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="admin-departure" className="block text-sm font-medium text-gray-700 mb-1">
             Departure City *
           </label>
-           <select
-              id="route-departure"
-              value={departureCityId}
-              onChange={(e) => setDepartureCityId(e.target.value)}
-              required
+          <Autocomplete
+            onLoad={onDepartureLoad}
+            onPlaceChanged={onDeparturePlaceChanged}
+            options={{ types: ['(cities)'] }}
+          >
+            <input
+              id="admin-departure"
+              type="text"
+              ref={departureInputRef}
+              required={!selectedDepartureCity}
+              placeholder="Enter departure city"
               className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-            >
-              <option value="" disabled>Select Departure</option>
-              {cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name} ({city.country.name})
-                </option>
-              ))}
-            </select>
+              onChange={handleDepartureInputChange}
+            />
+          </Autocomplete>
+          {departureName && !selectedDepartureCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{departureName}&quot; not found in our system.</p>}
+          {selectedDepartureCity && <p className="text-xs text-green-600 mt-1">Selected: {selectedDepartureCity.name}, {selectedDepartureCity.countryName} (ID: {selectedDepartureCity.id})</p>}
         </div>
 
-        {/* Destination City Dropdown */}
+        {/* Destination City Autocomplete */}
         <div>
-          <label htmlFor="route-destination" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="admin-destination" className="block text-sm font-medium text-gray-700 mb-1">
             Destination City *
           </label>
-           <select
-              id="route-destination"
-              value={destinationCityId}
-              onChange={(e) => setDestinationCityId(e.target.value)}
-              required
+          <Autocomplete
+            onLoad={onDestinationLoad}
+            onPlaceChanged={onDestinationPlaceChanged}
+            options={{ types: ['(cities)'] }}
+          >
+            <input
+              id="admin-destination"
+              type="text"
+              ref={destinationInputRef}
+              required={!selectedDestinationCity}
+              placeholder="Enter destination city"
               className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-            >
-              <option value="" disabled>Select Destination</option>
-              {cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name} ({city.country.name})
-                </option>
-              ))}
-            </select>
+              onChange={handleDestinationInputChange}
+            />
+          </Autocomplete>
+          {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{destinationName}&quot; not found in our system.</p>}
+          {selectedDestinationCity && <p className="text-xs text-green-600 mt-1">Selected: {selectedDestinationCity.name}, {selectedDestinationCity.countryName} (ID: {selectedDestinationCity.id})</p>}
         </div>
+
+        {/* Status messages for location finding/creation */}
+        {isCreatingLocation && <p className="text-sm text-blue-600 mt-1">Adding selected location to database...</p>}
+        {createLocationError && <p className="text-sm text-red-600 mt-1">{createLocationError}</p>}
+        {locationLookupError && <p className="text-sm text-red-500 mt-1">{locationLookupError}</p>}
 
         {/* Display Name */}
         <div>
@@ -577,7 +902,7 @@ const EditRoutePage = () => {
               {isSubmitting ? 'Saving...' : 'Save & Close'}
             </button>
             
-            {/* View button - opens route in new tab */}
+            {/* View button - opens route in new tab using public URL */}
             <a
               href={originalData ? `/routes/${routeSlug}` : '#'}
               target="_blank"
@@ -589,7 +914,7 @@ const EditRoutePage = () => {
                 }
               }}
             >
-              View
+              View Public
             </a>
           </div>
         </div>
