@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getSecureAdminPath } from '@/middleware'; // Import the helper function
 
 interface Route {
     id: string;
@@ -258,6 +259,10 @@ const RouteList = () => {
                         {routes.map((route) => {
                             const routeDesc = `${route.departureCity.name} - ${route.destinationCity.name}`;
                             const isDeleting = deleteStatus?.id === route.id;
+                            
+                            // Use the secure admin path for the edit link
+                            const secureEditPath = getSecureAdminPath(`/admin/routes/edit/${route.id}`);
+                            
                             return (
                                 <tr key={route.id} className={isDeleting ? 'opacity-50' : ''}>
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
@@ -274,7 +279,7 @@ const RouteList = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                         <Link 
-                                            href={`/admin/routes/edit/${route.id}`} 
+                                            href={secureEditPath} 
                                             className={`text-indigo-600 hover:text-indigo-900 ${isDeleting ? 'pointer-events-none' : ''}`}
                                         >
                                             Edit
