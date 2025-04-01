@@ -4,6 +4,64 @@ import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
+// Common route selection fields for consistent data shape
+const routeSelect = {
+  id: true,
+  departureCityId: true,
+  destinationCityId: true,
+  departureCountryId: true,
+  destinationCountryId: true,
+  routeSlug: true,
+  displayName: true,
+  viatorWidgetCode: true,
+  metaTitle: true,
+  metaDescription: true,
+  metaKeywords: true,
+  seoDescription: true,
+  departureCity: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      country: {
+        select: {
+          id: true,
+          name: true,
+          slug: true
+        }
+      }
+    }
+  },
+  destinationCity: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      country: {
+        select: {
+          id: true,
+          name: true,
+          slug: true
+        }
+      }
+    }
+  },
+  departureCountry: {
+    select: {
+      id: true,
+      name: true,
+      slug: true
+    }
+  },
+  destinationCountry: {
+    select: {
+      id: true,
+      name: true,
+      slug: true
+    }
+  }
+};
+
 interface UpdateRouteData {
   departureCityId: string;
   destinationCityId: string;
@@ -158,6 +216,35 @@ export async function PUT(request: Request, context: any) {
       }
     }
     return NextResponse.json({ error: 'Failed to update route' }, { status: 500 });
+  }
+}
+
+export async function GET(request: Request, context: any) {
+  const params = context.params as { routeId: string };
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { routeId } = params;
+
+  try {
+    const route = await prisma.route.findUnique({
+      where: { id: routeId },
+      select: routeSelect
+    });
+
+    if (!route) {
+      return NextResponse.json({ error: 'Route not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(route);
+  } catch (error) {
+    console.error(`Admin Route GET Error (ID: ${routeId}):`, error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to fetch route',
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }
 

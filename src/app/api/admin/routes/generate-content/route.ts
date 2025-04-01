@@ -111,8 +111,26 @@ function preprocessAdditionalInstructions(input: string): string {
 
 export async function POST(request: Request) {
   try {
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OpenAI API key is not configured');
+      return NextResponse.json(
+        { error: 'Content generation service is not properly configured' },
+        { status: 503 }
+      );
+    }
+
     // Parse the request body once to get all needed variables
-    const requestData = await request.json();
+    let requestData;
+    try {
+      requestData = await request.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      );
+    }
     
     // We need to fetch the city and country names from the database using the IDs
     const { 
