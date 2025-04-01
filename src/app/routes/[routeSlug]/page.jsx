@@ -140,7 +140,7 @@ export default async function RoutePage({ params }) {
           width: '100vw', 
           marginLeft: 'calc(-50vw + 50%)',
           marginRight: 'calc(-50vw + 50%)',
-          marginTop: '-8px', // Negative margin to eliminate gap and make it flush with header
+          marginTop: '-12px', // Increased negative margin to ensure it's flush with header
           position: 'relative', // Ensure proper stacking context
         }}>
           <div className="py-10 px-4">
