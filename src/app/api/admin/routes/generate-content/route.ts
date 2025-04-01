@@ -272,6 +272,7 @@ Hotels Served:
 - Use only **neutral, third-person language**
 - Do not use vague phrases like "affiliate service," "luxury," or "top-rated"
 - Avoid any operator brand names or external platforms (e.g., Viator, GetYourGuide)
+- When referring to BookShuttles.com, use "BookShuttles.com connects travelers to..." rather than saying "BookShuttles.com offers..." to accurately reflect that the platform connects users with local shuttle providers
 - Prioritize useful, factual, and readable travel content
 - Maintain clear paragraph structure for SEO and readability
 - Be human-like and informative — avoid sounding overly robotic or overly promotional
