@@ -13,6 +13,7 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["bcrypt"]
+  included_files = ["prisma/**"]
 
 [[headers]]
   for = "/api/*"
@@ -20,6 +21,19 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "X-Requested-With, Content-Type, Authorization"
+    Access-Control-Allow-Credentials = "true"
+
+[[redirects]]
+  from = "/api/auth/*"
+  to = "/.netlify/functions/next_server"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/locations"
+  to = "/.netlify/functions/next_server"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/admin/*"

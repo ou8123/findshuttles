@@ -9,6 +9,17 @@ const nextConfig = {
       bodySizeLimit: '2mb'
     }
   },
+  // Configure headers for Netlify
+  headers: async () => [
+    {
+      source: '/api/:path*',
+      headers: [
+        { key: 'Access-Control-Allow-Origin', value: '*' },
+        { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
+        { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+      ],
+    },
+  ],
   // Configure route rewrites for Netlify
   rewrites: async () => {
     return {
@@ -17,25 +28,21 @@ const nextConfig = {
         {
           source: '/admin/:path*',
           destination: '/admin/:path*',
-          has: [
-            {
-              type: 'header',
-              key: 'x-netlify',
-              value: '1'
-            }
-          ]
         },
         // API routes
         {
           source: '/api/:path*',
           destination: '/api/:path*',
-          has: [
-            {
-              type: 'header',
-              key: 'x-netlify',
-              value: '1'
-            }
-          ]
+        },
+        // Auth routes
+        {
+          source: '/api/auth/:path*',
+          destination: '/api/auth/:path*',
+        },
+        // Locations API
+        {
+          source: '/api/locations',
+          destination: '/api/locations',
         }
       ]
     }
