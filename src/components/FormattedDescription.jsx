@@ -132,17 +132,21 @@ const FormattedDescription = ({ text, className = '' }) => {
           }
         }
       } else {
-        // Regular paragraph text
-        result.push(
-          <p key={`para-${sectionIndex}`} className="mb-4">
-            {section.split('\n').map((line, i, arr) => (
-              <React.Fragment key={`line-${sectionIndex}-${i}`}>
-                {line}
-                {i < arr.length - 1 && <br />}
-              </React.Fragment>
-            ))}
-          </p>
-        );
+  // Regular paragraph text - explicitly create paragraphs
+  // and handle internal line breaks with <br> elements
+  const lines = section.split('\n');
+  if (lines.length > 0) {
+    result.push(
+      <p key={`para-${sectionIndex}`} className="mb-4 whitespace-normal">
+        {lines.map((line, i, arr) => (
+          <React.Fragment key={`line-${sectionIndex}-${i}`}>
+            {line}
+            {i < arr.length - 1 && <br />}
+          </React.Fragment>
+        ))}
+      </p>
+    );
+  }
       }
       
       sectionIndex++;
@@ -177,7 +181,7 @@ const FormattedDescription = ({ text, className = '' }) => {
   };
 
   return (
-    <div className={`${className} whitespace-pre-line`}>
+    <div className={className}>
       {formatContent(text)}
     </div>
   );
