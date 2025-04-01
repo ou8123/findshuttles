@@ -17,7 +17,7 @@ interface ViatorSimpleWidgetProps {
 const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
   widgetCode,
   className = '',
-  minHeight = 450, // Default taller to avoid scrollbars
+  minHeight = 240, // Smaller default height as requested
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);

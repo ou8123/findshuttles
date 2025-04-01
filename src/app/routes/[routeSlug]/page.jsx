@@ -168,7 +168,7 @@ export default async function RoutePage({ params }) {
                   key={`viator-${route.routeSlug}`} 
                   widgetCode={route.viatorWidgetCode}
                   className="w-full"
-                  minHeight={450}
+                  minHeight={240}
                 />
               ) : (
                 <div className="flex items-center justify-center h-64 bg-gray-50 border border-gray-200 rounded">
