@@ -626,7 +626,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
       <button
         type="submit"
         disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
-        className={`w-full mt-4 bg-[#038768] !bg-[#038768] text-white rounded hover:bg-[#004d3b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#038768] disabled:bg-gray-400 disabled:text-gray-100 disabled:cursor-not-allowed transition-colors duration-200 ${
+        className={`w-full mt-4 bg-[#038768] !bg-[#038768] text-white rounded hover:bg-[#004d3b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#038768] disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200 ${
           isMobile ? 'py-3 px-4 text-lg' : 'py-2 px-4 text-base'
         }`}
         style={{ backgroundColor: '#038768' }}
