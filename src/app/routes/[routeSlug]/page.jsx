@@ -132,15 +132,25 @@ export default async function RoutePage({ params }) {
 
   return (
     <AutoScroller scrollToSelector="#route-content">
-      <div>
-        {/* Search form with single shadow box - no extra container styling */}
-        <div id="search-form-container" className="mb-8 relative">
-          <SearchForm 
-            className="rounded-lg shadow-md max-w-2xl mx-auto !block" 
-          />
+      {/* Main container with standard width */}
+      <div className="container mx-auto">
+        {/* Search form with green background - full width with no border */}
+        <div id="search-form-container" style={{ 
+          backgroundColor: '#004d3b', 
+          width: '100vw', 
+          marginLeft: 'calc(-50vw + 50%)',
+          marginRight: 'calc(-50vw + 50%)',
+          marginTop: '0px', // Set to 0 to align with the header bottom consistently
+        }}>
+          <div className="py-10 px-4">
+            <SearchForm 
+              className="rounded-lg shadow-md max-w-2xl mx-auto !block" 
+            />
+          </div>
         </div>
 
-        <div id="route-content" className="scroll-mt-4 mt-12">
+        {/* Content area with standard width */}
+        <div id="route-content" className="scroll-mt-4 mt-12 px-4">
           <h1 className="text-3xl font-bold mb-4">
             {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
           </h1>

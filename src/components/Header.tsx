@@ -1,11 +1,23 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 const Header = () => {
   return (
-    <header className="bg-gray-800 text-white p-4 shadow-md">
-      <nav className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold hover:text-gray-300">
-          Shuttle Finder
+    <header className="bg-white text-[#004d3b] px-2 pt-3 pb-0 shadow-md">
+      <nav className="container mx-auto flex justify-between items-end px-1 pb-0">
+        <Link href="/" className="flex items-end hover:opacity-90 transition-opacity -ml-1 mb-0">
+          <img 
+            src="/images/BookShuttles.com-Logo.png" 
+            alt="Book Shuttles Logo" 
+            style={{ 
+              height: '60px', /* 20% larger height */
+              width: 'auto',  /* Auto width to maintain aspect ratio */
+              objectFit: 'contain',
+              objectPosition: 'bottom', /* Align to bottom */
+              marginRight: 'auto',
+              marginBottom: '-1px' /* Negative margin to overlap with green area */
+            }}
+          />
         </Link>
         {/* No visible login or admin links for better security */}
       </nav>
