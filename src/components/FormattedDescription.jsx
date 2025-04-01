@@ -4,12 +4,12 @@
 import React from 'react';
 
 /**
- * FormattedDescription Component
+ * FormattedDescription Component - Completely Revised for Netlify Compatibility
  * 
  * This component transforms plain text descriptions into formatted HTML:
- * - Converts paragraphs (separated by double newlines) into proper <p> tags
- * - Detects "Cities Served:" and "Hotels Served:" sections and converts them to HTML lists
- * - Preserves formatting while ensuring proper display
+ * - Uses dangerouslySetInnerHTML for consistent cross-platform rendering
+ * - Handles paragraphs, time estimates, and lists properly
+ * - Ensures proper display in both local and production environments
  * 
  * @param {Object} props Component props
  * @param {string} props.text The plain text to format
@@ -22,168 +22,110 @@ const FormattedDescription = ({ text, className = '' }) => {
     return <div className={className}></div>;
   }
 
-  // Function to parse and format the text
-  const formatContent = (content) => {
-    // Normalize newlines and ensure consistency
-    const normalizedText = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Process text to HTML once - more reliable than JSX transformation
+  const processedHtml = React.useMemo(() => {
+    // Normalize line endings
+    let processedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     
-    // Initial split into sections, preserving empty lines that might be paragraph breaks
-    const sections = normalizedText.split(/\n\n+/);
+    // Extract time estimate if present at the beginning
+    let timeEstimateHtml = '';
+    const timeEstimateMatch = processedText.match(/^(🕒.*?)(?:\n\n|\n|$)/);
     
-    // Process each section and track when we're in list mode
-    let inCitiesList = false;
-    let inHotelsList = false;
-    let currentListItems = [];
-    
-    // Result array that will hold all the processed JSX elements
-    const result = [];
-    let sectionIndex = 0;
-    
-    // Check if the first section is a time estimate
-    if (sections.length > 0 && sections[0].trim().startsWith('🕒')) {
-      // Make the time estimate bold
-      result.push(
-        <p key="time-estimate" className="font-bold mb-4">
-          {sections[0]}
-        </p>
-      );
-      // Remove the time estimate from sections to process
-      sections.shift();
+    if (timeEstimateMatch) {
+      const timeEstimate = timeEstimateMatch[1].trim();
+      timeEstimateHtml = `<p class="font-bold mb-4">${timeEstimate}</p>`;
+      
+      // Remove the time estimate from the text
+      processedText = processedText.replace(timeEstimateMatch[0], '').trim();
     }
     
-    for (const section of sections) {
-      // Skip empty sections
-      if (section.trim() === '') {
-        continue;
-      }
+    // Split into main parts - text content and any lists at the end
+    let mainContent = '';
+    let citiesListHtml = '';
+    let hotelsListHtml = '';
+    
+    // Check for cities/hotels lists at the end
+    const citiesMatch = processedText.match(/Cities Served:[\s\S]*?(?=\n\n|\n?Hotels Served:|\n?$)/);
+    const hotelsMatch = processedText.match(/Hotels Served:[\s\S]*?$/);
+    
+    // If lists exist, extract them and remove from main content
+    if (citiesMatch) {
+      const citiesList = citiesMatch[0];
+      processedText = processedText.replace(citiesList, '').trim();
       
-      // Handle section transition back to regular text
-      if ((inCitiesList || inHotelsList) && !section.trim().startsWith('-')) {
-        // End the current list
-        if (inCitiesList) {
-          result.push(
-            <div key={`cities-list-${sectionIndex}`} className="my-4">
-              <h3 className="font-bold mb-2">Cities Served:</h3>
-              <ul className="list-disc pl-8 space-y-1">
-                {currentListItems.map((item, i) => (
-                  <li key={`city-${i}`}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          );
-          inCitiesList = false;
-        } else if (inHotelsList) {
-          result.push(
-            <div key={`hotels-list-${sectionIndex}`} className="my-4">
-              <h3 className="font-bold mb-2">Hotels Served:</h3>
-              <ul className="list-disc pl-8 space-y-1">
-                {currentListItems.map((item, i) => (
-                  <li key={`hotel-${i}`}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          );
-          inHotelsList = false;
-        }
-        currentListItems = [];
-      }
+      // Process city list items
+      const cityItems = citiesList.replace('Cities Served:', '')
+        .trim()
+        .split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(line => line.trim().substring(1).trim())
+        .filter(item => item);
       
-      // Check for list headers first
-      if (section.trim().startsWith('Cities Served:')) {
-        // Start collecting city list items
-        inCitiesList = true;
-        inHotelsList = false;
-        currentListItems = [];
+      if (cityItems.length > 0) {
+        citiesListHtml = `
+          <div class="my-4">
+            <h3 class="font-bold mb-2">Cities Served:</h3>
+            <ul class="list-disc pl-8 space-y-1">
+              ${cityItems.map(city => `<li>${city}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+    }
+    
+    if (hotelsMatch) {
+      const hotelsList = hotelsMatch[0];
+      processedText = processedText.replace(hotelsList, '').trim();
+      
+      // Process hotel list items
+      const hotelItems = hotelsList.replace('Hotels Served:', '')
+        .trim()
+        .split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(line => line.trim().substring(1).trim())
+        .filter(item => item);
+      
+      if (hotelItems.length > 0) {
+        hotelsListHtml = `
+          <div class="my-4">
+            <h3 class="font-bold mb-2">Hotels Served:</h3>
+            <ul class="list-disc pl-8 space-y-1">
+              ${hotelItems.map(hotel => `<li>${hotel}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+    }
+    
+    // Process main content paragraphs with explicit <p> tags
+    mainContent = processedText
+      .split(/\n\n+/)
+      .filter(para => para.trim())
+      .map(para => {
+        // Convert single newlines within paragraphs to <br> tags
+        const formattedPara = para.split('\n')
+          .map(line => line.trim())
+          .join('<br>');
         
-        // Extract any items that might be on the same line
-        const remainingText = section.replace('Cities Served:', '').trim();
-        if (remainingText) {
-          // If there's content on the same line, check for list items
-          const lines = remainingText.split('\n');
-          for (const line of lines) {
-            if (line.trim().startsWith('-')) {
-              currentListItems.push(line.trim().substring(1).trim());
-            }
-          }
-        }
-      } else if (section.trim().startsWith('Hotels Served:')) {
-        // Start collecting hotel list items
-        inHotelsList = true;
-        inCitiesList = false;
-        currentListItems = [];
-        
-        // Extract any items that might be on the same line
-        const remainingText = section.replace('Hotels Served:', '').trim();
-        if (remainingText) {
-          // If there's content on the same line, check for list items
-          const lines = remainingText.split('\n');
-          for (const line of lines) {
-            if (line.trim().startsWith('-')) {
-              currentListItems.push(line.trim().substring(1).trim());
-            }
-          }
-        }
-      } else if (inCitiesList || inHotelsList) {
-        // We're inside a list, add items
-        const lines = section.split('\n');
-        for (const line of lines) {
-          if (line.trim().startsWith('-')) {
-            currentListItems.push(line.trim().substring(1).trim());
-          }
-        }
-      } else {
-  // Regular paragraph text - explicitly create paragraphs
-  // and handle internal line breaks with <br> elements
-  const lines = section.split('\n');
-  if (lines.length > 0) {
-    result.push(
-      <p key={`para-${sectionIndex}`} className="mb-4 whitespace-normal">
-        {lines.map((line, i, arr) => (
-          <React.Fragment key={`line-${sectionIndex}-${i}`}>
-            {line}
-            {i < arr.length - 1 && <br />}
-          </React.Fragment>
-        ))}
-      </p>
-    );
-  }
-      }
-      
-      sectionIndex++;
-    }
+        return `<p class="mb-4">${formattedPara}</p>`;
+      })
+      .join('');
     
-    // Add any remaining list at the end
-    if (inCitiesList && currentListItems.length > 0) {
-      result.push(
-        <div key={`cities-list-final`} className="my-4">
-          <h3 className="font-bold mb-2">Cities Served:</h3>
-          <ul className="list-disc pl-8 space-y-1">
-            {currentListItems.map((item, i) => (
-              <li key={`city-${i}`}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    } else if (inHotelsList && currentListItems.length > 0) {
-      result.push(
-        <div key={`hotels-list-final`} className="my-4">
-          <h3 className="font-bold mb-2">Hotels Served:</h3>
-          <ul className="list-disc pl-8 space-y-1">
-            {currentListItems.map((item, i) => (
-              <li key={`hotel-${i}`}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-    
-    return result;
-  };
+    // Combine all parts
+    return `
+      ${timeEstimateHtml}
+      ${mainContent}
+      ${citiesListHtml}
+      ${hotelsListHtml}
+    `;
+  }, [text]);
 
+  // Use dangerouslySetInnerHTML for consistent rendering across platforms
   return (
-    <div className={className}>
-      {formatContent(text)}
-    </div>
+    <div 
+      className={className}
+      dangerouslySetInnerHTML={{ __html: processedHtml }}
+    />
   );
 };
 

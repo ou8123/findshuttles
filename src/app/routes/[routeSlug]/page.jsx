@@ -9,6 +9,7 @@ import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 import AutoScroller from '@/components/AutoScroller';
 import AdaptiveWidgetContainer from '@/components/AdaptiveWidgetContainer';
 import ViatorAdaptiveContainer from '@/components/ViatorAdaptiveContainer';
+import FormattedDescription from '@/components/FormattedDescription';
 
 // Generate viewport metadata as a simple JavaScript function
 export function generateViewport() {
@@ -168,14 +169,17 @@ export default async function RoutePage({ params }) {
               </ViatorAdaptiveContainer>
             </div>
             
-            {/* Description section with natural spacing */}
+            {/* Description section with formatted content */}
             {route.seoDescription && (
               <div className="description-section my-8">
-                <h2 className="text-xl font-semibold mb-3 text-black">
+                <h2 className="text-xl font-semibold mb-3 text-current dark:text-white">
                   Route Description
                 </h2>
-                <div className="p-4 bg-white rounded shadow-sm">
-                  <p className="text-black">{route.seoDescription}</p>
+                <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
+                  <FormattedDescription 
+                    text={route.seoDescription} 
+                    className="text-current dark:text-gray-200"
+                  />
                 </div>
               </div>
             )}

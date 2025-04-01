@@ -11,10 +11,10 @@ interface ViatorAdaptiveContainerProps {
  * Viator Adaptive Container
  * 
  * A specialized container component designed specifically for Viator widgets that:
- * - Dynamically adapts to content height with unlimited expansion on desktop
- * - Uses fixed height with internal scrolling on mobile devices
+ * - Dynamically adapts to content height with controlled maximum expansion
+ * - Uses fixed height with internal scrolling when content exceeds limits
  * - Implements gentle stability detection to prevent height oscillation
- * - Has specific optimizations for mobile devices
+ * - Has specific optimizations for mobile and desktop devices
  * - Handles iframes and dynamic content effectively
  * - Maintains persistent monitoring for continued height adjustment
  */
@@ -24,7 +24,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState(180); // Lower initial height (was 350)
+  const [containerHeight, setContainerHeight] = useState(180); // Lower initial height
   const [contentHeight, setContentHeight] = useState(0); // Actual content height
   const [isStabilized, setIsStabilized] = useState(false);
   const heightHistoryRef = useRef<number[]>([]);
@@ -32,7 +32,8 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   
   // Constants for adjustments
   const MAX_MOBILE_HEIGHT = 800; // Height limit for mobile devices with scrolling
-  const STABILITY_VARIANCE = 20; // Allow more variance (was 10)
+  const MAX_DESKTOP_HEIGHT = 1000; // Height limit for desktop devices to prevent endless expansion (especially in Brave)
+  const STABILITY_VARIANCE = 20; // Allow more variance for stability detection
   const FORCE_STABILITY_TIMEOUT = 4000; // Force initial stability after this time
   const HEIGHT_PADDING = 20; // Padding added to calculated height to avoid scroll
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
@@ -42,11 +43,6 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   useEffect(() => {
     isMobileDevice.current = window.innerWidth < 768 || 
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // Using universal 180px minimum height for all devices
-    // No device-specific initial height
-    
-    // No global styles - allow widget to expand naturally
   }, []);
   
   // Core height management system
@@ -85,7 +81,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
     }, 60000)); // Monitor for up to a minute
     
     // Helper function to update container height
-    const updateContainerHeight = (height) => {
+    const updateContainerHeight = (height: number) => {
       // Store the actual content height for reference
       setContentHeight(height);
       
@@ -102,10 +98,17 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
           setShowScrollIndicator(false);
         }
       } else {
-        // For desktop: unlimited height
-        const newHeight = height + HEIGHT_PADDING;
+        // For desktop: limited height to prevent infinite expansion in Brave
+        const newHeight = Math.min(height + HEIGHT_PADDING, MAX_DESKTOP_HEIGHT);
         console.log("Setting container height to (desktop):", newHeight);
         setContainerHeight(newHeight);
+        
+        // Show scroll indicator if content exceeds container on desktop too
+        if (height > MAX_DESKTOP_HEIGHT - HEIGHT_PADDING) {
+          setShowScrollIndicator(true);
+        } else {
+          setShowScrollIndicator(false);
+        }
       }
     };
     
@@ -318,21 +321,20 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          height: isMobileDevice.current ? 'auto' : 'auto',
-          maxHeight: isMobileDevice.current ? '100%' : 'none',
-          overflowY: isMobileDevice.current ? 'auto' : 'visible',
+          height: 'auto',
+          maxHeight: '100%',
+          overflowY: 'auto', // Always enable scrolling for both mobile and desktop
           overscrollBehavior: 'contain', // Prevent scroll chaining
           WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
           contain: 'content', // Improve scroll containment
-          // Make sure scroll area is limited to actual content
-          paddingBottom: isMobileDevice.current && contentHeight > MAX_MOBILE_HEIGHT ? '5px' : '0',
+          paddingBottom: contentHeight > (isMobileDevice.current ? MAX_MOBILE_HEIGHT : MAX_DESKTOP_HEIGHT) - HEIGHT_PADDING ? '5px' : '0',
         }}
       >
         {children}
       </div>
       
-      {/* Scroll indicator for mobile */}
-      {isMobileDevice.current && showScrollIndicator && (
+      {/* Scroll indicator for both mobile and desktop */}
+      {showScrollIndicator && (
         <div 
           style={{
             position: 'absolute',
