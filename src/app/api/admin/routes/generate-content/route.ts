@@ -162,9 +162,9 @@ export async function POST(request: Request) {
 You will be given:
 - A departure city
 - A destination city
-- Optional editor-provided content ("Editor Notes") containing service details, amenities, city and hotel names, and related information
+- Optional editor-provided content ("Editor Notes") that may contain service details, amenities, city names, hotel names, time range, or related notes
 
-Your task is to write a clear, helpful, human-friendly route description based on this input. Follow all content, tone, and formatting rules carefully.
+Your task is to write a clear, structured, human-readable, SEO-optimized description for a shuttle route. The description will appear on BookShuttles.com to help travelers understand the route and book transport.
 
 Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown or extra formatting in the JSON response.`;
 
@@ -193,99 +193,134 @@ Always return a valid JSON object with the fields: metaTitle, metaDescription, m
 
 ---
 
-${hasAdditionalInfo ? `🎯 OBJECTIVE:
+🎯 OBJECTIVE:
 
-Write a clear, human-readable, SEO-optimized description for a shuttle route using the information provided. The description will appear on BookShuttles.com to help travelers make booking decisions.
+Write a clear, structured, human-readable, SEO-optimized description for a shuttle route. The description will appear on BookShuttles.com to help travelers understand the route and book transport.
 
 ---
 
 🧱 STRUCTURE & CONTENT RULES:
 
-1. Use the Editor Notes as the **main body** of the description. Include this content fully, with light rephrasing only for grammar and clarity. Do not ignore or shorten details such as:
+${hasAdditionalInfo ? `If Editor Notes are provided:
+
+1. First, check if the notes contain a time estimate (e.g., "approximately 3 to 4 hours").  
+   - If found, display it **at the top left**, formatted exactly like this:
+
+🕒 Approximately 3 to 4 hours
+
+   - Then add **two line breaks** before starting the main body of the description.
+
+2. Use the rest of the Editor Notes as the **main content body**. Keep all relevant details such as:
+   - Vehicle features or amenities
    - City names
    - Hotel names
-   - Amenities
-   - Vehicle info
-   - Service availability
-   - Airport pickups or custom stops
+   - Stops or service flexibility
+   - Pickup/drop-off info
+   - English-speaking driver, if mentioned
 
-2. Convert any first-person or second-person language ("we," "our," "you") into **neutral third-person phrasing**.  
-   - ✅ Examples:
-     - "Our vehicles are air-conditioned" → "The transport provider offers air-conditioned vehicles"
-     - "You can request a stop" → "Travelers may request stops"
-   - ❌ Do not mention the name of the operator
-   - ✅ If the platform needs to be referenced, use **BookShuttles.com**
+   Lightly rephrase for grammar/clarity, but do **not remove or shorten important content**.
 
-3. **Remove all external URLs**, even if included in the Editor Notes.
+3. Rewrite any first-person or second-person phrasing ("we," "our," "you") into **neutral third-person language**.
+   - ✅ Example: "You can make stops" → "Travelers may request stops"
+   - ❌ Do not include shuttle operator or affiliate company names
+   - ✅ If the website must be mentioned, refer to it as **BookShuttles.com**
 
-4. After the Editor Notes content, write a brief **route overview paragraph** that:
-   - Mentions the route (e.g., "This service connects ${departureCityName} to ${destinationCityName}…")
-   - Highlights 1–2 notable attractions or natural features in ${destinationCityName} (e.g., beaches, markets, parks, volcanoes)
+4. **Remove all external URLs or links**, even if included in the Editor Notes.
 
-5. The entire description (excluding the city/hotel lists) should be:
+5. After the main content, write a short paragraph (2–4 sentences) that:
+   - Briefly introduces the shuttle route (e.g., "This service connects Managua and San Juan del Sur…")
+   - Highlights **1–2 attractions or points of interest** in the destination city
+
+6. Total content length (excluding city/hotel lists) should be:
    - **6–8 full sentences** by default
-   - If the Editor Notes are lengthy, you may extend to **8–10 sentences**
-   - Keep paragraph lengths natural: aim for 2–4 sentences per paragraph
+   - **Up to 10 sentences** if the Editor Notes are long or detailed
+   - Use **2–4 sentence paragraphs** separated by line breaks
 
-6. If 5 or fewer cities or hotels are included:
-   - You may mention them briefly in a sentence
-   - Also include them in separate bulleted lists at the bottom
+7. If city or hotel names are provided, include them at the bottom in this format:
 
-7. If 6 or more cities or hotels are included:
-   - Do not list them in a sentence
-   - Instead, include a line like: "See below for a full list of cities served"
-   - Then show the lists at the bottom
+Cities Served:
+- City 1
+- City 2 ...
 
-Here are the editor notes that should form the foundation of your description:
+Hotels Served:
+- Hotel 1
+- Hotel 2 ...
 
-<<<START OF EDITOR NOTES>>>
-${processedInstructions}
-<<<END OF EDITOR NOTES>>>`
-: `🎯 OBJECTIVE:
+   - If only a few (5 or fewer) cities or hotels are mentioned, you may also refer to them inline in the paragraph  
+   - If more than 5 are mentioned, list them only at the bottom and write "See below for a full list of cities served"
 
-Write a clear, human-readable, SEO-optimized description for a shuttle route. The description will appear on BookShuttles.com to help travelers make booking decisions.
+8. If no cities or hotels are provided, **that is okay** — do not flag it as an issue. Only include those sections if they are present in the Editor Notes.` : `Create content with this structure:
 
----
+1. If there's a time estimate, display it at the top left (e.g., "🕒 Approximately 3 to 4 hours"), followed by two line breaks.
 
-🧱 STRUCTURE & CONTENT RULES:
+2. Main content with:
+   - Safety and comfort information for the route
+   - Relevant details about the service
+   - Key features of the trip
+   - 6-8 full sentences organized into 2-3 paragraphs
+   - Paragraphs of 2-4 sentences each
 
-1. Write a two-paragraph description (100–150 words total):
-   - Paragraph 1: Overview of the shuttle route and its convenience
-   - Paragraph 2: Destination highlight with 1–2 key attractions
-
-2. Keep paragraph lengths natural: aim for 2–4 sentences per paragraph.
-
-3. The entire description should be 6–8 full sentences by default.
-
-4. The tone should be informative, neutral, and focused on practical details. Emphasize the ease of travel between ${departureCityName} and ${destinationCityName} and mention the convenience of the shuttle service.`}
+3. A final paragraph (2-4 sentences) that:
+   - Introduces the shuttle route connecting ${departureCityName} and ${destinationCityName}
+   - Highlights 1-2 attractions or points of interest in ${destinationCityName}`}
 
 ---
 
 ✍️ STYLE & SEO GUIDELINES:
 
-- Use neutral, third-person tone — never use "we," "our," "you"
-- Avoid vague marketing terms like "affiliate service," "luxury," "top-rated," or "unparalleled"
-- Use informative, traveler-friendly, SEO-aware language
-- Mention practical features and destination highlights where appropriate
-- Do not include external URLs or any company/operator names
-- Do not invent service details that weren't included
+- Use only **neutral, third-person language**
+- Do not use vague phrases like "affiliate service," "luxury," or "top-rated"
+- Avoid any operator brand names or external platforms (e.g., Viator, GetYourGuide)
+- Prioritize useful, factual, and readable travel content
+- Maintain clear paragraph structure for SEO and readability
+- Be human-like and informative — avoid sounding overly robotic or overly promotional
 
 ---
 
 📄 OUTPUT FORMAT:
 
-- Use clearly separated, readable paragraphs
-- Separate each paragraph using **two line breaks** (double newline)
-- Never return the full description as one paragraph
-- Keep most paragraphs between 2-4 sentences for best readability and SEO
-- Output must be plain text only — no HTML, markdown, or symbols
-${(hasCityList || hasHotelList) ? `- At the bottom, include city and hotel names using the following format:
-  - Cities Served:
-  - [list each city on a new line with a dash and space "- " at the start]
-  - Hotels Served:
-  - [list each hotel on a new line with a dash and space "- " at the start]` : ''}
+${hasAdditionalInfo ? `- Begin with the time range (if provided), formatted as:
 
-For the seoDescription field, return only the final description as plain text following all formatting rules above.`;
+  🕒 **Approximately 3 to 4 hours**
+
+- Then add **two line breaks**
+
+- Write the main body using **clearly separated paragraphs**, each 2–4 sentences long  
+- Separate each paragraph with **two line breaks (\`\\n\\n\`)**
+- At the bottom, include any available cities or hotels using this exact format:
+
+Cities Served:
+- City 1
+- City 2 ...
+
+Hotels Served:
+- Hotel 1
+- Hotel 2 ...` : `- Start with any time estimate if applicable (e.g., "🕒 Approximately 3 to 4 hours"), followed by two line breaks
+- Write main content with clear paragraph breaks (two line breaks between paragraphs)
+- Use 2-4 sentences per paragraph for readability
+- Include practical information about the route and destination`}
+
+- Do not include markdown, HTML, special formatting, or external links
+- Output must be plain text only
+
+---
+
+${hasAdditionalInfo ? `📝 INPUTS:
+
+Departure City: ${departureCityName}  
+Destination City: ${destinationCityName}  
+Editor Notes (optional):  
+<<<START OF EDITOR NOTES>>>
+${processedInstructions}
+<<<END OF EDITOR NOTES>>>` : `📝 INPUTS:
+
+Departure City: ${departureCityName}  
+Destination City: ${destinationCityName}  
+No additional Editor Notes provided.`}
+
+---
+
+Return only the final description as plain text, following all formatting, tone, and structure rules above.`;
 
     // Enhanced debugging logs
     console.log("---------- CONTENT GENERATION REQUEST ----------");
