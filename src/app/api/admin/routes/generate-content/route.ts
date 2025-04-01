@@ -227,9 +227,10 @@ ${hasAdditionalInfo ? `If Editor Notes are provided:
 
 4. **Remove all external URLs or links**, even if included in the Editor Notes.
 
-5. After the main content, write a short paragraph (2–4 sentences) that:
-   - Briefly introduces the shuttle route (e.g., "This service connects Managua and San Juan del Sur…")
-   - Highlights **1–2 attractions or points of interest** in the destination city
+5. Always include a third and final paragraph that is 2–4 sentences long. This final paragraph must:
+   - Briefly describe the route between the departure and destination cities (e.g., "This service connects Managua and San Juan del Sur…")
+   - Mention 1–2 well-known local attractions or activities in the destination city (e.g., popular beaches, hiking trails, parks, museums, districts)
+   - This paragraph is required even if the Editor Notes are long. It should always appear at the end of the description, after the service content.
 
 6. Total content length (excluding city/hotel lists) should be:
    - **6–8 full sentences** by default
