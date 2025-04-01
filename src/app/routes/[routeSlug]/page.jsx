@@ -5,10 +5,8 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import RouteMap from '@/components/RouteMap';
 import SearchForm from '@/components/SearchForm';
-import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
+import ViatorAspectWidget from '@/components/ViatorAspectWidget';
 import AutoScroller from '@/components/AutoScroller';
-import AdaptiveWidgetContainer from '@/components/AdaptiveWidgetContainer';
-import ViatorAdaptiveContainer from '@/components/ViatorAdaptiveContainer';
 import FormattedDescription from '@/components/FormattedDescription';
 
 // Generate viewport metadata as a simple JavaScript function
@@ -164,20 +162,22 @@ export default async function RoutePage({ params }) {
             <div className="booking-section mb-8">
               <h2 className="text-xl font-semibold mb-4">Book Your Shuttle</h2>
               
-              {/* Widget in specialized Viator adaptive container */}
-              <ViatorAdaptiveContainer>
-                {route.viatorWidgetCode ? (
-                  <ViatorWidgetRenderer 
-                    key={`viator-${route.routeSlug}`} 
-                    widgetCode={route.viatorWidgetCode}
-                    routeSlug={route.routeSlug}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">Booking widget not available for this route.</p>
-                  </div>
-                )}
-              </ViatorAdaptiveContainer>
+              {/* Widget using aspect ratio container */}
+              {route.viatorWidgetCode ? (
+                <ViatorAspectWidget 
+                  key={`viator-${route.routeSlug}`} 
+                  widgetCode={route.viatorWidgetCode}
+                  className="w-full"
+                  // Use wider aspect ratio (5:3) to better display Viator content
+                  aspectRatio={5/3}
+                  // Use taller aspect ratio for mobile (9:16)
+                  mobileAspectRatio={9/16}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-64 bg-gray-50 border border-gray-200 rounded">
+                  <p className="text-gray-500">Booking widget not available for this route.</p>
+                </div>
+              )}
             </div>
             
             {/* Description section with formatted content */}
