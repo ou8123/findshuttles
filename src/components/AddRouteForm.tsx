@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import ContentEditorControls from './ContentEditorControls';
 
 // Define the expected structure of the location data from the API (for lookup)
 interface CityLookup {
@@ -37,7 +40,7 @@ const AddRouteForm = () => {
 
   // State for form fields
   const [viatorWidgetCode, setViatorWidgetCode] = useState<string>('');
-  const [additionalInfo, setAdditionalInfo] = useState<string>('');
+  const [additionalInstructions, setAdditionalInstructions] = useState<string>('');
   const [metaTitle, setMetaTitle] = useState<string>('');
   const [metaDescription, setMetaDescription] = useState<string>('');
   const [metaKeywords, setMetaKeywords] = useState<string>('');
@@ -282,9 +285,29 @@ const AddRouteForm = () => {
     }
   };
 
-  // Handle form submission
+  // For router navigation (disabled in our case to prevent redirects)
+  const router = useRouter();
+
+  // State to track the created route
+  const [createdRoute, setCreatedRoute] = useState<{ id: string; routeSlug: string } | null>(null);
+
+  // Handle form submission without clearing the form (Save functionality)
+  const handleSave = async (event: React.MouseEvent) => {
+    event.preventDefault(); // Prevent form submission
+    await submitRouteData(false);
+  };
+  
+  // Handle full form submission (Add Route functionality)
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault(); // Prevent default form submission behavior that would cause a page refresh
+    await submitRouteData(true);
+    
+    // Do NOT call router.push() here - that would cause a redirect
+    return false; // Extra safety to prevent form submission
+  };
+
+  // Combined function to submit route data
+  const submitRouteData = async (clearForm: boolean) => {
     setIsSubmitting(true);
     setSubmitStatus(null);
 
@@ -323,20 +346,38 @@ const AddRouteForm = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || `HTTP error! status: ${response.status}`);
 
+      console.log("Route created successfully:", result);
+      
+      // Store the created route info - IMPORTANT: This must happen regardless of clearForm
+      setCreatedRoute({
+        id: result.id,
+        routeSlug: result.routeSlug
+      });
+
       // Success
-      setSubmitStatus({ success: true, message: `Route created successfully! Slug: ${result.routeSlug}` });
-      // Clear form
-      setDepartureName('');
-      setDestinationName('');
-      setSelectedDepartureCity(null);
-      setSelectedDestinationCity(null);
-      setViatorWidgetCode('');
-      setMetaTitle('');
-      setMetaDescription('');
-      setMetaKeywords('');
-      setSeoDescription('');
-      if (departureInputRef.current) departureInputRef.current.value = '';
-      if (destinationInputRef.current) destinationInputRef.current.value = '';
+      setSubmitStatus({ 
+        success: true, 
+        message: `Route ${clearForm ? 'created' : 'saved'} successfully! Slug: ${result.routeSlug}` 
+      });
+      
+      // Clear form if requested (Add Route button)
+      if (clearForm) {
+        setDepartureName('');
+        setDestinationName('');
+        setSelectedDepartureCity(null);
+        setSelectedDestinationCity(null);
+        setViatorWidgetCode('');
+        setMetaTitle('');
+        setMetaDescription('');
+        setMetaKeywords('');
+        setSeoDescription('');
+        if (departureInputRef.current) departureInputRef.current.value = '';
+        if (destinationInputRef.current) destinationInputRef.current.value = '';
+        
+        // Do NOT reset createdRoute when clearing the form
+        // This allows users to still view the last created route
+        // setCreatedRoute(null);
+      }
 
     } catch (error: unknown) {
       console.error("Failed to submit new route:", error);
@@ -481,21 +522,33 @@ const AddRouteForm = () => {
         />
       </div>
 
-      {/* Additional Information */}
+      {/* Additional Instructions */}
       <div>
-        <label htmlFor="additional-info" className="block text-sm font-medium text-gray-700 mb-1">
-          Additional Information (Optional)
+        <label htmlFor="additional-instructions" className="block text-sm font-medium text-gray-700 mb-1">
+          Additional Instructions for Content Generation
         </label>
         <textarea
-          id="additional-info"
-          value={additionalInfo}
-          onChange={(e) => setAdditionalInfo(e.target.value)}
+          id="additional-instructions"
+          value={additionalInstructions}
+          onChange={(e) => setAdditionalInstructions(e.target.value)}
           rows={4}
           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-          placeholder="Enter any additional information to include in the first paragraph of the description..."
+          placeholder="Enter information about the route service, amenities, cities, hotels, etc..."
         />
-        <p className="text-xs text-gray-500 mt-1">If provided, this text will be used verbatim as the first paragraph of the SEO description.</p>
+        <p className="text-xs text-gray-500 mt-1">
+          Include details about the service, featured cities, hotels, or special amenities. 
+          This content will be cleaned and formatted before sending to AI.
+        </p>
       </div>
+
+      {/* Content Editor Controls */}
+      <ContentEditorControls
+        additionalInstructions={additionalInstructions}
+        setAdditionalInstructions={setAdditionalInstructions}
+        seoDescription={seoDescription}
+        setSeoDescription={setSeoDescription}
+        isGenerating={isGenerating}
+      />
 
       {/* SEO Description with Generate Button */}
       <div>
@@ -528,11 +581,10 @@ const AddRouteForm = () => {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    departureCityName: selectedDepartureCity.name,
-                    destinationCityName: selectedDestinationCity.name,
-                    destinationCountryName: selectedDestinationCity.countryName,
-                    viatorWidgetCode,
-                    additionalInfo: additionalInfo.trim()
+                    departureCityId: selectedDepartureCity.id,
+                    destinationCityId: selectedDestinationCity.id,
+                    additionalInstructions: additionalInstructions.trim(),
+                    viatorWidgetCode
                   }),
                 });
 
@@ -576,20 +628,53 @@ const AddRouteForm = () => {
         />
       </div>
 
-      {/* Submit Button & Status Message */}
+      {/* Action Buttons & Status Message */}
       <div className="pt-2">
         {submitStatus && (
           <p className={`mb-3 text-sm ${submitStatus.success ? 'text-green-600' : 'text-red-600'}`}>
             {submitStatus.message}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={isSubmitting || isLoadingLocationsLookup || !isLoaded}
-          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? 'Adding Route...' : 'Add Route'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="submit"
+            disabled={isSubmitting || isLoadingLocationsLookup || !isLoaded}
+            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Adding Route...' : 'Add Route'}
+          </button>
+          
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSubmitting || isLoadingLocationsLookup || !isLoaded || 
+                     !selectedDepartureCity || !selectedDestinationCity || !viatorWidgetCode}
+            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Saving...' : 'Save'}
+          </button>
+          
+          {/* View button is always visible but disabled when no route has been created */}
+          {createdRoute ? (
+            <Link 
+              href={`/routes/${createdRoute.routeSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 text-center"
+            >
+              View Route
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={true}
+              className="flex-1 bg-purple-300 text-white py-2 px-4 rounded-md cursor-not-allowed"
+              title="Create a route first to enable viewing"
+            >
+              View Route
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );
