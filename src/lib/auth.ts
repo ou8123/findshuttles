@@ -92,8 +92,9 @@ function extractDomainFromUrl(url?: string): string | undefined {
 // Configure using available environment variables with fallbacks
 const isProduction = process.env.NODE_ENV === 'production';
 const isNetlify = !!process.env.NETLIFY || !!process.env.NEXT_USE_NETLIFY_EDGE;
-// Use a shorter name to avoid hitting cookie size limits
-const cookiePrefix = isProduction ? '__Secure-' : '';
+
+// For Netlify, we need to handle cookies differently
+const cookiePrefix = isProduction && !isNetlify ? '__Secure-' : '';
 
 // Get the NEXTAUTH_URL and ensure it has a protocol
 let nextAuthUrl = process.env.NEXTAUTH_URL;
@@ -101,13 +102,19 @@ if (nextAuthUrl && !nextAuthUrl.startsWith('http://') && !nextAuthUrl.startsWith
   nextAuthUrl = `https://${nextAuthUrl}`;
 }
 
-// Extract domain from NEXTAUTH_URL instead of hardcoding
-const domain = process.env.NEXTAUTH_COOKIE_DOMAIN || 
-               extractDomainFromUrl(nextAuthUrl) || 
-               undefined; // No fallback for better security
+// For Netlify, we need to handle the domain differently
+let domain: string | undefined;
+if (isNetlify) {
+  // Use the Netlify domain directly
+  domain = process.env.URL ? new URL(process.env.URL).hostname : 'findshuttles.netlify.app';
+} else {
+  domain = process.env.NEXTAUTH_COOKIE_DOMAIN || 
+           extractDomainFromUrl(nextAuthUrl) || 
+           undefined;
+}
 
 // More verbose logging for debugging
-console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}, SecureCookie: ${isProduction}`);
+console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}, SecureCookie: ${isProduction}, CookiePrefix: ${cookiePrefix}`);
 
 export const authOptions: AuthOptions = {
   // Later: adapter: PrismaAdapter(prisma),

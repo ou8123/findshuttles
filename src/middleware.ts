@@ -164,7 +164,17 @@ if (pathname.startsWith('/api/auth/') ||
     pathname.includes('system-auth')) {
   // Add debug for auth route handling
   console.log(`Middleware bypassed for auth route: ${pathname}`);
-  return NextResponse.next();
+  const response = NextResponse.next();
+  // Add security headers even for bypassed routes
+  return addSecurityHeaders(response);
+}
+
+// Special handling for auth error routes
+if (pathname === '/api/auth/error') {
+  // Redirect to the stealth login path with error parameter
+  const url = new URL(`/${LOGIN_PATH_TOKEN}`, request.url);
+  url.searchParams.set('error', 'AuthError');
+  return NextResponse.redirect(url);
 }
   
   // Check for admin routes - both the real internal path and the obscured path
