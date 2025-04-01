@@ -105,13 +105,29 @@ if (nextAuthUrl && !nextAuthUrl.startsWith('http://') && !nextAuthUrl.startsWith
 // For Netlify, we need to handle the domain differently
 let domain: string | undefined;
 if (isNetlify) {
-  // Use the Netlify domain directly
-  domain = process.env.URL ? new URL(process.env.URL).hostname : 'findshuttles.netlify.app';
+  // Use the Netlify domain directly without subdomain restrictions
+  domain = 'netlify.app';
 } else {
   domain = process.env.NEXTAUTH_COOKIE_DOMAIN || 
            extractDomainFromUrl(nextAuthUrl) || 
            undefined;
 }
+
+// Enhanced debug logging for cookie configuration
+console.log('Cookie Configuration:', {
+  isNetlify,
+  domain,
+  isProduction,
+  cookiePrefix,
+  nextAuthUrl,
+  allEnvVars: {
+    NETLIFY: process.env.NETLIFY,
+    NEXT_USE_NETLIFY_EDGE: process.env.NEXT_USE_NETLIFY_EDGE,
+    URL: process.env.URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    NODE_ENV: process.env.NODE_ENV
+  }
+});
 
 // More verbose logging for debugging
 console.log(`Auth config - Production: ${isProduction}, Netlify: ${isNetlify}, Domain: ${domain || 'default'}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL || 'not set'}, SecureCookie: ${isProduction}, CookiePrefix: ${cookiePrefix}`);
@@ -124,12 +140,10 @@ export const authOptions: AuthOptions = {
       name: `${cookiePrefix}next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: "lax", // Use lax for all environments to avoid fetch issues
+        sameSite: "lax",
         path: "/",
         secure: isProduction,
-        // Only set domain if explicitly provided
-        ...(domain ? { domain } : {}),
-        // Set max-age explicitly to ensure the cookie persists
+        domain,
         maxAge: 24 * 60 * 60, // 24 hours
       },
     },
@@ -246,10 +260,9 @@ export const authOptions: AuthOptions = {
     signIn: `/${LOGIN_PATH_TOKEN}`, // Use the stealth login path
     error: `/${LOGIN_PATH_TOKEN}`, // Also use stealth login path for errors
   },
-  // Allow origin header for Netlify
-  useSecureCookies: isProduction,
-  // Increase debug info
-  debug: isNetlify || process.env.NODE_ENV === 'development',
+  // Configure for Netlify environment
+  useSecureCookies: false, // Disable secure cookies on Netlify to fix auth issues
+  debug: true, // Enable debug logging to track auth issues
   callbacks: {
     async jwt({ token, user }) {
       // Add user details to JWT

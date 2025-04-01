@@ -6,14 +6,23 @@ export const runtime = 'nodejs';
 // Add CORS headers to response
 function addCorsHeaders(response: NextResponse) {
   response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization');
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
   return response;
 }
 
 // Handle OPTIONS request for CORS
 export async function OPTIONS() {
-  return addCorsHeaders(new NextResponse(null, { status: 200 }));
+  return addCorsHeaders(new NextResponse(null, { 
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'X-Requested-With, Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true'
+    }
+  }));
 }
 
 export async function GET(request: Request) {
@@ -102,7 +111,7 @@ export async function GET(request: Request) {
       // Log results
       console.log(`Search found ${cities.length} matching cities`);
       
-      return NextResponse.json(searchResults);
+      return addCorsHeaders(NextResponse.json(searchResults));
     }
     
     // For empty searches or very short queries, return popular/featured cities
@@ -159,7 +168,7 @@ export async function GET(request: Request) {
       const featuredResults = Array.from(countryMap.values());
       console.log(`Returning ${popularDepartures.length} popular departure cities`);
       
-      return NextResponse.json(featuredResults);
+      return addCorsHeaders(NextResponse.json(featuredResults));
     }
     
     // If not searching and want all cities (unlikely use case, but still supported)
@@ -215,13 +224,19 @@ export async function GET(request: Request) {
     }).filter(country => country.cities.length > 0);
 
     console.log(`Returning cities from ${processedCountries.length} countries`);
-    return NextResponse.json(processedCountries);
+    return addCorsHeaders(NextResponse.json(processedCountries));
 
   } catch (error) {
     console.error("Error fetching locations:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch locations" },
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    return addCorsHeaders(NextResponse.json(
+      { error: "Failed to fetch locations", details: error.message },
       { status: 500 }
-    );
+    ));
   }
 }

@@ -16,7 +16,8 @@ const nextConfig = {
       headers: [
         { key: 'Access-Control-Allow-Origin', value: '*' },
         { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
-        { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        { key: 'Access-Control-Allow-Headers', value: 'X-Requested-With, Content-Type, Authorization' },
+        { key: 'Access-Control-Allow-Credentials', value: 'true' },
       ],
     },
   ],
@@ -24,22 +25,27 @@ const nextConfig = {
   rewrites: async () => {
     return {
       beforeFiles: [
-        // Admin routes
+        // Secure admin routes
         {
-          source: '/admin/:path*',
+          source: '/management-portal-8f7d3e2a1c/:path*',
           destination: '/admin/:path*',
         },
-        // API routes
+        // Secure login route
+        {
+          source: '/secure-access-9b1c3f5d7e',
+          destination: '/login',
+        },
+        // API routes with proper handling
         {
           source: '/api/:path*',
           destination: '/api/:path*',
         },
-        // Auth routes
+        // Auth routes with special handling
         {
           source: '/api/auth/:path*',
           destination: '/api/auth/:path*',
         },
-        // Locations API
+        // Locations API with specific handling
         {
           source: '/api/locations',
           destination: '/api/locations',

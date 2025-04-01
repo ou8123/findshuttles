@@ -28,15 +28,31 @@
   to = "/.netlify/functions/next_server"
   status = 200
   force = true
+  [redirects.headers]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "X-Requested-With, Content-Type, Authorization"
+    Access-Control-Allow-Credentials = "true"
 
 [[redirects]]
   from = "/api/locations"
   to = "/.netlify/functions/next_server"
   status = 200
   force = true
+  [redirects.headers]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Credentials = "true"
 
 [[redirects]]
-  from = "/admin/*"
+  from = "/management-portal-8f7d3e2a1c/*"
+  to = "/.netlify/functions/next_server"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/secure-access-9b1c3f5d7e"
   to = "/.netlify/functions/next_server"
   status = 200
   force = true
@@ -46,3 +62,8 @@
   to = "/.netlify/functions/next_server"
   status = 200
   force = true
+  [redirects.headers]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Credentials = "true"
