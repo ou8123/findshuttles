@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import RouteMap from '@/components/RouteMap';
 import SearchForm from '@/components/SearchForm';
-import ViatorDirectWidget from '@/components/ViatorDirectWidget';
+import ViatorSimpleWidget from '@/components/ViatorSimpleWidget';
 import AutoScroller from '@/components/AutoScroller';
 import FormattedDescription from '@/components/FormattedDescription';
 
@@ -162,16 +162,13 @@ export default async function RoutePage({ params }) {
             <div className="booking-section mb-8">
               <h2 className="text-xl font-semibold mb-4">Book Your Shuttle</h2>
               
-              {/* Widget with direct script loading and aspect ratio container */}
+              {/* Widget with simple implementation that works reliably */}
               {route.viatorWidgetCode ? (
-                <ViatorDirectWidget 
+                <ViatorSimpleWidget 
                   key={`viator-${route.routeSlug}`} 
                   widgetCode={route.viatorWidgetCode}
                   className="w-full"
-                  // 60% padding for desktop (5:3 aspect ratio)
-                  paddingPercentage={60}
-                  // 177.78% padding for mobile (9:16 aspect ratio)
-                  mobilePaddingPercentage={177.78}
+                  minHeight={450}
                 />
               ) : (
                 <div className="flex items-center justify-center h-64 bg-gray-50 border border-gray-200 rounded">
