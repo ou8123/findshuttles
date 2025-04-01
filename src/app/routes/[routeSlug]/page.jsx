@@ -140,7 +140,8 @@ export default async function RoutePage({ params }) {
           width: '100vw', 
           marginLeft: 'calc(-50vw + 50%)',
           marginRight: 'calc(-50vw + 50%)',
-          marginTop: '0px', // Set to 0 to align with the header bottom consistently
+          marginTop: '-8px', // Negative margin to eliminate gap and make it flush with header
+          position: 'relative', // Ensure proper stacking context
         }}>
           <div className="py-10 px-4">
             <SearchForm 
