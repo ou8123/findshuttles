@@ -3,14 +3,13 @@ const nextConfig = {
   output: 'standalone',
   // Explicitly tell Next.js to bundle bcrypt for serverless environments
   serverExternalPackages: ['bcrypt'],
-  // Configure routes that need Node.js runtime
+  // Configure experimental features
   experimental: {
-    serverComponentsExternalPackages: ['bcrypt'],
     serverActions: {
       bodySizeLimit: '2mb'
     }
   },
-  // Configure routes that need Node.js runtime
+  // Configure route rewrites for Netlify
   rewrites: async () => {
     return {
       beforeFiles: [
