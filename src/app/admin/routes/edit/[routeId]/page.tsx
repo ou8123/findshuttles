@@ -5,6 +5,14 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import ContentEditorControls from '@/components/ContentEditorControls';
 
+interface City {
+  id: string;
+  name: string;
+  country: {
+    name: string;
+  };
+}
+
 interface RouteData {
     id: string;
     departureCityId: string;
@@ -38,12 +46,39 @@ const EditRoutePage = () => {
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // State for city selection
+  const [availableCities, setAvailableCities] = useState<City[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [cityLoadError, setCityLoadError] = useState<string | null>(null);
 
   // Loading/Submitting/Error state
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Fetch all available cities
+  useEffect(() => {
+    const fetchCities = async () => {
+      setIsLoadingCities(true);
+      setCityLoadError(null);
+      try {
+        const response = await fetch('/api/admin/cities');
+        if (!response.ok) throw new Error(`Failed to fetch cities: ${response.status}`);
+        const cities = await response.json();
+        console.log("Fetched cities:", cities.length);
+        setAvailableCities(cities);
+      } catch (err) {
+        console.error("Failed to fetch cities:", err);
+        setCityLoadError("Could not load city data. You can still edit other fields.");
+      } finally {
+        setIsLoadingCities(false);
+      }
+    };
+    
+    fetchCities();
+  }, []);
 
   // Fetch the specific route data
   useEffect(() => {
@@ -295,22 +330,56 @@ const EditRoutePage = () => {
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Read-only display of selected cities */}
+          {/* Departure City Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Departure City
+            <label htmlFor="departure-city" className="block text-sm font-medium text-gray-700 mb-1">
+              Departure City *
             </label>
-            <div className="p-2 border border-gray-300 rounded-md text-gray-700 bg-gray-50">
-              {originalData?.departureCity?.name || 'Loading...'}
-            </div>
+            {isLoadingCities ? (
+              <div className="p-2 border border-gray-300 rounded-md bg-gray-50">Loading cities...</div>
+            ) : (
+              <select
+                id="departure-city"
+                value={departureCityId}
+                onChange={(e) => setDepartureCityId(e.target.value)}
+                required
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              >
+                <option value="">Select departure city</option>
+                {availableCities.map((city) => (
+                  <option key={`dep-${city.id}`} value={city.id}>
+                    {city.name}, {city.country.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {cityLoadError && <p className="text-xs text-red-600 mt-1">{cityLoadError}</p>}
           </div>
+          
+          {/* Destination City Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Destination City
+            <label htmlFor="destination-city" className="block text-sm font-medium text-gray-700 mb-1">
+              Destination City *
             </label>
-            <div className="p-2 border border-gray-300 rounded-md text-gray-700 bg-gray-50">
-              {originalData?.destinationCity?.name || 'Loading...'}
-            </div>
+            {isLoadingCities ? (
+              <div className="p-2 border border-gray-300 rounded-md bg-gray-50">Loading cities...</div>
+            ) : (
+              <select
+                id="destination-city"
+                value={destinationCityId}
+                onChange={(e) => setDestinationCityId(e.target.value)}
+                required
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              >
+                <option value="">Select destination city</option>
+                {availableCities.map((city) => (
+                  <option key={`dest-${city.id}`} value={city.id}>
+                    {city.name}, {city.country.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {cityLoadError && <p className="text-xs text-red-600 mt-1">{cityLoadError}</p>}
           </div>
         </div>
 
