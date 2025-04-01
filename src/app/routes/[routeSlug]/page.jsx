@@ -19,8 +19,9 @@ export function generateViewport() {
 
 // Generate metadata as a simple JavaScript function
 export async function generateMetadata({ params }) {
-  // Properly access the route slug with await
-  const routeSlug = await params?.routeSlug;
+  // Get the route slug from params
+  const resolvedParams = await params;
+  const { routeSlug } = resolvedParams;
   
   // Fetch route data
   const route = await fetchRouteData(routeSlug);
@@ -96,8 +97,9 @@ async function fetchRouteData(routeSlug) {
  * with Next.js on Netlify
  */
 export default async function RoutePage({ params }) {
-  // Properly access the route slug with await
-  const routeSlug = await params?.routeSlug;
+  // Get the route slug from params
+  const resolvedParams = await params;
+  const { routeSlug } = resolvedParams;
   
   // Validate we have a route slug
   if (!routeSlug) {
@@ -159,8 +161,9 @@ export default async function RoutePage({ params }) {
           {/* Content sections with responsive spacing */}
           <div className="route-content-sections">
             {/* Book Your Shuttle section - with adaptive container */}
-            <div className="booking-section mb-8">
-              <h2 className="text-xl font-semibold mb-4">Book Your Shuttle</h2>
+              <div className="booking-section mb-8">
+                <h2 className="text-xl font-semibold mb-0">Book Your Shuttle</h2>
+                <p className="text-sm italic text-gray-600 -mt-1 mb-3">Get on the road again!</p>
               
               {/* Widget with simple implementation that works reliably */}
               {route.viatorWidgetCode ? (
@@ -180,9 +183,10 @@ export default async function RoutePage({ params }) {
             {/* Description section with formatted content */}
             {route.seoDescription && (
               <div className="description-section my-8">
-                <h2 className="text-xl font-semibold mb-3 text-current dark:text-white">
+                <h2 className="text-xl font-semibold mb-0 text-current dark:text-white">
                   Route Description
                 </h2>
+                <p className="text-sm italic text-gray-600 -mt-1 mb-3">Route descriptions provide a general overview. Specific amenities and services will vary by provider. Please review individual listings before booking.</p>
                 <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
                   <FormattedDescription 
                     text={route.seoDescription} 
@@ -196,7 +200,8 @@ export default async function RoutePage({ params }) {
             {route.departureCity?.latitude && route.departureCity?.longitude &&
             route.destinationCity?.latitude && route.destinationCity?.longitude && (
               <div className="map-section my-8">
-                <h2 className="text-xl font-semibold mb-3">Route Map</h2>
+                <h2 className="text-xl font-semibold mb-0">Estimated Route</h2>
+                <p className="text-sm italic text-gray-600 -mt-1 mb-3">Actual route may vary due to traffic or provider discretion.</p>
                 <RouteMap
                   departureLat={route.departureCity.latitude}
                   departureLng={route.departureCity.longitude}
