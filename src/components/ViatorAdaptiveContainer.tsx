@@ -26,10 +26,6 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
   const [hasOverflow, setHasOverflow] = useState(false);
   const [initialContentChecked, setInitialContentChecked] = useState(false);
   
-  // Fixed height constants with smaller values for better user experience
-  const MOBILE_HEIGHT = 500;  // Reduced from 800px
-  const DESKTOP_HEIGHT = 650; // Reduced from 1000px
-  
   // Detect device type once on mount
   useEffect(() => {
     const checkMobile = () => {
@@ -111,7 +107,7 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
       className={`viator-fixed-container ${className}`}
       style={{
         position: 'relative',
-        height: isMobile ? `${MOBILE_HEIGHT}px` : `${DESKTOP_HEIGHT}px`,
+        height: 'auto',
         margin: '1rem 0',
         boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
         border: '1px solid rgba(0,0,0,0.1)',
@@ -125,12 +121,10 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
         ref={contentRef}
         className="widget-content-area"
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          overflowY: 'auto',
+          position: 'relative',
+          width: '100%',
+          height: 'auto',
+          overflowY: 'visible',
           overflowX: 'hidden',
           overscrollBehavior: 'contain', // Prevent scroll chaining
           WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
@@ -142,87 +136,8 @@ const ViatorAdaptiveContainer: React.FC<ViatorAdaptiveContainerProps> = ({
         {children}
       </div>
       
-      {/* Scroll indicator */}
-      {hasOverflow && (
-        <div className="scroll-indicator-container">
-          {/* Gradient fade at top when scrolled down */}
-          <div 
-            className="scroll-indicator top"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '24px',
-              background: 'linear-gradient(to top, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 80%, rgba(255,255,255,1) 100%)',
-              opacity: 0, // Start hidden, will be shown with JS when scrolled
-              transition: 'opacity 0.2s',
-              pointerEvents: 'none',
-              zIndex: 5,
-            }}
-          />
-          
-          {/* Gradient fade at bottom */}
-          <div 
-            className="scroll-indicator bottom"
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: '40px', // Taller bottom indicator
-              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,1) 100%)',
-              pointerEvents: 'none',
-              zIndex: 5,
-              boxShadow: '0 -3px 6px rgba(0,0,0,0.03)',
-            }}
-          />
-          
-          {/* Scroll indicator message for better UX - only on mobile */}
-          {isMobile && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 10,
-                left: 0,
-                right: 0,
-                textAlign: 'center',
-                color: '#666',
-                fontSize: '13px',
-                fontWeight: 500,
-                zIndex: 6,
-                pointerEvents: 'none',
-                textShadow: '0 0 5px white, 0 0 5px white, 0 0 5px white',
-                opacity: 0.9,
-              }}
-            >
-              Scroll for more options
-            </div>
-          )}
-        </div>
-      )}
+      {/* Removed scroll indicators since we're using auto-height */}
       
-      {/* Script to show/hide top gradient based on scroll position */}
-      {hasOverflow && (
-        <script dangerouslySetInnerHTML={{ 
-          __html: `
-            (function() {
-              const content = document.currentScript.parentNode.querySelector('.widget-content-area');
-              const topIndicator = document.currentScript.parentNode.querySelector('.scroll-indicator.top');
-              
-              if (content && topIndicator) {
-                content.addEventListener('scroll', function() {
-                  if (content.scrollTop > 30) {
-                    topIndicator.style.opacity = '1';
-                  } else {
-                    topIndicator.style.opacity = '0';
-                  }
-                });
-              }
-            })();
-          `
-        }} />
-      )}
     </div>
   );
 };
