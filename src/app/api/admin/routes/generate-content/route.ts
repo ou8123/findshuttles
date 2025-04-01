@@ -288,14 +288,15 @@ Hotels Served:
 
 📄 OUTPUT FORMAT:
 
-${hasAdditionalInfo ? `- Begin with the time range (if provided), formatted as:
+${hasAdditionalInfo ? `- If a time estimate is provided, place it at the very top of the description using this exact format:
 
-  🕒 Approximately 3 to 4 hours
+🕒 **Approximately 3 to 4 hours**
 
-- Then add **two line breaks**
+(Then insert two line breaks before the description starts.)
 
-- Write the main body using **clearly separated paragraphs**, each 2–4 sentences long  
-- Separate each paragraph with **two line breaks (\`\\n\\n\`)**
+- The body must use clearly separated paragraphs, with each paragraph consisting of 2–4 sentences
+- Separate each paragraph with two line breaks (\`\\n\\n\`)
+- Do not return the entire content as one block of text
 - At the bottom, include any available cities or hotels using this exact format:
 
 Cities Served:
