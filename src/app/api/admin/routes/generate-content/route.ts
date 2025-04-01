@@ -223,13 +223,17 @@ ${hasAdditionalInfo ? `If Editor Notes are provided:
 3. Rewrite any first-person or second-person phrasing ("we," "our," "you") into **neutral third-person language**.
    - ✅ Example: "You can make stops" → "Travelers may request stops"
    - ❌ Do not include shuttle operator or affiliate company names
-   - ✅ If the website must be mentioned, refer to it as **BookShuttles.com**
+   - ✅ If the website must be mentioned, refer to it as **BookShuttles.com** using the phrasing:
+
+     > "BookShuttles.com connects travelers to a convenient shuttle service..."
+
+     Do **not** use: "BookShuttles.com offers..."
 
 4. **Remove all external URLs or links**, even if included in the Editor Notes.
 
-5. Always include a third and final paragraph that is 2–4 sentences long. This final paragraph must:
+5. After the main content, write a **third and final paragraph** that is **2–4 sentences long**. This final paragraph must:
    - Briefly describe the route between the departure and destination cities (e.g., "This service connects Managua and San Juan del Sur…")
-   - Mention 1–2 well-known local attractions or activities in the destination city (e.g., popular beaches, hiking trails, parks, museums, districts)
+   - Mention **1–2 well-known local attractions or activities** in the destination city (e.g., popular beaches, hiking trails, parks, museums, districts)
    - This paragraph is required even if the Editor Notes are long. It should always appear at the end of the description, after the service content.
 
 6. Total content length (excluding city/hotel lists) should be:
@@ -252,18 +256,16 @@ Hotels Served:
 
 8. If no cities or hotels are provided, **that is okay** — do not flag it as an issue. Only include those sections if they are present in the Editor Notes.` : `Create content with this structure:
 
-1. If there's a time estimate, display it at the top left (e.g., "🕒 Approximately 3 to 4 hours"), followed by two line breaks.
+1. Write exactly **two medium-length paragraphs**:
+   - Paragraph 1: Provide practical information about the shuttle route, what cities it connects, and the basic convenience of the service.
+   - Paragraph 2: Introduce the destination with 1-2 attractions or popular areas (e.g., beaches, parks, town centers).
 
-2. Main content with:
-   - Safety and comfort information for the route
-   - Relevant details about the service
-   - Key features of the trip
-   - 6-8 full sentences organized into 2-3 paragraphs
-   - Paragraphs of 2-4 sentences each
+2. Mention **BookShuttles.com** **once only**, and only if it fits naturally. Use the phrasing:
+   > "BookShuttles.com connects travelers to a convenient shuttle service..."
 
-3. A final paragraph (2-4 sentences) that:
-   - Introduces the shuttle route connecting ${departureCityName} and ${destinationCityName}
-   - Highlights 1-2 attractions or points of interest in ${destinationCityName}`}
+   Do not use: "BookShuttles.com offers..." or repeat the brand multiple times.
+
+3. Total word count should be about **100-150 words**.`}
 
 ---
 
