@@ -394,35 +394,67 @@ const ViatorWidgetRenderer: React.FC<ViatorWidgetRendererProps> = ({ widgetCode 
       if (!iframe) return;
       
       try {
-        // Mobile-specific measurements with more stability
-        if (isMobile) {
-          // Fixed approach for mobile: use a more conservative and stable height
-          // to prevent layout shifts and scrolling issues
-          
-          // Set fixed height for mobile - this prevents the jumpy behavior
-          // that happens when height continuously recalculates
-          const fixedMobileHeight = 450; // Fixed height that works well for most widgets
-          
-          // Only update once to avoid continuous layout shifts
-          if (heightChecks <= 2) {
-            console.log(`Setting fixed mobile height: ${fixedMobileHeight}px`);
-            iframe.style.height = `${fixedMobileHeight}px`;
-            setContainerHeight(fixedMobileHeight);
-            
-            // Apply additional styles to prevent scroll fighting
-            iframe.style.overflow = 'hidden'; // Prevent scrollbars
-            iframe.style.maxHeight = `${fixedMobileHeight}px`; 
-            iframe.style.overflowAnchor = 'none'; // Prevent scroll anchoring
-            
-            // Apply styles to parent container for stability
-            if (containerRef.current) {
-              containerRef.current.style.marginBottom = '40px'; // Add spacing after widget
-              containerRef.current.style.overflowAnchor = 'none'; // Prevent scroll anchoring
-            }
-          }
-          
-          return; // Exit early for mobile
-        }
+// Mobile-specific measurements with more stability
+if (isMobile) {
+  // New approach for mobile: use a much more strict height limit
+  // This prevents the infinite scrolling and layout shift issues
+  const fixedMobileHeight = 420; // Even smaller fixed height for better UX
+  
+  // Only update once to avoid continuous layout shifts
+  if (heightChecks <= 2) {
+    console.log(`Setting fixed mobile height: ${fixedMobileHeight}px`);
+    iframe.style.height = `${fixedMobileHeight}px`;
+    setContainerHeight(fixedMobileHeight);
+    
+    // Apply additional styles for better mobile experience
+    iframe.style.overflow = 'hidden'; // Prevent scrollbars
+    iframe.style.maxHeight = `${fixedMobileHeight}px`; 
+    iframe.style.overflowY = 'scroll'; // Allow scrolling within the iframe
+    iframe.style.overflowAnchor = 'none'; // Prevent scroll anchoring
+    // Fix for TypeScript error using type assertion to set vendor-prefixed CSS
+    (iframe.style as any)['-webkit-overflow-scrolling'] = 'touch'; // Smooth scrolling on iOS
+    
+    // Apply styles to parent container for stability
+    if (containerRef.current) {
+      containerRef.current.style.height = `${fixedMobileHeight}px`;
+      containerRef.current.style.overflow = 'hidden';
+      containerRef.current.style.marginBottom = '40px'; // Add spacing after widget
+      containerRef.current.style.overflowAnchor = 'none'; // Prevent scroll anchoring
+      
+      // Add a scroll indicator
+      const scrollIndicator = document.createElement('div');
+      scrollIndicator.style.position = 'absolute';
+      scrollIndicator.style.bottom = '0';
+      scrollIndicator.style.left = '0';
+      scrollIndicator.style.right = '0';
+      scrollIndicator.style.height = '30px';
+      scrollIndicator.style.background = 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,1) 100%)';
+      scrollIndicator.style.pointerEvents = 'none';
+      scrollIndicator.style.zIndex = '5';
+      
+      // Add a message indicating scrollability
+      const scrollMessage = document.createElement('div');
+      scrollMessage.textContent = 'Scroll for more options';
+      scrollMessage.style.position = 'absolute';
+      scrollMessage.style.bottom = '5px';
+      scrollMessage.style.left = '0';
+      scrollMessage.style.right = '0';
+      scrollMessage.style.textAlign = 'center';
+      scrollMessage.style.color = '#666';
+      scrollMessage.style.fontSize = '12px';
+      scrollMessage.style.fontWeight = '500';
+      scrollMessage.style.zIndex = '6';
+      scrollMessage.style.pointerEvents = 'none';
+      scrollMessage.style.textShadow = '0 0 5px white, 0 0 5px white, 0 0 5px white';
+      
+      // Add scroll indicators to container
+      containerRef.current.appendChild(scrollIndicator);
+      containerRef.current.appendChild(scrollMessage);
+    }
+  }
+  
+  return; // Exit early for mobile
+}
         
         // Desktop measurements - keep original logic
         try {

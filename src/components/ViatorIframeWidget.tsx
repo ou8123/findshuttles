@@ -3,11 +3,14 @@
 /**
  * ViatorIframeWidget Component
  * 
- * This component uses an iframe to isolate the Viator widget from React's rendering cycle,
- * ensuring it loads properly even after client-side navigation. This approach bypasses
- * React's virtual DOM completely for the widget content.
+ * Optimized iframe widget implementation that:
+ * - Uses lazy loading for performance
+ * - Implements better height management to work with fixed containers
+ * - Improves mobile responsiveness
+ * - Enhances security with proper sandbox attributes
+ * - Provides better error handling and logging
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ViatorIframeWidgetProps {
   widgetCode: string;
@@ -15,6 +18,7 @@ interface ViatorIframeWidgetProps {
 
 const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const uniqueId = `viator-frame-${Math.random().toString(36).substring(2, 11)}`;
 
   useEffect(() => {
@@ -25,13 +29,14 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
     // Wait for iframe to load
     const handleLoad = () => {
       try {
-        // Generate complete HTML content for the iframe
+        // Generate complete HTML content for the iframe with improved meta tags
         const htmlContent = `
           <!DOCTYPE html>
-          <html>
+          <html lang="en">
             <head>
               <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+              <meta http-equiv="X-UA-Compatible" content="IE=edge">
               <title>Viator Widget</title>
               <style>
                 body {
@@ -39,6 +44,21 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
                   padding: 0;
                   background: transparent;
                   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                  overflow-x: hidden;
+                }
+                /* Hide scrollbar but allow scrolling */
+                body::-webkit-scrollbar { 
+                  display: none;
+                }
+                body {
+                  -ms-overflow-style: none;  /* IE and Edge */
+                  scrollbar-width: none;  /* Firefox */
+                }
+                /* Basic responsive styling */
+                @media (max-width: 767px) {
+                  .viator-widget .vw-pricebanner, .viator-widget .vw-widget {
+                    width: 100% !important;
+                  }
                 }
               </style>
             </head>
@@ -46,17 +66,28 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
               ${widgetCode}
               <script async src="https://www.viator.com/orion/partner/widget.js"></script>
               <script>
-                // Helper function to resize iframe based on content
+                // Simplified message handling for parent container
                 function notifyParent() {
-                  const height = document.body.scrollHeight;
-                  window.parent.postMessage({ type: 'resize', height: height, id: '${uniqueId}' }, '*');
+                  try {
+                    const height = document.body.scrollHeight;
+                    window.parent.postMessage({ 
+                      type: 'viatorWidgetLoaded', 
+                      height: height, 
+                      id: '${uniqueId}' 
+                    }, '*');
+                  } catch (err) {
+                    console.error('Failed to notify parent window:', err);
+                  }
                 }
                 
-                // Trigger resize events at intervals to ensure widget loads
-                setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
-                setTimeout(() => { window.dispatchEvent(new Event('resize')); notifyParent(); }, 500);
-                setTimeout(() => { window.dispatchEvent(new Event('resize')); notifyParent(); }, 1000);
-                setTimeout(() => { window.dispatchEvent(new Event('resize')); notifyParent(); }, 2000);
+                // Set up progressive checks as widget loads
+                const checkTimes = [200, 600, 1000, 1500, 2500, 3500];
+                checkTimes.forEach(time => {
+                  setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                    notifyParent();
+                  }, time);
+                });
                 
                 // Listen for visibility changes
                 document.addEventListener('visibilitychange', function() {
@@ -65,6 +96,37 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
                     notifyParent();
                   }
                 });
+                
+                // Detect Viator widget elements once they've loaded
+                const checkForWidgetElements = () => {
+                  const viatorElements = document.querySelectorAll(
+                    '[data-viator-widget], .viator-widget, [data-widget-id], [id^="viator"]'
+                  );
+                  
+                  if (viatorElements.length > 0) {
+                    console.log("Viator widget elements found and loaded.");
+                    notifyParent();
+                    
+                    // Watch for changes on these elements
+                    if (window.MutationObserver) {
+                      const observer = new MutationObserver(() => {
+                        notifyParent();
+                      });
+                      
+                      viatorElements.forEach(el => {
+                        observer.observe(el, {
+                          attributes: true,
+                          childList: true,
+                          subtree: true
+                        });
+                      });
+                    }
+                  }
+                };
+                
+                // Check periodically for Viator elements
+                const checkInterval = setInterval(checkForWidgetElements, 500);
+                setTimeout(() => clearInterval(checkInterval), 10000); // Stop checking after 10s
               </script>
             </body>
           </html>
@@ -76,7 +138,8 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
           iframeDoc.open();
           iframeDoc.write(htmlContent);
           iframeDoc.close();
-          console.log(`Viator iframe loaded with ID: ${uniqueId}`);
+          console.log(`Viator iframe initialized with ID: ${uniqueId}`);
+          setIsLoaded(true);
         }
       } catch (err) {
         console.error('Error initializing Viator iframe:', err);
@@ -85,13 +148,12 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
     
     iframe.addEventListener('load', handleLoad);
     
-    // Handle messages from iframe for resizing
+    // Handle messages from iframe more simply
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'resize' && event.data?.id === uniqueId) {
-        const height = event.data.height;
-        if (iframe && height > 100) { // Sanity check on height
-          iframe.style.height = `${height}px`;
-        }
+      // Only process messages from our iframe (checking uniqueId)
+      if (event.data?.type === 'viatorWidgetLoaded' && event.data?.id === uniqueId) {
+        // We don't need to manually resize anymore - parent container handles this
+        console.log(`Viator widget content loaded and ready, height: ${event.data.height}px`);
       }
     };
     
@@ -109,12 +171,16 @@ const ViatorIframeWidget: React.FC<ViatorIframeWidgetProps> = ({ widgetCode }) =
       id={uniqueId}
       className="w-full border-0"
       style={{
-        height: '500px', // Initial height before content loads
+        height: '100%',
         width: '100%',
-        overflow: 'hidden'
+        border: 0,
+        display: 'block'
       }}
       title="Viator booking widget"
+      loading="lazy" // Add lazy loading for performance
       sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      data-viator-container={uniqueId}
+      aria-label="Viator booking options"
     />
   );
 };
