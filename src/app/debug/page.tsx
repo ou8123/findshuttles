@@ -6,6 +6,8 @@ import ViatorWidgetRenderer from '@/components/ViatorWidgetRenderer';
 import RouteMap from '@/components/RouteMap';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 // Define types for our route data
 interface City {
   id: string;
@@ -33,7 +35,7 @@ export default function DebugPage() {
   const [route, setRoute] = useState<Route | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [networkInfo, setNetworkInfo] = useState({ online: navigator.onLine });
+  const [networkInfo, setNetworkInfo] = useState({ online: true });
   const [deviceInfo, setDeviceInfo] = useState({
     userAgent: '',
     width: 0,
@@ -86,29 +88,32 @@ export default function DebugPage() {
       }
     };
     
-    // Get device info
-    setDeviceInfo({
-      userAgent: navigator.userAgent,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      pixelRatio: window.devicePixelRatio,
-      touchEnabled: 'ontouchstart' in window,
-    });
-    
-    // Online/offline status detection
-    const handleOnline = () => setNetworkInfo({ online: true });
-    const handleOffline = () => setNetworkInfo({ online: false });
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    if (typeof window !== 'undefined') {
+      // Get device info
+      setDeviceInfo({
+        userAgent: navigator.userAgent,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        pixelRatio: window.devicePixelRatio,
+        touchEnabled: 'ontouchstart' in window,
+      });
+      
+      // Online/offline status detection
+      setNetworkInfo({ online: navigator.onLine });
+      const handleOnline = () => setNetworkInfo({ online: true });
+      const handleOffline = () => setNetworkInfo({ online: false });
+      
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      
+      // Cleanup
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
     
     fetchData();
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
   }, []);
 
   // Monitor our route content height and log any changes
