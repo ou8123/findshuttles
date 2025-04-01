@@ -165,7 +165,7 @@ const FormattedDescription = ({ text, className = '' }) => {
   };
 
   return (
-    <div className={className}>
+    <div className={`${className} whitespace-pre-line`}>
       {formatContent(text)}
     </div>
   );
