@@ -186,7 +186,11 @@ export default async function RoutePage({ params }) {
                 <h2 className="text-xl font-semibold mb-0 text-current dark:text-white">
                   Route Description
                 </h2>
-                <p className="text-sm italic text-gray-600 -mt-1 mb-3">Route descriptions provide a general overview. Specific amenities and services will vary by provider. Please review individual listings before booking.</p>
+                <p className="text-sm italic text-gray-600 -mt-1 mb-3">
+                  Route descriptions often refer only to the first listing shown.<br />
+                  Amenities and services vary by provider.<br />
+                  Please review individual listings before booking.
+                </p>
                 <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
                   <FormattedDescription 
                     text={route.seoDescription} 
