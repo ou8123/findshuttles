@@ -109,6 +109,8 @@ function preprocessAdditionalInstructions(input: string): string {
   return processed.trim();
 }
 
+export const runtime = 'nodejs';
+
 export async function POST(request: Request) {
   try {
     // Check if OpenAI API key is configured

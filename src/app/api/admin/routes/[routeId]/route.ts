@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
+export const runtime = 'nodejs';
+
 // Common route selection fields for consistent data shape
 const routeSelect = {
   id: true,
