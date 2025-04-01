@@ -39,6 +39,18 @@ const FormattedDescription = ({ text, className = '' }) => {
     const result = [];
     let sectionIndex = 0;
     
+    // Check if the first section is a time estimate
+    if (sections.length > 0 && sections[0].trim().startsWith('🕒')) {
+      // Make the time estimate bold
+      result.push(
+        <p key="time-estimate" className="font-bold mb-4">
+          {sections[0]}
+        </p>
+      );
+      // Remove the time estimate from sections to process
+      sections.shift();
+    }
+    
     for (const section of sections) {
       // Skip empty sections
       if (section.trim() === '') {

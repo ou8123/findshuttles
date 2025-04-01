@@ -209,6 +209,7 @@ ${hasAdditionalInfo ? `If Editor Notes are provided:
 🕒 Approximately 3 to 4 hours
 
    - Then add **two line breaks** before starting the main body of the description.
+   - If a time estimate is displayed at the top, do **not repeat** that duration inside the paragraph content. Avoid phrases like "The journey takes approximately..." unless the time is not already shown.
 
 2. Use the rest of the Editor Notes as the **main content body**. Keep all relevant details such as:
    - Vehicle features or amenities
@@ -256,16 +257,20 @@ Hotels Served:
 
 8. If no cities or hotels are provided, **that is okay** — do not flag it as an issue. Only include those sections if they are present in the Editor Notes.` : `Create content with this structure:
 
-1. Write exactly **two medium-length paragraphs**:
-   - Paragraph 1: Provide practical information about the shuttle route, what cities it connects, and the basic convenience of the service.
-   - Paragraph 2: Introduce the destination with 1-2 attractions or popular areas (e.g., beaches, parks, town centers).
+1. Write **2 medium-length paragraphs** by default:
+   - Paragraph 1: Practical information about the shuttle route and its convenience
+   - Paragraph 2: Introduction to the destination with 1-2 local attractions
 
-2. Mention **BookShuttles.com** **once only**, and only if it fits naturally. Use the phrasing:
+2. A **third paragraph may be included only if it feels natural**, such as when separating route context from destination highlights (e.g., route → destination intro → attractions).
+
+3. Total word count should remain **100-150 words**. Avoid excessive padding.
+
+4. If a time estimate is displayed at the top (e.g., "🕒 Approximately 3 to 4 hours"), do **not repeat** that information inside the paragraph content.
+
+5. Mention **BookShuttles.com** **once only**, and only if it fits naturally. Use the phrasing:
    > "BookShuttles.com connects travelers to a convenient shuttle service..."
 
-   Do not use: "BookShuttles.com offers..." or repeat the brand multiple times.
-
-3. Total word count should be about **100-150 words**.`}
+   Do not use: "BookShuttles.com offers..." or repeat the brand multiple times.`}
 
 ---
 
@@ -285,7 +290,7 @@ Hotels Served:
 
 ${hasAdditionalInfo ? `- Begin with the time range (if provided), formatted as:
 
-  🕒 **Approximately 3 to 4 hours**
+  🕒 Approximately 3 to 4 hours
 
 - Then add **two line breaks**
 
@@ -306,6 +311,7 @@ Hotels Served:
 
 - Do not include markdown, HTML, special formatting, or external links
 - Output must be plain text only
+- Ensure proper paragraph separation with double line breaks between paragraphs
 
 ---
 
@@ -346,6 +352,12 @@ Return only the final description as plain text, following all formatting, tone,
       
       // First, normalize all newlines to \n
       processed = processed.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      
+      // Ensure proper paragraph breaks with double newlines
+      processed = processed.replace(/\n{3,}/g, '\n\n'); // No more than double newlines
+      
+      // Explicitly replace single newlines with double newlines for better consistency across environments
+      processed = processed.replace(/\n(?!\n)/g, '\n\n');
       
       // If there's a lot of text with no paragraph breaks, try to add some
       if (!processed.includes('\n\n') && processed.length > 300) {
@@ -409,6 +421,9 @@ Return only the final description as plain text, following all formatting, tone,
       
       // Ensure there aren't excessive newlines (more than 2)
       processed = result.trim().replace(/\n{3,}/g, '\n\n');
+      
+      // Ensure even empty lines are preserved by replacing with HTML paragraph breaks
+      processed = processed.replace(/\n\n/g, '\n\n');
       
       return processed;
     };
