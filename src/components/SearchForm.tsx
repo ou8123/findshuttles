@@ -517,16 +517,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     <div className="py-2 px-3 text-gray-500">No cities found</div>
                   )}
                   
-                  {/* Filter and display cities */}
-                  {departureCities
-                    .filter(city => {
-                      if (!departureQuery || departureQuery.length < 2) return true;
-                      const query = departureQuery.toLowerCase();
-                      const cityName = city.name.toLowerCase();
-                      const countryName = city.countryName?.toLowerCase() || '';
-                      return cityName.includes(query) || cityName.startsWith(query) || countryName.includes(query);
-                    })
-                    .map((city, index) => (
+                  {/* Display cities directly from API results (already filtered) */}
+                  {departureCities.map((city, index) => (
                     <Combobox.Option
                       key={city.id}
                       value={city}
