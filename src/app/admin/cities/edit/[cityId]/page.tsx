@@ -50,10 +50,10 @@ const EditCityPage = () => {
       setIsLoadingCountries(true);
       setCountryError(null);
       try {
-        const response = await fetch('/api/admin/countries');
+        const response = await fetch('/api/admin/countries'); // Now returns { countries: [], pagination: {} }
         if (!response.ok) throw new Error('Failed to fetch countries');
-        const data: Country[] = await response.json();
-        setCountries(data);
+        const data = await response.json();
+        setCountries(data.countries || []); // Extract the array
       } catch (err: unknown) {
         console.error("Failed to fetch countries for dropdown:", err);
         let message = "Could not load countries.";
@@ -80,14 +80,13 @@ const EditCityPage = () => {
       setIsLoadingCity(true);
       setError(null);
       try {
-        // Fetching all cities and filtering client-side for simplicity
-        // A dedicated GET /api/admin/cities/[cityId] would be better
-        const response = await fetch(`/api/admin/cities`);
-        if (!response.ok) throw new Error('Failed to fetch cities list');
-        const cities: City[] = await response.json(); // Assumes API returns City with country { name }
-        const cityData = cities.find(c => c.id === cityId);
-
-        if (!cityData) throw new Error('City not found');
+        // Fetch the specific city directly using its ID
+        const response = await fetch(`/api/admin/cities/${cityId}`);
+        if (!response.ok) {
+            if (response.status === 404) throw new Error('City not found');
+            throw new Error('Failed to fetch city data');
+        }
+        const cityData: City = await response.json(); // Expect a single City object
 
         // Populate form state
         setName(cityData.name);

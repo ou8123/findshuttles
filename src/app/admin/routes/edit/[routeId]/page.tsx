@@ -64,9 +64,10 @@ const EditRoutePage = () => {
       setIsLoadingCities(true);
       setCityLoadError(null);
       try {
-        const response = await fetch('/api/admin/cities');
+        const response = await fetch('/api/admin/cities'); // This now returns { cities: [], pagination: {} }
         if (!response.ok) throw new Error(`Failed to fetch cities: ${response.status}`);
-        const cities = await response.json();
+        const data = await response.json();
+        const cities = data.cities || []; // Extract the cities array
         console.log("Fetched cities:", cities.length);
         setAvailableCities(cities);
       } catch (err) {

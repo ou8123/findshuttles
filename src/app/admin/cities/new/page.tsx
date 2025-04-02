@@ -1,10 +1,11 @@
+
 "use client"; // Form requires client-side state and interaction
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// Interface for Country data (for dropdown)
+// Interface for Country dat  a (for dropdown)
 interface Country {
     id: string;
     name: string;
@@ -37,7 +38,7 @@ const AddCityPage = () => {
         const response = await fetch('/api/admin/countries'); // Use the existing API
         if (!response.ok) throw new Error('Failed to fetch countries');
         const data = await response.json();
-        // Correctly access the 'countries' array from the response object
+        // Ensure we access the 'countries' array within the response object
         setCountries(data.countries || []);
       } catch (err: unknown) {
         console.error("Failed to fetch countries for dropdown:", err);

@@ -36,16 +36,14 @@ const EditCountryPage = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // NOTE: Fetching all and filtering client-side for simplicity.
-        // A dedicated GET /api/admin/countries/[countryId] would be better.
-        const response = await fetch(`/api/admin/countries`);
-        if (!response.ok) throw new Error('Failed to fetch countries list');
-        const countries: Country[] = await response.json();
-        const countryData = countries.find(c => c.id === countryId);
-
-        if (!countryData) {
-          throw new Error('Country not found');
+        // Fetch the specific country using the new API endpoint
+        const response = await fetch(`/api/admin/countries/${countryId}`);
+        if (!response.ok) {
+            if (response.status === 404) throw new Error('Country not found');
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to fetch country data');
         }
+        const countryData: Country = await response.json(); // Expect single country object
         setName(countryData.name);
         setOriginalName(countryData.name); // Store original name
 
