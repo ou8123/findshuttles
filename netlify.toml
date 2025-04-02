@@ -17,7 +17,6 @@
   external_node_modules = ["bcrypt", "@prisma/client", "prisma"]
   included_files = ["prisma/**", ".env*"]
   timeout = 30
-  memory_size = 1024
 
 [[headers]]
   for = "/api/*"
