@@ -165,6 +165,22 @@ const RouteList = () => {
         fetchRoutes(currentPage, searchQuery);
     }, [currentPage, searchQuery]);
 
+    // Re-fetch data when the window gains focus (e.g., navigating back)
+    useEffect(() => {
+      const handleFocus = () => {
+        console.log("RouteList focus detected, re-fetching routes...");
+        // Fetch based on current URL params, not just page 1
+        const currentParams = new URLSearchParams(window.location.search);
+        const page = parseInt(currentParams.get('page') || '1');
+        const search = currentParams.get('search') || '';
+        fetchRoutes(page, search);
+      };
+      window.addEventListener('focus', handleFocus);
+      return () => {
+        window.removeEventListener('focus', handleFocus);
+      };
+    }, []); // Empty dependency array ensures this effect runs only once to set up listener
+
     const handleDelete = async (routeId: string, routeDesc: string) => {
         if (!window.confirm(`Are you sure you want to delete the route "${routeDesc}"?`)) {
             return;

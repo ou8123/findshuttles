@@ -40,6 +40,18 @@ const CityList = () => {
         fetchCities();
     }, []);
 
+    // Re-fetch data when the window gains focus (e.g., navigating back)
+    useEffect(() => {
+      const handleFocus = () => {
+        console.log("CityList focus detected, re-fetching cities...");
+        fetchCities();
+      };
+      window.addEventListener('focus', handleFocus);
+      return () => {
+        window.removeEventListener('focus', handleFocus);
+      };
+    }, []); // Empty dependency array ensures this effect runs only once to set up listener
+
     const handleDelete = async (cityId: string, cityName: string) => {
         if (!window.confirm(`Are you sure you want to delete the city "${cityName}"?`)) {
             return;
