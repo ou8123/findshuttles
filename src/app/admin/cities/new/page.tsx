@@ -36,8 +36,9 @@ const AddCityPage = () => {
       try {
         const response = await fetch('/api/admin/countries'); // Use the existing API
         if (!response.ok) throw new Error('Failed to fetch countries');
-        const data: Country[] = await response.json();
-        setCountries(data);
+        const data = await response.json();
+        // Correctly access the 'countries' array from the response object
+        setCountries(data.countries || []);
       } catch (err: unknown) {
         console.error("Failed to fetch countries for dropdown:", err);
         let message = "Could not load countries.";
