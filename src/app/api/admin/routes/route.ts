@@ -67,7 +67,7 @@ export async function GET(request: Request) {
         destinationCountry: { select: { name: true } },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'desc', // Revert to ordering by creation date
       },
       skip,
       take: validLimit,
@@ -184,10 +184,11 @@ export async function POST(request: Request) {
     }
 
     // Log the exact IDs before attempting creation
-    console.log(`Attempting to create route with Departure ID: ${data.departureCityId}, Destination ID: ${data.destinationCityId}`);
+    console.log(`POST /api/admin/routes: Attempting to create route with Departure ID: ${data.departureCityId}, Destination ID: ${data.destinationCityId}`);
 
     // Reverted: Removed explicit delete attempt before create
 
+    console.log("POST /api/admin/routes: About to call prisma.route.create..."); // Log before create
     const newRoute = await prisma.route.create({
       data: {
         departureCityId: data.departureCityId, // Ensure this is the correct ID from the form/find-or-create
@@ -208,9 +209,11 @@ export async function POST(request: Request) {
     return NextResponse.json(newRoute, { status: 201 });
 
   } catch (error) {
-    console.error("Admin Route POST: Error creating route.", error);
+    console.error("POST /api/admin/routes: Error during route creation.", error); // Log the specific error
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      // Log details if it's the unique constraint error
+      console.error(`POST /api/admin/routes: Prisma P2002 error details:`, error.meta);
       return NextResponse.json(
         { error: 'A route with this departure and destination already exists.' },
         { status: 409 }

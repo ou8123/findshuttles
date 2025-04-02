@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { 
-  checkApiAuth, 
-  RequiredRole, 
-  secureApiResponse 
+import {
+  checkApiAuth,
+  RequiredRole,
+  secureApiResponse
 } from '@/lib/api-auth';
+// Removed duplicate Prisma import
 
 // Helper function to generate slugs (simple version)
 function generateSlug(name: string): string {
@@ -26,13 +27,51 @@ export async function GET(request: NextRequest) {
     return authCheck.response;
   }
 
+  // Parse URL query parameters for pagination and search
+  const url = new URL(request.url);
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = parseInt(url.searchParams.get('limit') || '25'); // Default limit
+  const search = url.searchParams.get('search') || '';
+
+  // Validate pagination
+  const validPage = page > 0 ? page : 1;
+  const validLimit = limit > 0 && limit <= 100 ? limit : 25; // Max limit 100
+  const skip = (validPage - 1) * validLimit;
+
+
   try {
+    // Build where clause for search
+    let where: Prisma.CountryWhereInput = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.country.count({ where });
+
+    // Get paginated countries
     const countries = await prisma.country.findMany({
+      where,
+      skip,
+      take: validLimit,
       orderBy: { name: 'asc' },
     });
-    
-    // Use our secure response helper
-    return secureApiResponse(countries);
+
+    // Return paginated result using secureApiResponse
+    // Note: secureApiResponse already adds Cache-Control: no-store
+    return secureApiResponse({
+        countries,
+        pagination: {
+            page: validPage,
+            limit: validLimit,
+            totalItems: totalCount,
+            totalPages: Math.ceil(totalCount / validLimit),
+            hasMore: skip + countries.length < totalCount
+        }
+     });
   } catch (error) {
     console.error("Admin Countries GET Error:", error);
     return secureApiResponse(

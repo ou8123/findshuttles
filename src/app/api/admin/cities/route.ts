@@ -29,11 +29,39 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const countryId = searchParams.get('countryId');
+  // Pagination and Search Params
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '25'); // Default limit
+  const search = searchParams.get('search') || '';
+  const countryId = searchParams.get('countryId'); // Keep existing filter
+
+  // Validate pagination
+  const validPage = page > 0 ? page : 1;
+  const validLimit = limit > 0 && limit <= 100 ? limit : 25; // Max limit 100
+  const skip = (validPage - 1) * validLimit;
 
   try {
+    // Build where clause for search and country filter
+    let where: Prisma.CityWhereInput = {};
+    if (countryId) {
+      where.countryId = countryId;
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+        { country: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+     // Get total count for pagination
+    const totalCount = await prisma.city.count({ where });
+
+    // Get paginated cities
     const cities = await prisma.city.findMany({
-      where: countryId ? { countryId: countryId } : {}, // Filter if countryId is provided
+      where,
+      skip,
+      take: validLimit,
       include: { // Include country name for context
         country: {
           select: { name: true }
@@ -44,8 +72,18 @@ export async function GET(request: Request) {
         { name: 'asc' },
       ],
     });
-    // Add Cache-Control header to prevent caching of the list
-    return NextResponse.json(cities, {
+
+    // Return paginated result
+    return NextResponse.json({
+        cities,
+        pagination: {
+            page: validPage,
+            limit: validLimit,
+            totalItems: totalCount,
+            totalPages: Math.ceil(totalCount / validLimit),
+            hasMore: skip + cities.length < totalCount
+        }
+     }, {
       headers: {
         'Cache-Control': 'no-store',
       },
