@@ -275,21 +275,8 @@ const RouteList = () => {
                     {/* Add detailed logging before mapping */}
                     {/* {console.log("RouteList: Data received by component:", JSON.stringify(routes, null, 2))} */}
                     {routes.map((route, index) => {
-                        // Basic check for essential data needed for rendering
-                        if (!route || !route.id || !route.departureCity?.name || !route.destinationCity?.name || !route.departureCountry?.name || !route.destinationCountry?.name) {
-                          // Detailed logging for skipped route
-                          let missingFields = [];
-                          if (!route) missingFields.push('route object');
-                          else {
-                            if (!route.id) missingFields.push('id');
-                            if (!route.departureCity?.name) missingFields.push('departureCity.name');
-                            if (!route.destinationCity?.name) missingFields.push('destinationCity.name');
-                            if (!route.departureCountry?.name) missingFields.push('departureCountry.name');
-                            if (!route.destinationCountry?.name) missingFields.push('destinationCountry.name');
-                          }
-                          console.warn(`RouteList: Skipping route at index ${index} (ID: ${route?.id || 'N/A'}) due to missing data: ${missingFields.join(', ')}. Route data:`, route);
-                          return null; // Skip rendering this row if essential data is missing
-                        }
+                        // Reverted: Removed the detailed check/logging block that might cause rendering issues.
+                        // We'll rely on the API returning complete data for now.
                         const routeDesc = `${route.departureCity.name} - ${route.destinationCity.name}`;
                         const isDeleting = deleteStatus?.id === route.id;
 

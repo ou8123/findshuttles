@@ -73,7 +73,13 @@ export async function GET(request: Request) {
     });
 
     console.log(`Admin Route GET: Fetched ${routes.length} routes (page ${validPage}, limit ${validLimit}) for user ${session.user?.email}`);
-    
+
+    // Detailed Log: Check if the specific route is present after fetch
+    const specificRoute = routes.find(r => r.departureCity.name === 'San Jose' && r.destinationCity.name === 'Quepos');
+    console.log(`Admin Route GET: Is 'San Jose to Quepos' route present in fetched data? ${specificRoute ? 'Yes (ID: ' + specificRoute.id + ')' : 'No'}`);
+    // Log all fetched route display names for comparison
+    console.log(`Admin Route GET: Fetched displayNames: ${routes.map(r => r.displayName).join(', ')}`);
+
     // Return routes with pagination metadata
     return NextResponse.json({
       routes,
@@ -173,10 +179,13 @@ export async function POST(request: Request) {
       displayName = `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
     }
 
+    // Log the exact IDs before attempting creation
+    console.log(`Attempting to create route with Departure ID: ${data.departureCityId}, Destination ID: ${data.destinationCityId}`);
+
     const newRoute = await prisma.route.create({
       data: {
-        departureCityId: data.departureCityId,
-        destinationCityId: data.destinationCityId,
+        departureCityId: data.departureCityId, // Ensure this is the correct ID from the form/find-or-create
+        destinationCityId: data.destinationCityId, // Ensure this is the correct ID from the form/find-or-create
         departureCountryId: departureCity.countryId,
         destinationCountryId: destinationCity.countryId,
         routeSlug: routeSlug,

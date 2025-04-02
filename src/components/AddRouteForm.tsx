@@ -92,9 +92,18 @@ const AddRouteForm = () => {
 
   // --- Autocomplete Helper ---
   const findMatchingCity = (placeName: string): CityLookup | null => {
-    const nameLower = placeName.trim().toLowerCase();
+    // Normalize the input place name to match normalized DB names
+    const normalizedPlaceName = placeName
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    if (!normalizedPlaceName) return null; // Avoid matching empty strings
+
     for (const country of locationsLookup) {
-      const cityMatch = country.cities.find(city => city.name.trim().toLowerCase() === nameLower);
+      // Compare against the normalized name from the DB (assuming city.name is already normalized)
+      const cityMatch = country.cities.find(city => city.name.trim().toLowerCase() === normalizedPlaceName);
       if (cityMatch) {
         return cityMatch;
       }
@@ -262,6 +271,8 @@ const AddRouteForm = () => {
           console.log("Matched Destination City:", matchedCity);
         } else {
           console.warn(`Selected destination "${selectedName}" not found in internal data. Attempting to find or create...`);
+          // Add log before calling
+          console.log(`Calling handleFindOrCreateLocation for destination: ${selectedName}`);
           await handleFindOrCreateLocation(place, setSelectedDestinationCity);
         }
       } else {
@@ -310,6 +321,12 @@ const AddRouteForm = () => {
   const submitRouteData = async (clearForm: boolean) => {
     setIsSubmitting(true);
     setSubmitStatus(null);
+
+    // Log state right before validation
+    console.log('submitRouteData called. States:', {
+      selectedDepartureCity: selectedDepartureCity,
+      selectedDestinationCity: selectedDestinationCity,
+    });
 
     // Validate that cities were selected AND matched in our DB
     if (!selectedDepartureCity || !selectedDestinationCity) {
