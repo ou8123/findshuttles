@@ -185,11 +185,12 @@ if (pathname === '/api/auth/error') {
   
   // Check for admin routes - both the real internal path and the obscured path
   if (isAdminPath(pathname)) {
-    // If they used the standard /admin path, return a 404 to hide its existence
-    if (pathname.startsWith('/admin')) {
+    // If they used the standard /admin path (but NOT /api/admin), return a 404 to hide its existence
+    if (pathname.startsWith('/admin') && !pathname.startsWith('/api/admin')) {
+      console.log(`Middleware blocking direct access to internal admin page: ${pathname}`);
       return create404Response();
     }
-    
+
     // Authentication check using NextAuth - only for stealth admin paths
     if (pathname.startsWith(`/${ADMIN_PATH_TOKEN}`)) {
       let isAuthenticated = false;

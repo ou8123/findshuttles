@@ -268,14 +268,31 @@ const RouteList = () => {
                         {routes.length === 0 && (
                             <tr>
                                 <td colSpan={4} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                                    No routes found. Add one using the button above.
-                                </td>
-                            </tr>
-                        )}
-                        {routes.map((route) => {
-                            const routeDesc = `${route.departureCity.name} - ${route.destinationCity.name}`;
-                            const isDeleting = deleteStatus?.id === route.id;
-                            
+                                No routes found. Add one using the button above.
+                            </td>
+                        </tr>
+                    )}
+                    {/* Add detailed logging before mapping */}
+                    {/* {console.log("RouteList: Data received by component:", JSON.stringify(routes, null, 2))} */}
+                    {routes.map((route, index) => {
+                        // Basic check for essential data needed for rendering
+                        if (!route || !route.id || !route.departureCity?.name || !route.destinationCity?.name || !route.departureCountry?.name || !route.destinationCountry?.name) {
+                          // Detailed logging for skipped route
+                          let missingFields = [];
+                          if (!route) missingFields.push('route object');
+                          else {
+                            if (!route.id) missingFields.push('id');
+                            if (!route.departureCity?.name) missingFields.push('departureCity.name');
+                            if (!route.destinationCity?.name) missingFields.push('destinationCity.name');
+                            if (!route.departureCountry?.name) missingFields.push('departureCountry.name');
+                            if (!route.destinationCountry?.name) missingFields.push('destinationCountry.name');
+                          }
+                          console.warn(`RouteList: Skipping route at index ${index} (ID: ${route?.id || 'N/A'}) due to missing data: ${missingFields.join(', ')}. Route data:`, route);
+                          return null; // Skip rendering this row if essential data is missing
+                        }
+                        const routeDesc = `${route.departureCity.name} - ${route.destinationCity.name}`;
+                        const isDeleting = deleteStatus?.id === route.id;
+
                             // Use the secure admin path for the edit link
                             const secureEditPath = getSecureAdminPath(`/admin/routes/edit/${route.id}`);
                             
