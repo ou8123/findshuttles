@@ -25,6 +25,9 @@ model Country {
   cities     City[]
   routesFrom Route[]  @relation("DepartureCountry")
   routesTo   Route[]  @relation("DestinationCountry")
+
+  @@index([name])
+  @@index([slug])
 }
 
 model City {
@@ -42,6 +45,9 @@ model City {
 
   @@unique([name, countryId])
   @@unique([slug, countryId])
+  @@index([name])
+  @@index([slug])
+  @@index([countryId])
 }
 
 model Route {
@@ -63,4 +69,12 @@ model Route {
   departureCountry     Country  @relation("DepartureCountry", fields: [departureCountryId], references: [id])
   destinationCity      City     @relation("DestinationCity", fields: [destinationCityId], references: [id])
   destinationCountry   Country  @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
+
+  @@index([displayName])
+  @@index([routeSlug])
+  @@index([departureCityId])
+  @@index([destinationCityId])
+  @@index([departureCountryId])
+  @@index([destinationCountryId])
+  @@index([createdAt])
 }
