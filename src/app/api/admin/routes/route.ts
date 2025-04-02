@@ -57,9 +57,8 @@ export async function GET(request: Request) {
     const totalCount = await prisma.route.count({ where });
 
     // Get paginated routes
-    // Restore includes
     const routes = await prisma.route.findMany({
-      where,
+      where, // Apply search filter if active
       include: {
         departureCity: { select: { name: true } },
         destinationCity: { select: { name: true } },
@@ -67,21 +66,15 @@ export async function GET(request: Request) {
         destinationCountry: { select: { name: true } },
       },
       orderBy: {
-        createdAt: 'desc', // Revert to ordering by creation date
+        createdAt: 'desc', // Or other relevant field like displayName
       },
       skip,
       take: validLimit,
     });
 
-    console.log(`Admin Route GET: Fetched ${routes.length} routes (page ${validPage}, limit ${validLimit}) for user ${session.user?.email}`);
+    console.log(`Admin Route GET: Fetched ${routes.length} routes (Page: ${validPage}, Limit: ${validLimit}) for user ${session.user?.email}`);
 
-    // Detailed Log: Check if the specific route is present after fetch
-    const specificRoute = routes.find(r => r.departureCity.name === 'San Jose' && r.destinationCity.name === 'Quepos');
-    console.log(`Admin Route GET: Is 'San Jose to Quepos' route present in fetched data? ${specificRoute ? 'Yes (ID: ' + specificRoute.id + ')' : 'No'}`);
-    // Log all fetched route display names for comparison
-    console.log(`Admin Route GET: Fetched displayNames: ${routes.map(r => r.displayName).join(', ')}`);
-
-    // Return routes with pagination metadata
+    // Return paginated routes data
     return NextResponse.json({
       routes,
       pagination: {
@@ -89,8 +82,8 @@ export async function GET(request: Request) {
         limit: validLimit,
         totalItems: totalCount,
         totalPages: Math.ceil(totalCount / validLimit),
-        hasMore: skip + routes.length < totalCount
-      }
+        hasMore: skip + routes.length < totalCount,
+      },
     }, { 
       status: 200,
       headers: {
