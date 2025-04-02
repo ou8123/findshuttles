@@ -57,6 +57,7 @@ export async function GET(request: Request) {
     const totalCount = await prisma.route.count({ where });
 
     // Get paginated routes
+    // Restore includes
     const routes = await prisma.route.findMany({
       where,
       include: {
@@ -131,6 +132,9 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Log received IDs immediately after validation
+    console.log(`Admin Route POST: Received Departure ID: ${data.departureCityId}, Destination ID: ${data.destinationCityId}`);
+
     const departureCity = await prisma.city.findUnique({
         where: { id: data.departureCityId },
         select: {
@@ -182,24 +186,7 @@ export async function POST(request: Request) {
     // Log the exact IDs before attempting creation
     console.log(`Attempting to create route with Departure ID: ${data.departureCityId}, Destination ID: ${data.destinationCityId}`);
 
-    // --- START: Explicit Deletion Attempt ---
-    // Try deleting any existing route with these IDs just in case.
-    try {
-      const deleteResult = await prisma.route.deleteMany({
-        where: {
-          departureCityId: data.departureCityId,
-          destinationCityId: data.destinationCityId,
-        },
-      });
-      if (deleteResult.count > 0) {
-        console.log(`Admin Route POST: Explicitly deleted ${deleteResult.count} pre-existing route(s) before creation.`);
-      }
-    } catch (deleteError) {
-      // Log deletion error but proceed, as the create might still work or fail with P2002
-      console.error(`Admin Route POST: Error during explicit pre-deletion:`, deleteError);
-    }
-    // --- END: Explicit Deletion Attempt ---
-
+    // Reverted: Removed explicit delete attempt before create
 
     const newRoute = await prisma.route.create({
       data: {
