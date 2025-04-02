@@ -105,8 +105,8 @@ if (nextAuthUrl && !nextAuthUrl.startsWith('http://') && !nextAuthUrl.startsWith
 // For Netlify, we need to handle the domain differently
 let domain: string | undefined;
 if (isNetlify) {
-  // Use the Netlify domain directly without subdomain restrictions
-  domain = 'netlify.app';
+  // Use the full Netlify domain
+  domain = process.env.URL ? new URL(process.env.URL).hostname : 'findshuttles.netlify.app';
 } else {
   domain = process.env.NEXTAUTH_COOKIE_DOMAIN || 
            extractDomainFromUrl(nextAuthUrl) || 
@@ -140,9 +140,9 @@ export const authOptions: AuthOptions = {
       name: `${cookiePrefix}next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: isNetlify ? "none" : "lax",
         path: "/",
-        secure: isProduction,
+        secure: true,
         domain,
         maxAge: 24 * 60 * 60, // 24 hours
       },
@@ -261,8 +261,8 @@ export const authOptions: AuthOptions = {
     error: `/${LOGIN_PATH_TOKEN}`, // Also use stealth login path for errors
   },
   // Configure for Netlify environment
-  useSecureCookies: false, // Disable secure cookies on Netlify to fix auth issues
-  debug: true, // Enable debug logging to track auth issues
+  useSecureCookies: true, // Enable secure cookies
+  debug: process.env.NODE_ENV === 'development', // Only debug in development
   callbacks: {
     async jwt({ token, user }) {
       // Add user details to JWT
@@ -282,5 +282,5 @@ export const authOptions: AuthOptions = {
     },
   },
   // Enhanced security options
-  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret-for-netlify-testing-only',
+  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
 };

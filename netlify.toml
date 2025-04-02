@@ -12,8 +12,17 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["bcrypt"]
-  included_files = ["prisma/**"]
+  external_node_modules = ["bcrypt", "@prisma/client", "prisma"]
+  included_files = ["prisma/**", ".env*"]
+  memory = 1024
+  timeout = 30
+
+[build.environment]
+  NODE_VERSION = "18"
+  NEXT_TELEMETRY_DISABLED = "1"
+  NODE_ENV = "production"
+  NEXT_USE_NETLIFY_EDGE = "true"
+  NEXT_PRIVATE_TARGET = "server"
 
 [[headers]]
   for = "/api/*"
@@ -31,19 +40,21 @@
   [redirects.headers]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "X-Requested-With, Content-Type, Authorization"
+    Access-Control-Allow-Headers = "X-Requested-With, Content-Type, Authorization, Cookie"
     Access-Control-Allow-Credentials = "true"
+    Access-Control-Expose-Headers = "Set-Cookie"
 
 [[redirects]]
-  from = "/api/locations"
+  from = "/api/locations*"
   to = "/.netlify/functions/next_server"
   status = 200
   force = true
   [redirects.headers]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, Cookie"
     Access-Control-Allow-Credentials = "true"
+    Access-Control-Expose-Headers = "Set-Cookie"
 
 [[redirects]]
   from = "/management-portal-8f7d3e2a1c/*"

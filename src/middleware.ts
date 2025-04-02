@@ -164,9 +164,15 @@ if (pathname.startsWith('/api/auth/') ||
     pathname.includes('system-auth')) {
   // Add debug for auth route handling
   console.log(`Middleware bypassed for auth route: ${pathname}`);
-  const response = NextResponse.next();
-  // Add security headers even for bypassed routes
-  return addSecurityHeaders(response);
+  return NextResponse.next();
+}
+
+// Skip middleware for API routes that need direct access
+if (pathname.startsWith('/api/locations') ||
+    pathname.startsWith('/api/routes') ||
+    pathname.startsWith('/api/valid-destinations')) {
+  console.log(`Middleware bypassed for API route: ${pathname}`);
+  return NextResponse.next();
 }
 
 // Special handling for auth error routes
@@ -174,7 +180,7 @@ if (pathname === '/api/auth/error') {
   // Redirect to the stealth login path with error parameter
   const url = new URL(`/${LOGIN_PATH_TOKEN}`, request.url);
   url.searchParams.set('error', 'AuthError');
-  return NextResponse.redirect(url);
+  return addSecurityHeaders(NextResponse.redirect(url));
 }
   
   // Check for admin routes - both the real internal path and the obscured path
