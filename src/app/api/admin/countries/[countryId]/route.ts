@@ -20,7 +20,7 @@ function generateSlug(name: string): string {
 }
 
 // GET handler for single country
-export async function GET(request: Request, context: { params: { countryId: string } }) {
+export async function GET(request: NextRequest, context: { params: { countryId: string } }) {
   const authCheck = await checkApiAuth(request, RequiredRole.Admin);
   if (!authCheck.authenticated) {
     return authCheck.response;
@@ -49,7 +49,7 @@ export async function GET(request: Request, context: { params: { countryId: stri
 
 
 // PUT handler to update a country
-export async function PUT(request: Request, context: { params: { countryId: string } }) {
+export async function PUT(request: NextRequest, context: { params: { countryId: string } }) {
  const authCheck = await checkApiAuth(request, RequiredRole.Admin);
   if (!authCheck.authenticated) {
     return authCheck.response;
@@ -105,7 +105,7 @@ export async function PUT(request: Request, context: { params: { countryId: stri
 
 
 // DELETE handler to delete a country
-export async function DELETE(request: Request, context: { params: { countryId: string } }) {
+export async function DELETE(request: NextRequest, context: { params: { countryId: string } }) {
  const authCheck = await checkApiAuth(request, RequiredRole.Admin);
   if (!authCheck.authenticated) {
     return authCheck.response;
