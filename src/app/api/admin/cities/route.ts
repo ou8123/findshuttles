@@ -37,7 +37,12 @@ export async function GET(request: Request) {
         { name: 'asc' },
       ],
     });
-    return NextResponse.json(cities);
+    // Add Cache-Control header to prevent caching of the list
+    return NextResponse.json(cities, {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
   } catch (error) {
     console.error("Admin Cities GET Error:", error);
     return NextResponse.json({ error: 'Failed to fetch cities' }, { status: 500 });

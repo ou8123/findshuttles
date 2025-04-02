@@ -81,7 +81,12 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(totalCount / validLimit),
         hasMore: skip + routes.length < totalCount
       }
-    }, { status: 200 });
+    }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store', // Prevent caching of the list
+      },
+    });
 
   } catch (error) {
     console.error("Admin Route GET: Error fetching routes.", error);
