@@ -246,7 +246,7 @@ ${hasAdditionalInfo ? `If Editor Notes are provided:
    - ❌ Do not include shuttle operator or affiliate company names
    - ✅ If the website must be mentioned, refer to it as **BookShuttles.com** using the phrasing:
 
-     > "BookShuttles.com connects travelers to a convenient shuttle service..."
+      > "BookShuttles.com connects travelers to a convenient shuttle service..."
 
      Do **not** use: "BookShuttles.com offers..."
 
@@ -254,7 +254,7 @@ ${hasAdditionalInfo ? `If Editor Notes are provided:
 
 5. After the main content, write a **third and final paragraph** that is **2–4 sentences long**. This final paragraph must:
    - Briefly describe the route between the departure and destination cities (e.g., "This service connects Managua and San Juan del Sur…")
-   - Mention **1–2 well-known local attractions or activities** in the destination city (e.g., popular beaches, hiking trails, parks, museums, districts)
+   - Mention **2–3 specific attractions or activities** in the destination city. These should include named points of interest when possible — such as well-known beaches, waterfalls, hikes, surf breaks, adventure parks, or national parks.
    - This paragraph is required even if the Editor Notes are long. It should always appear at the end of the description, after the service content.
 
 6. Total content length (excluding city/hotel lists) should be:
@@ -279,7 +279,7 @@ Hotels Served:
 
 1. Write **2 medium-length paragraphs** by default:
    - Paragraph 1: Practical information about the shuttle route and its convenience
-   - Paragraph 2: Introduction to the destination with 1-2 local attractions
+   - Paragraph 2: Introduction to the destination with 2-3 specific local attractions (e.g., named beaches, parks, hikes, surf breaks).
 
 2. A **third paragraph may be included only if it feels natural**, such as when separating route context from destination highlights (e.g., route → destination intro → attractions).
 
