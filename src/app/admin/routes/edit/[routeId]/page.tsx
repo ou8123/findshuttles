@@ -313,7 +313,7 @@ const EditRoutePage = () => {
   if (error) {
     return (
       <div>
-        <Link href="/admin/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+        <Link href="/management-portal-8f7d3e2a1c/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
           &larr; Back to Routes
         </Link>
         <p className="text-center p-4 text-red-600">{error}</p>
@@ -323,7 +323,7 @@ const EditRoutePage = () => {
 
   return (
     <div className="p-4">
-      <Link href="/admin/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+      <Link href="/management-portal-8f7d3e2a1c/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
         &larr; Back to Routes
       </Link>
       <h1 className="text-2xl font-bold mb-6">Edit Route</h1>
@@ -556,7 +556,7 @@ const EditRoutePage = () => {
               View Route
             </Link>
           )}
-          <Link href="/admin/routes" className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+          <Link href="/management-portal-8f7d3e2a1c/routes" className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
             Cancel
           </Link>
         </div>

@@ -17,7 +17,7 @@ function LoginForm() {
   // Get callback URL from search params
   const { useSearchParams } = require('next/navigation');
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") || "/admin";
+  const callbackUrl = searchParams?.get("callbackUrl") || "/management-portal-8f7d3e2a1c";
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

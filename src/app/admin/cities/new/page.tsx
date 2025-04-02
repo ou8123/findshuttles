@@ -101,7 +101,7 @@ const AddCityPage = () => {
 
       // Success - redirect back to the cities list
       setSubmitStatus({ success: true, message: `City "${result.name}" created successfully!` });
-      router.push('/admin/cities'); // Redirect to the list page
+      router.push('/management-portal-8f7d3e2a1c/cities'); // Redirect to the list page
 
     } catch (error: unknown) {
       console.error("Failed to submit new city:", error);
@@ -117,7 +117,7 @@ const AddCityPage = () => {
 
   return (
     <div>
-      <Link href="/admin/cities" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+      <Link href="/management-portal-8f7d3e2a1c/cities" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
         &larr; Back to Cities
       </Link>
       <h1 className="text-2xl font-bold mb-6">Add New City</h1>

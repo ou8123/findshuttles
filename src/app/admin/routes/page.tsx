@@ -10,7 +10,8 @@ export default async function AdminRoutesPage() {
 
   // Protect the page server-side
   if (!session || session.user?.role !== 'ADMIN') {
-    redirect('/api/auth/signin?callbackUrl=/admin/routes');
+    // Use the stealth path for the callback URL
+    redirect('/api/auth/signin?callbackUrl=/management-portal-8f7d3e2a1c/routes');
   }
 
   // The actual data fetching and rendering is delegated to the client component
@@ -18,8 +19,8 @@ export default async function AdminRoutesPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Manage Routes</h1>
-        {/* Link to AddRouteForm component, which is on the main admin page */}
-        <Link href="/admin" className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">
+        {/* Link to AddRouteForm component, which is on the main admin page (using stealth path) */}
+        <Link href="/management-portal-8f7d3e2a1c" className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">
             Add New Route
         </Link>
       </div>

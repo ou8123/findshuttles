@@ -10,7 +10,8 @@ async function checkAdminAuth() {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'ADMIN') {
         console.log("Admin layout access denied for user:", session?.user?.email ?? 'Not logged in');
-        redirect('/api/auth/signin?callbackUrl=/admin'); // Redirect to signin
+        // Use the stealth path for the callback URL
+        redirect('/api/auth/signin?callbackUrl=/management-portal-8f7d3e2a1c'); 
     }
     return session; // Return session if authorized
 }
@@ -38,12 +39,7 @@ export default async function AdminLayout({
         <h2 className="text-xl font-semibold mb-6">Admin Menu</h2>
         {/* Use the client component for navigation */}
         <AdminSidebarNav navItems={navItems} />
-        {/* Optional: Add user info or logout button at the bottom */}
-        <div className="mt-auto">
-             <Link href="/api/auth/signout" className="block py-2 px-3 rounded hover:bg-gray-700 transition-colors text-sm">
-                Sign Out
-             </Link>
-        </div>
+        {/* Logout is handled within AdminSidebarNav */}
       </aside>
 
       {/* Main Content Area */}
