@@ -16,8 +16,10 @@
   node_bundler = "esbuild"
   external_node_modules = ["bcrypt", "@prisma/client", "prisma"]
   included_files = ["prisma/**", ".env*"]
-  memory = 1024
   timeout = 30
+
+[functions.memory]
+  amount = 1024
 
 [[headers]]
   for = "/api/*"
