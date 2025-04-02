@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"; // Import from new location
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
+// Force dynamic rendering and prevent caching
+export const dynamic = 'force-dynamic';
+
 // Updated slug generation function to include normalization
 function generateNormalizedSlug(name: string): string {
   const normalizedName = name

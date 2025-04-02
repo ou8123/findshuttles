@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
+// Force dynamic rendering and prevent caching
+export const dynamic = 'force-dynamic';
+
 interface NewRouteData {
   departureCityId: string;
   destinationCityId: string;
