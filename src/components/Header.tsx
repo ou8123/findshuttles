@@ -14,8 +14,8 @@ const Header = () => {
               width: 'auto',  /* Auto width to maintain aspect ratio */
               objectFit: 'contain',
               objectPosition: 'bottom', /* Align to bottom */
-              marginRight: 'auto',
-              marginBottom: '-1px' /* Negative margin to overlap with green area */
+              marginRight: 'auto'
+              // Removed marginBottom: '-1px'
             }}
           />
         </Link>
