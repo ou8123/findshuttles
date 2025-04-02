@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
-import { generateSlug } from '@/lib/utils';
+import { generateSlug } from '@/lib/utils'; // Uses the updated normalization
 import { Prisma } from '@prisma/client';
 
 interface RequestBody {
@@ -49,17 +49,21 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'Missing required fields: cityName, countryName' },
       { status: 400 }
-    );
-  }
+      );
+    }
 
-  const trimmedCityName = cityName.trim();
-  const trimmedCountryName = countryName.trim();
+    // Normalize city name (remove accents)
+    const normalizedCityName = cityName
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    const trimmedCountryName = countryName.trim();
 
-  // 4. Generate Slugs
-  const cityBaseSlug = generateSlug(trimmedCityName);
-  const countrySlug = generateSlug(trimmedCountryName);
+    // 4. Generate Slugs using normalized names
+    const cityBaseSlug = generateSlug(normalizedCityName); // Use normalized name for slug base
+    const countrySlug = generateSlug(trimmedCountryName); // Country names usually don't need normalization, but use the same func
 
-  if (!cityBaseSlug || !countrySlug) {
+    if (!cityBaseSlug || !countrySlug) {
       return NextResponse.json({ error: 'Could not generate valid slugs for city or country name' }, { status: 400 });
   }
 
@@ -83,7 +87,7 @@ export async function POST(request: Request) {
     const city = await prisma.city.upsert({
       where: {
         name_countryId: {
-          name: trimmedCityName,
+          name: normalizedCityName, // Use normalized name in where clause
           countryId: country.id,
         }
       },
@@ -92,7 +96,7 @@ export async function POST(request: Request) {
         slug: citySlug
       },
       create: {
-        name: trimmedCityName,
+        name: normalizedCityName, // Save normalized name
         slug: citySlug,
         countryId: country.id,
         latitude: latitude ?? null,

@@ -4,9 +4,13 @@ import { authOptions } from "@/lib/auth"; // Import from new location
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
-// Re-use or import slug generation function
-function generateSlug(name: string): string {
-  return name
+// Updated slug generation function to include normalization
+function generateNormalizedSlug(name: string): string {
+  const normalizedName = name
+    .normalize('NFD') // Separate accents from characters
+    .replace(/[\u0300-\u036f]/g, ''); // Remove accent characters
+
+  return normalizedName
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '')
@@ -73,9 +77,13 @@ export async function POST(request: Request) {
        return NextResponse.json({ error: 'Invalid coordinate format (must be numbers)' }, { status: 400 });
    }
 
+  // Normalize the name (remove accents)
+  const normalizedName = data.name
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
-  const name = data.name.trim();
-  const slug = generateSlug(name);
+  const slug = generateNormalizedSlug(normalizedName); // Use normalized name for slug
 
   if (!slug) {
      return NextResponse.json({ error: 'Failed to generate a valid slug from the provided name' }, { status: 400 });
@@ -90,7 +98,7 @@ export async function POST(request: Request) {
 
     const newCity = await prisma.city.create({
       data: {
-        name: name,
+        name: normalizedName, // Save normalized name
         slug: slug,
         countryId: data.countryId,
         latitude: data.latitude, // Optional
@@ -110,7 +118,7 @@ export async function POST(request: Request) {
          const target = (error.meta?.target as string[])?.join(', ');
          if (target?.includes('name') && target?.includes('countryId')) {
              return NextResponse.json(
-               { error: `A city with the name "${name}" already exists in this country.` },
+               { error: `A city with the name "${normalizedName}" already exists in this country.` },
                { status: 409 } // Conflict
              );
          }

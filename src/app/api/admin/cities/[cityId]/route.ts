@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client'; // Import Prisma types
+
+// Slug generation function with normalization
+function generateNormalizedSlug(name: string): string {
+  const normalizedName = name
+    .normalize('NFD') // Separate accents from characters
+    .replace(/[\u0300-\u036f]/g, ''); // Remove accent characters
+
+  return normalizedName
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove non-word chars
+    .replace(/[\s_-]+/g, '-') // Replace space/underscore/hyphen with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
 
 export async function DELETE(
   request: Request,
@@ -125,11 +141,23 @@ export async function PUT(
       );
     }
 
+    // Normalize the name and generate slug
+    const normalizedName = name
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    const slug = generateNormalizedSlug(normalizedName);
+
+    if (!slug) {
+        return NextResponse.json({ error: 'Failed to generate a valid slug from the provided name' }, { status: 400 });
+    }
+
     // Update city
     const updatedCity = await prisma.city.update({
       where: { id: cityId },
       data: {
-        name,
+        name: normalizedName, // Use normalized name
+        slug: slug,           // Update slug based on normalized name
         countryId,
         latitude: latitude || null,
         longitude: longitude || null,
@@ -142,10 +170,18 @@ export async function PUT(
     return NextResponse.json(updatedCity);
 
   } catch (error) {
-    console.error('Error updating city:', error);
-    return NextResponse.json(
-      { error: 'Failed to update city' },
-      { status: 500 }
-    );
+     console.error('Error updating city:', error);
+     // Handle potential unique constraint violation on update
+     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+       const target = (error.meta?.target as string[])?.join(', ');
+       return NextResponse.json(
+         { error: `A city with this ${target} already exists in the specified country.` },
+         { status: 409 } // Conflict
+       );
+     }
+     return NextResponse.json(
+       { error: 'Failed to update city' },
+       { status: 500 }
+     );
   }
 }

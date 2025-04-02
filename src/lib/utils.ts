@@ -10,17 +10,19 @@
 export function generateSlug(text: string): string {
   if (!text) return ''; // Handle empty input
 
-  const from = "àáâäæãåāçćčèéêëēėęîïíīįìłñńôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;";
-  const to   = "aaaaaaaacccceeeeeeeiiiiilnnoooooooopprrsssssttuuuuuuuuuwxyyzzz------";
-  const p = new RegExp(from.split('').join('|'), 'g');
-
-  return text
+  // Normalize the string to decompose combined characters (like accents)
+  // and then remove the accent characters (Unicode range U+0300 to U+036f)
+  const normalizedText = text
     .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return normalizedText
     .toLowerCase()
     .replace(/\s+/g, '-') // Replace spaces with -
-    .replace(p, c => to.charAt(from.indexOf(c))) // Replace special characters
+    // .replace(p, c => to.charAt(from.indexOf(c))) // Removed old method
     .replace(/&/g, '-and-') // Replace & with 'and'
-    .replace(/[^\w-]+/g, '') // Remove all non-word chars
+    .replace(/[^\w-]+/g, '') // Remove all non-word chars (keeps letters, numbers, hyphen)
     .replace(/--+/g, '-') // Replace multiple - with single -
     .replace(/^-+/, '') // Trim - from start of text
     .replace(/-+$/, ''); // Trim - from end of text
