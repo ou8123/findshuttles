@@ -17,16 +17,10 @@ function generateSlug(name: string): string {
     .replace(/[^\w\s-]/g, '') // Remove non-word chars
     .replace(/[\s_-]+/g, '-') // Replace space/underscore/hyphen with single hyphen
     .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-} // <-- Added missing closing brace for generateSlug
-
-interface RouteContext {
-  params: {
-    countryId: string;
-  };
 }
 
 // GET handler for single country
-export async function GET(request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: { params: { countryId: string } }) {
   const authCheck = await checkApiAuth(request, RequiredRole.Admin);
   if (!authCheck.authenticated) {
     return authCheck.response;
@@ -55,7 +49,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 
 // PUT handler to update a country
-export async function PUT(request: NextRequest, context: RouteContext) {
+export async function PUT(request: NextRequest, context: { params: { countryId: string } }) {
  const authCheck = await checkApiAuth(request, RequiredRole.Admin);
   if (!authCheck.authenticated) {
     return authCheck.response;
@@ -111,7 +105,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 
 // DELETE handler to delete a country
-export async function DELETE(request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: { params: { countryId: string } }) {
  const authCheck = await checkApiAuth(request, RequiredRole.Admin);
   if (!authCheck.authenticated) {
     return authCheck.response;
