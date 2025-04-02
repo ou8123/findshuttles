@@ -138,25 +138,37 @@ const AddRouteForm = () => {
       });
     });
 
-    // Try multiple component types for city name
-    for (const component of place.address_components) {
-      if (component.types.includes('locality')) {
-        cityName = component.long_name;
-      } else if (!cityName && component.types.includes('administrative_area_level_1')) {
-        // Use administrative_area_level_1 as fallback for city name
-        cityName = component.long_name;
-      }
-      
-      if (component.types.includes('country')) {
-        countryName = component.long_name;
-      }
+    // --- Improved City/Country Extraction ---
+    // 1. Prioritize place.name if available and seems reasonable
+    if (place.name && place.name.length > 1) {
+        cityName = place.name;
+        console.log("Using place.name as initial cityName:", cityName);
     }
 
-    // If still no city name, try using the place name
-    if (!cityName && place.name) {
-      console.log("Using place name as city name:", place.name);
-      cityName = place.name;
+    // 2. Look for country first
+    const countryComponent = place.address_components.find(c => c.types.includes('country'));
+    if (countryComponent) {
+        countryName = countryComponent.long_name;
     }
+
+    // 3. Look for locality (preferred city type)
+    const localityComponent = place.address_components.find(c => c.types.includes('locality'));
+    if (localityComponent) {
+        // If we already got a cityName from place.name, only overwrite if locality is different and more specific
+        if (!cityName || (cityName !== localityComponent.long_name && localityComponent.long_name.length > 1)) {
+             console.log("Overwriting/Setting cityName with locality:", localityComponent.long_name);
+             cityName = localityComponent.long_name;
+        }
+    }
+    // 4. Fallback to administrative_area_level_1 if locality wasn't found
+    else if (!cityName) { // Only if we don't have a name from place.name or locality
+        const adminArea1Component = place.address_components.find(c => c.types.includes('administrative_area_level_1'));
+        if (adminArea1Component) {
+            console.log("Using administrative_area_level_1 as cityName:", adminArea1Component.long_name);
+            cityName = adminArea1Component.long_name;
+        }
+    }
+    // --- End Improved Extraction ---
 
     // Extract coordinates if available
     const latitude = place.geometry?.location?.lat();
