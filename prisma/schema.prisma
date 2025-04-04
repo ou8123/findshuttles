@@ -42,6 +42,7 @@ model City {
   country    Country  @relation(fields: [countryId], references: [id])
   routesFrom Route[]  @relation("DepartureCity")
   routesTo   Route[]  @relation("DestinationCity")
+  hotels     Hotel[]  // Added relation to Hotel model
 
   @@unique([name, countryId])
   @@unique([slug, countryId])
@@ -65,10 +66,14 @@ model Route {
   metaKeywords         String?
   metaTitle            String?
   displayName          String   @default("")
+  otherStops           String? // AI-generated possible other stops
+  travelTime           String? // AI-generated approximate travel time
   departureCity        City     @relation("DepartureCity", fields: [departureCityId], references: [id])
   departureCountry     Country  @relation("DepartureCountry", fields: [departureCountryId], references: [id])
   destinationCity      City     @relation("DestinationCity", fields: [destinationCityId], references: [id])
   destinationCountry   Country  @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
+  hotelsServed         Hotel[]  @relation("RouteHotels")
+  amenities            Amenity[] @relation("RouteAmenities")
 
   @@index([displayName])
   @@index([routeSlug])
@@ -77,4 +82,28 @@ model Route {
   @@index([departureCountryId])
   @@index([destinationCountryId])
   @@index([createdAt])
+}
+
+model Hotel {
+  id        String   @id @default(cuid())
+  name      String
+  cityId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  city      City     @relation(fields: [cityId], references: [id])
+  routes    Route[]  @relation("RouteHotels")
+
+  @@index([cityId])
+  @@index([name])
+}
+
+model Amenity {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String? // Optional: path or identifier for an icon
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  routes    Route[]  @relation("RouteAmenities")
+
+  @@index([name])
 }

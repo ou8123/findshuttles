@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import prisma from '@/lib/prisma';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Import type
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -95,16 +96,12 @@ function preprocessAdditionalInstructions(input: string): string {
   for (const pattern of promotionalPhrases) {
     processed = processed.replace(pattern, '');
   }
-  
-  // Add structured city list if we found cities
-  if (extractedCities.length >= 2) {
-    processed += '\n\nCities Served:\n' + extractedCities.map(city => `- ${city}`).join('\n');
-  }
-  
-  // Add structured hotel list if we found hotels
-  if (extractedHotels.length >= 1) {
-    processed += '\n\nHotels Served:\n' + extractedHotels.map(hotel => `- ${hotel}`).join('\n');
-  }
+
+  // Remove sentences mentioning taxes/fees/charges
+  processed = processed.replace(/^.*(?:taxes|fees|handling charges|includes all).*$/gim, '');
+
+  // City and Hotel lists are no longer appended here, as they are handled by separate UI components.
+  // The extraction logic above might be useful elsewhere if needed later.
   
   return processed.trim();
 }
@@ -176,61 +173,85 @@ export async function POST(request: Request) {
     console.log(`Generating content for: ${departureCityName} to ${destinationCityName}, ${destinationCountryName}`);
     console.log(`Additional instructions: ${additionalInstructions.substring(0, 100)}${additionalInstructions.length > 100 ? '...' : ''}`);
 
-    // Prepare prompt for OpenAI
-    // Updated System Prompt (2025-04-02)
-    const systemMessage = `You are a professional travel writer creating SEO-optimized descriptions for intercity and airport shuttle routes. Your goal is to produce clear, concise, and informative content for travelers booking point-to-point transport. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, and seoDescription. Do not include markdown, code formatting, or additional commentary.`;
-
-    // Preprocess the additional instructions
+    // Preprocess the additional instructions (neutralize tone, remove URLs, remove tax mentions)
     const processedInstructions = preprocessAdditionalInstructions(additionalInstructions);
     
-    // Check if additional info was provided
-    const hasAdditionalInfo = processedInstructions && processedInstructions.trim().length > 0;
+    // --- Prepare prompt for OpenAI using the new structure ---
+    // Use the latest prompt provided by the user (2025-04-04 v9 - Final Prompt)
+    const systemPromptContent = `You are a professional travel writer creating SEO-optimized content for airport and intercity shuttle routes. Your task is to generate concise, informative, and professional content tailored for travelers booking point-to-point transport. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, seoDescription, otherStops, travelTime, and suggestedHotels. Do not include markdown, formatting, or commentary.`;
     
-    // Parse for any city or hotel lists in the processed instructions
-    const hasCityList = hasAdditionalInfo && /cities\s*served\s*:/i.test(processedInstructions);
-    const hasHotelList = hasAdditionalInfo && /hotels\s*served\s*:/i.test(processedInstructions);
-    
-    console.log("Preprocessed additional instructions:", processedInstructions.length > 100 
-      ? processedInstructions.substring(0, 100) + '...' 
-      : processedInstructions);
+    let userPromptContent = `Generate content for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a one-way transport service, typically used for airport or intercity travel. Do not describe the service as a sightseeing tour. Use a neutral, professional, and helpful tone.
 
-    // Updated User Prompt (2025-04-02)
-    // Note: The placeholders [departure city], [destination city], [destination country], [attraction 1], [attraction 2] will be filled dynamically.
-    const userMessage = `Write a professional, SEO-optimized description for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a point-to-point shuttle service typically used for airport or intercity travel. Our platform connects travelers with local shuttle providers. Do not imply the platform operates the shuttles.
+Do not include:
+- Mentions of hotels, specific pickup/drop-off locations, or surrounding towns (this is shown elsewhere on the page)
+- Mentions of the platform name (e.g., BookShuttles.com)
+- Promotional or emotional language
+- Travel time in the seoDescription (this is returned separately and shown at the top)
+- Any use of possessive phrasing like “our shuttle,” “our service,” or “our drivers.” Refer to the transport as “this shuttle service,” “the provider,” or simply “the service.”
 
-Return a JSON object in this format:
+Return ONLY a valid JSON object in this format:
 {
-  "metaTitle": "${departureCityName} to ${destinationCityName}, ${destinationCountryName} | Shuttle & Transfer Service",
-  "metaDescription": "150–160 character summary focused on the route and destination. Use clear and professional language.",
-  "metaKeywords": "${departureCityName}, ${destinationCityName}, ${destinationCountryName} shuttle, airport transfer, city-to-city transport, [attraction 1], [attraction 2]",
-  "seoDescription": "[200–300 word description in two paragraphs as detailed below]"
+  "metaTitle": "String (max 70 characters): SEO title for the route page.",
+  "metaDescription": "String (150–160 characters): SEO meta description summarizing the route and destination.",
+  "metaKeywords": "String: Comma-separated keywords including city names, country, 'shuttle', 'transfer', 'transport', and 1–2 attractions.",
+  "seoDescription": "String (2–3 concise paragraphs): See structure below.",
+  "otherStops": "String (optional, max 50 characters): List 1–3 plausible intermediate towns or cities. Return null if not explicitly instructed. CRITICAL: Do not return placeholder text like 'e.g., Town A, Town B'.",
+  "travelTime": "String (optional, max 30 characters): e.g., 'Approx. 2–3 hours'. Return null if unknown.",
+  "suggestedHotels": "Array of 2–5 hotel names (strings), or null if no suggestions."
 }
 
 seoDescription Structure:
 
-Paragraph 1 – Transport Overview:
-- Introduce the shuttle service as a practical, point-to-point transfer.
-- State that BookShuttles.com connects travelers with local providers.
-- You may mention general amenities such as Wi-Fi, air conditioning, reclining seats, airport greeting, charging ports, or refreshment stops.
-- If amenities are mentioned, include the line: “Amenities and services may vary by provider. Please review individual listings before booking.”
-- Use neutral, professional language.
+Allow up to 3 short paragraphs if it flows naturally:
 
-Paragraph 2 – Destination Highlights:
-- Include one reference to visiting the destination (e.g., “If you’re spending time in ${destinationCityName}…”)
-- Mention 2–3 named attractions (parks, beaches, landmarks, etc.)
-- Optionally end with a modest promotional line (e.g., “A simple way to reach ${destinationCityName} and enjoy everything it has to offer.”)
+1. Paragraph 1 – Transport Overview:
+- Describe the route as a practical, point-to-point shuttle service.
+- Briefly mention general amenities (A/C, Wi-Fi, reclining seats, snack stops, airport greeting, etc.) if known.
+- Do not include travel time or platform branding.
+- Do not use possessive phrasing like “our shuttle service” or “our vehicles.”
 
-Do not include markdown or formatting.`;
+2. Paragraph 2 – Destination Introduction:
+- Introduce the destination city briefly.
+- You MUST include 2–3 specific named attractions such as: resorts, national parks, beaches, adventure parks, volcanoes, waterfalls, hiking trails, or similar.
+- ALSO include 1–2 activities: surfing, kayaking, hiking, birdwatching, estuary tours, ziplining, etc.
+
+3. (Optional) Paragraph 3 – Wrap-Up:
+- Optionally add a helpful summary or travel context.
+- Keep tone factual and informative — no hype.`; // Removed Hotel Suggestions section from here as it's part of the JSON spec now
+
+    // Conditionally append processed instructions
+    if (processedInstructions) {
+      userPromptContent += `\n\nThe following is additional information about this specific service. Use it naturally to improve the quality and accuracy of the output:\n${processedInstructions}`;
+    }
+
+    // Construct the messages array
+    const messages: ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: systemPromptContent
+      },
+      {
+        role: "user",
+        content: userPromptContent 
+      }
+    ];
+    // --- End Prompt Preparation ---
+
 
     // Enhanced debugging logs
     console.log("---------- CONTENT GENERATION REQUEST ----------");
     console.log(`Route: ${departureCityName} to ${destinationCityName}`);
-    console.log("SYSTEM MESSAGE:", systemMessage.substring(0, 100) + "...");
-    console.log("USER MESSAGE SAMPLE:", userMessage.substring(0, 200) + "...");
-    console.log("USER MESSAGE TOTAL LENGTH:", userMessage.length);
-    console.log("PROCESSED INSTRUCTIONS LENGTH:", processedInstructions.length);
-    if (processedInstructions.length > 0) {
-      console.log("PROCESSED INSTRUCTIONS SAMPLE:", processedInstructions.substring(0, 150) + "...");
+    // Add type checks before using substring for logging
+    if (typeof messages[0].content === 'string') {
+      console.log("SYSTEM MESSAGE:", messages[0].content.substring(0, 100) + "...");
+    } else {
+       console.log("SYSTEM MESSAGE: (Not a simple string)");
+    }
+    if (typeof messages[1].content === 'string') {
+      console.log("USER MESSAGE SAMPLE:", messages[1].content.substring(0, 200) + "...");
+      console.log("USER MESSAGE TOTAL LENGTH:", messages[1].content.length);
+    } else {
+       console.log("USER MESSAGE: (Not a simple string)");
     }
     
     // Function to process the seoDescription to ensure proper paragraph spacing
@@ -323,15 +344,12 @@ Do not include markdown or formatting.`;
       console.log(`Generate attempt ${retryCount + 1}/${maxRetries + 1}`);
       
       try {
-        // Generate content with OpenAI
+        // Generate content with OpenAI using the new messages array
         const completion = await openai.chat.completions.create({
           model: "gpt-4",
-          messages: [
-            { role: 'system', content: systemMessage },
-            { role: 'user', content: userMessage }
-          ],
-          temperature: 0.2, // Even lower temperature for stricter adherence to instructions
-          max_tokens: 2000  // Increased tokens to handle longer content
+          messages: messages, // Use the messages array here
+          temperature: 0.6, // Adjusted temperature as per example
+          max_tokens: 2000  
         });
 
         // Get the response text
@@ -364,6 +382,16 @@ Do not include markdown or formatting.`;
           
           throw new Error(`Failed to parse OpenAI response as JSON: ${parseError.message}`);
         }
+
+        // Backend Safeguard for otherStops example text
+        if (
+          parsedResponse.otherStops &&
+          typeof parsedResponse.otherStops === 'string' && // Ensure it's a string before checking
+          parsedResponse.otherStops.trim().toLowerCase().startsWith("e.g.")
+        ) {
+          console.log("AI returned example text for otherStops, setting to null."); // Optional log
+          parsedResponse.otherStops = null;
+        }
         
         // Process the seoDescription to ensure proper paragraph spacing
         if (parsedResponse.seoDescription) {
@@ -374,68 +402,79 @@ Do not include markdown or formatting.`;
             parsedResponse.seoDescription.substring(0, 150).replace(/\n/g, "\\n") + "...");
         }
         
-        // Validate required fields
+        // Validate required fields (seoDescription is mandatory, others might be generated)
         const requiredFields = ['metaTitle', 'metaDescription', 'metaKeywords', 'seoDescription'];
+        // Optional fields: otherStops, travelTime, suggestedHotels
         for (const field of requiredFields) {
           if (!parsedResponse[field]) {
+            // Allow retry if a required field is missing
             if (retryCount < maxRetries) {
-              console.log(`Retrying due to missing field: ${field}`);
-              return generateContent(retryCount + 1, maxRetries);
+              console.warn(`Retrying: Missing required field '${field}' in AI response.`);
+              return generateContent(retryCount + 1, maxRetries); // Retry
             }
-            throw new Error(`Missing required field: ${field}`);
+            // If out of retries, throw error only for absolutely essential fields
+            if (field === 'seoDescription' || field === 'metaTitle') {
+               throw new Error(`Missing required field '${field}' after retries.`);
+            } else {
+               console.warn(`Missing optional/recoverable field '${field}' after retries. Proceeding without it.`);
+               parsedResponse[field] = ''; // Assign empty string to prevent downstream errors
+            }
           }
-          if (typeof parsedResponse[field] !== 'string') {
+          // Check type, allow null for optional fields
+          if (typeof parsedResponse[field] !== 'string' && parsedResponse[field] !== null) {
+             // Allow retry if type is wrong
             if (retryCount < maxRetries) {
-              console.log(`Retrying due to invalid field type: ${field}`);
-              return generateContent(retryCount + 1, maxRetries);
+              console.warn(`Retrying: Field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string or null.`);
+              return generateContent(retryCount + 1, maxRetries); // Retry
             }
-            throw new Error(`Field ${field} must be a string`);
+             // If out of retries, handle based on field importance
+            if (field === 'seoDescription' || field === 'metaTitle') {
+              throw new Error(`Field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Expected string or null.`);
+            } else {
+               console.warn(`Field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Resetting to empty string.`);
+               parsedResponse[field] = ''; // Assign empty string
+            }
           }
+        }
+
+        // Validate optional fields type (should be string or null)
+        const optionalStringFields = ['otherStops', 'travelTime'];
+        for (const field of optionalStringFields) {
+            if (parsedResponse[field] !== undefined && parsedResponse[field] !== null && typeof parsedResponse[field] !== 'string') {
+                 if (retryCount < maxRetries) {
+                    console.warn(`Retrying: Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string or null.`);
+                    return generateContent(retryCount + 1, maxRetries); // Retry
+                 } else {
+                    console.warn(`Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Setting to null.`);
+                    parsedResponse[field] = null; // Set to null if type is wrong after retries
+                 }
+            }
+             // Ensure optional fields exist, defaulting to null if undefined
+            if (parsedResponse[field] === undefined) {
+                parsedResponse[field] = null;
+            }
         }
         
-        // Additional validation to ensure the additional instructions were incorporated
-        if (hasAdditionalInfo) {
-          // Validation function from above
-          const validateContentIncorporation = (generatedText: string, originalText: string) => {
-            const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'is', 'are', 'was', 'were']);
-            const significantWords = originalText
-              .toLowerCase()
-              .split(/\s+/)
-              .filter(word => word.length > 3 && !commonWords.has(word))
-              .map(word => word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""));
-            
-            const uniqueSignificantWords = [...new Set(significantWords)];
-            const keywordsToCheck = uniqueSignificantWords.slice(0, Math.min(8, uniqueSignificantWords.length));
-            
-            const matchCount = keywordsToCheck.filter(word => 
-              generatedText.toLowerCase().includes(word)
-            ).length;
-            
-            const matchPercentage = (matchCount / keywordsToCheck.length) * 100;
-            
-            console.log(`Content validation: ${matchCount}/${keywordsToCheck.length} key terms found (${matchPercentage.toFixed(1)}%)`);
-            console.log(`Key terms checked: ${keywordsToCheck.join(', ')}`);
-            
-            return { 
-              isValid: matchPercentage >= 70, 
-              percentage: matchPercentage 
-            };
-          };
-          
-          // Check if the additional instructions were properly incorporated
-          const validation = validateContentIncorporation(
-            parsedResponse.seoDescription,
-            processedInstructions
-          );
-          
-          // If content wasn't incorporated well, retry if we have attempts left
-          if (!validation.isValid && retryCount < maxRetries) {
-            console.log(`Retrying due to poor content incorporation (${validation.percentage.toFixed(1)}%)`);
-            return generateContent(retryCount + 1, maxRetries);
-          } else if (!validation.isValid) {
-            console.warn(`Warning: Additional instructions poorly incorporated (${validation.percentage.toFixed(1)}%), but out of retries.`);
-          }
+        // Validate suggestedHotels (should be array of strings or null)
+        const hotelsField = 'suggestedHotels';
+        if (parsedResponse[hotelsField] !== undefined && parsedResponse[hotelsField] !== null) {
+            if (!Array.isArray(parsedResponse[hotelsField]) || !parsedResponse[hotelsField].every(item => typeof item === 'string')) {
+                 if (retryCount < maxRetries) {
+                    console.warn(`Retrying: Optional field '${hotelsField}' has incorrect type (${typeof parsedResponse[hotelsField]}). Expected array of strings or null.`);
+                    return generateContent(retryCount + 1, maxRetries); // Retry
+                 } else {
+                    console.warn(`Optional field '${hotelsField}' has incorrect type (${typeof parsedResponse[hotelsField]}) after retries. Setting to null.`);
+                    parsedResponse[hotelsField] = null; // Set to null if type is wrong after retries
+                 }
+            }
+        } else if (parsedResponse[hotelsField] === undefined) {
+             parsedResponse[hotelsField] = null; // Default to null if undefined
         }
+
+
+        // Additional validation (optional): Check if additional instructions were incorporated
+        // Note: Removed processedInstructions check as it's not part of the new prompt structure
+        // if (processedInstructions && processedInstructions.length > 10) { ... }
 
         // Add displayName field
         parsedResponse.displayName = `Shuttles from ${departureCityName} to ${destinationCityName}`;

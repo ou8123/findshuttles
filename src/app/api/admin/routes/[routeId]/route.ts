@@ -72,11 +72,13 @@ interface UpdateRouteData {
   viatorWidgetCode: string;
   metaTitle?: string | null;
   metaDescription?: string | null;
-  metaKeywords?: string | null;
-  seoDescription?: string | null;
-}
-
-export async function PUT(request: Request, context: any) {
+   metaKeywords?: string | null;
+   seoDescription?: string | null;
+   travelTime?: string | null; // Added
+   otherStops?: string | null; // Added
+ }
+ 
+ export async function PUT(request: Request, context: any) {
   const params = context.params as { routeId: string };
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'ADMIN') {
@@ -190,12 +192,14 @@ export async function PUT(request: Request, context: any) {
       displayName: displayName,
       viatorWidgetCode: data.viatorWidgetCode,
       metaTitle: data.metaTitle || null,
-      metaDescription: data.metaDescription || null,
-      metaKeywords: data.metaKeywords || null,
-      seoDescription: data.seoDescription || null,
-    };
-
-    const updatedRoute = await prisma.route.update({
+       metaDescription: data.metaDescription || null,
+       metaKeywords: data.metaKeywords || null,
+       seoDescription: data.seoDescription || null,
+       travelTime: data.travelTime || null, // Added
+       otherStops: data.otherStops || null, // Added
+     };
+ 
+     const updatedRoute = await prisma.route.update({
       where: { id: routeId },
       data: updateData,
       include: {

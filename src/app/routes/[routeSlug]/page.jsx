@@ -8,6 +8,10 @@ import SearchForm from '@/components/SearchForm';
 import ViatorSimpleWidget from '@/components/ViatorSimpleWidget';
 import AutoScroller from '@/components/AutoScroller';
 import FormattedDescription from '@/components/FormattedDescription';
+import RouteSummaryBlock from '@/components/RouteSummaryBlock'; // Added
+import HotelsGrid from '@/components/HotelsGrid'; // Added
+import AmenitiesTable from '@/components/AmenitiesTable'; // Added
+import Link from 'next/link'; // Ensure Link is imported if not already
 
 // Generate viewport metadata as a simple JavaScript function
 export function generateViewport() {
@@ -47,43 +51,65 @@ export async function generateMetadata({ params }) {
 // Fetch route data function
 async function fetchRouteData(routeSlug) {
   try {
-    const route = await prisma.route.findUnique({
+    // Refactored query to use only 'include' and select necessary fields
+    const routeData = await prisma.route.findUnique({
       where: { routeSlug },
+      // Select direct fields needed
       select: {
+        id: true,
         routeSlug: true,
         displayName: true,
         viatorWidgetCode: true,
         seoDescription: true,
+        otherStops: true,
+        travelTime: true,
         metaTitle: true,
         metaDescription: true,
         metaKeywords: true,
         createdAt: true,
         updatedAt: true,
+        departureCityId: true,
+        departureCountryId: true,
+        destinationCityId: true,
+        destinationCountryId: true,
+        // Include related data with specific fields
         departureCity: {
-          select: { 
+          select: {
             id: true,
-            name: true, 
-            latitude: true, 
-            longitude: true 
+            name: true,
+            latitude: true,
+            longitude: true
           }
         },
-        departureCountry: { 
-          select: { name: true } 
+        departureCountry: {
+          select: { name: true, slug: true } // Ensure slug is selected
         },
         destinationCity: {
-          select: { 
+          select: {
             id: true,
-            name: true, 
-            latitude: true, 
-            longitude: true 
+            name: true,
+            latitude: true,
+            longitude: true
           }
         },
-        destinationCountry: { 
-          select: { name: true } 
+        destinationCountry: {
+          select: { name: true, slug: true } // Added slug selection
         },
-      },
+        hotelsServed: {
+          select: {
+            name: true // Select only the name from hotels
+          }
+        },
+        amenities: {
+          select: {
+            name: true,
+            icon: true // Select name and icon from amenities
+          }
+        }
+      }
     });
-    return route;
+    return routeData;
+
   } catch (error) {
     console.error('Error fetching route:', error);
     return null;
@@ -130,6 +156,13 @@ export default async function RoutePage({ params }) {
     day: 'numeric'
   });
 
+  // Prepare breadcrumb data
+  const breadcrumbItems = [
+    { name: 'Home', href: '/' },
+    { name: route.departureCountry?.name || 'Country', href: `/countries/${route.departureCountry?.slug || ''}` },
+    { name: `${route.departureCity?.name || 'Unknown'} to ${route.destinationCity?.name || 'Unknown'}`, current: true }
+  ];
+
   return (
     <AutoScroller scrollToSelector="#route-content">
       {/* Main container with standard width */}
@@ -152,18 +185,35 @@ export default async function RoutePage({ params }) {
 
         {/* Content area with standard width */}
         <div id="route-content" className="scroll-mt-4 mt-12 px-4">
-          <h1 className="text-3xl font-bold mb-4">
-            {route.displayName || `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`}
-          </h1>
+          
+          {/* Breadcrumbs */}
+          <nav className="text-sm text-gray-600 dark:text-gray-400 mb-4" aria-label="Breadcrumb">
+            <ol className="list-none p-0 inline-flex">
+              {breadcrumbItems.map((item, index) => (
+                <li key={item.name} className="flex items-center">
+                  {index > 0 && <span className="mx-2">&raquo;</span>}
+                  {item.current ? (
+                    <span className="text-gray-900 dark:text-white font-semibold">{item.name}</span>
+                  ) : (
+                    <Link href={item.href || '#'} className="hover:underline">{item.name}</Link>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
 
-          {/* No dates displayed as per client request */}
+          {/* === Layout Order === */}
 
-          {/* Content sections with responsive spacing */}
-          <div className="route-content-sections">
-            {/* Book Your Shuttle section - with adaptive container */}
-              <div className="booking-section mb-8">
-                <h2 className="text-xl font-semibold mb-0">Book Your Shuttle</h2>
-                <p className="text-sm italic text-gray-600 -mt-1 mb-3">Get on the road again!</p>
+          {/* 1. Top Route Summary Block */}
+          <RouteSummaryBlock route={route} /> 
+
+          {/* 2. Hotels Served (Optional) */}
+          <HotelsGrid hotels={route.hotelsServed} />
+
+          {/* 3. Widgets / Listings Section */}
+          <div className="booking-section mb-8">
+            <h2 className="text-xl font-semibold mb-0">Book Your Shuttle</h2>
+            <p className="text-sm italic text-gray-600 -mt-1 mb-3">Get on the road again!</p>
               
               {/* Widget with simple implementation that works reliably */}
               {route.viatorWidgetCode ? (
@@ -180,43 +230,61 @@ export default async function RoutePage({ params }) {
               )}
             </div>
             
-            {/* Description section with formatted content */}
-            {route.seoDescription && (
-              <div className="description-section my-8">
-                <h2 className="text-xl font-semibold mb-0 text-current dark:text-white">
-                  Route Description
-                </h2>
-                <p className="text-sm italic text-gray-600 -mt-1 mb-3">
-                  Route descriptions often refer only to the first listing shown.<br />
-                  Amenities and services vary by provider.<br />
-                  Please review individual listings before booking.
-                </p>
-                <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
-                  <FormattedDescription 
-                    text={route.seoDescription} 
-                    className="text-current dark:text-gray-200"
+             {/* 4. Route Description Section */}
+             {route.seoDescription && (
+               <div className="description-section my-8">
+                 <h2 className="text-xl font-semibold mb-3 text-current dark:text-white"> 
+                   Route Description
+                  </h2>
+                 <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
+                   {/* Standard disclaimer - Moved inside div, above description */}
+                   <p className="text-sm italic font-bold text-red-600 dark:text-red-400 mb-3"> 
+                     Route descriptions often refer only to the first listing shown.<br />
+                     Amenities and services vary by provider.<br />
+                     Please review individual listings before booking.
+                   </p>
+                   <FormattedDescription 
+                     text={route.seoDescription} 
+                     className="text-current dark:text-gray-200"
                   />
                 </div>
               </div>
             )}
 
-            {/* Map Display Section */}
+            {/* 5. Amenity Table */}
+            <AmenitiesTable amenities={route.amenities} />
+
+            {/* 6. Map Section (Bottom of Page) */}
             {route.departureCity?.latitude && route.departureCity?.longitude &&
             route.destinationCity?.latitude && route.destinationCity?.longitude && (
               <div className="map-section my-8">
-                <h2 className="text-xl font-semibold mb-0">Estimated Route</h2>
-                <p className="text-sm italic text-gray-600 -mt-1 mb-3">Actual route may vary due to traffic or provider discretion.</p>
+                <h2 className="text-xl font-semibold mb-3">Estimated Route</h2> {/* Added mb-3 */}
+                {/* Removed caption as requested */}
                 <RouteMap
                   departureLat={route.departureCity.latitude}
                   departureLng={route.departureCity.longitude}
                   destinationLat={route.destinationCity.latitude}
                   destinationLng={route.destinationCity.longitude}
                 />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </AutoScroller>
+               </div>
+              )}
+  
+             {/* 7. Cities Served List - Skipped as requested */}
+  
+             {/* 8. Link to Destination Country Page */}
+             {route.destinationCountry?.slug && route.destinationCountry?.name && (
+               <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Link 
+                    href={`/countries/${route.destinationCountry.slug}`} 
+                    className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                  >
+                    &raquo; View all routes in {route.destinationCountry.name}
+                  </Link>
+               </div>
+             )}
+  
+           </div> {/* Closes <div id="route-content" ... > */}
+         </div> {/* Closes <div className="container mx-auto"> */}
+      </AutoScroller>
   );
 }

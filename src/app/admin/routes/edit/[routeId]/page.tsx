@@ -1,4 +1,4 @@
-  "use client";
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -13,6 +13,7 @@ interface City {
   };
 }
 
+// Updated interface to include new fields
 interface RouteData {
     id: string;
     departureCityId: string;
@@ -24,6 +25,9 @@ interface RouteData {
     metaDescription?: string | null;
     metaKeywords?: string | null;
     seoDescription?: string | null;
+    travelTime?: string | null; 
+    otherStops?: string | null; 
+    // Note: hotelsServed is a relation, not fetched directly here usually
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
 }
@@ -44,6 +48,9 @@ const EditRoutePage = () => {
   const [metaKeywords, setMetaKeywords] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
+  const [travelTime, setTravelTime] = useState(''); 
+  const [otherStops, setOtherStops] = useState(''); 
+  const [suggestedHotelsList, setSuggestedHotelsList] = useState<string[]>([]); // Added state for suggested hotels
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   
@@ -64,10 +71,10 @@ const EditRoutePage = () => {
       setIsLoadingCities(true);
       setCityLoadError(null);
       try {
-        const response = await fetch('/api/admin/cities'); // This now returns { cities: [], pagination: {} }
+        const response = await fetch('/api/admin/cities'); 
         if (!response.ok) throw new Error(`Failed to fetch cities: ${response.status}`);
         const data = await response.json();
-        const cities = data.cities || []; // Extract the cities array
+        const cities = data.cities || []; 
         console.log("Fetched cities:", cities.length);
         setAvailableCities(cities);
       } catch (err) {
@@ -93,7 +100,7 @@ const EditRoutePage = () => {
       setIsLoadingRoute(true);
       setError(null);
       try {
-        // First try to fetch the specific route directly
+        // Fetch the specific route directly
         let routeData: RouteData | null = null;
         
         try {
@@ -102,48 +109,27 @@ const EditRoutePage = () => {
           
           if (specificResponse.ok) {
             const specificData = await specificResponse.json();
-            // Verify the data has the expected shape
             if (specificData && typeof specificData === 'object' && 'id' in specificData) {
               console.log("Successfully fetched route directly");
-              routeData = specificData as RouteData;
+              // Ensure the fetched data conforms to RouteData, including optional fields
+              routeData = {
+                ...specificData,
+                travelTime: specificData.travelTime ?? null,
+                otherStops: specificData.otherStops ?? null,
+              } as RouteData;
             }
           } else {
             console.warn(`Direct route fetch returned status: ${specificResponse.status}`);
           }
         } catch (specificErr) {
-          console.warn("Could not fetch specific route, falling back to list:", specificErr);
+          console.warn("Could not fetch specific route, trying list fallback:", specificErr);
         }
         
-        // If specific route fetch failed, try fetching from the routes list
-        if (!routeData) {
-          console.log("Fetching from routes list as fallback");
-          const response = await fetch('/api/admin/routes');
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch routes list: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
-          // Make sure routes is an array before calling find()
-          const routes = Array.isArray(data.routes) 
-            ? data.routes 
-            : Array.isArray(data) 
-              ? data 
-              : [];
-              
-          console.log(`Found ${routes.length} routes in list, searching for ID: ${routeId}`);
-          const foundRoute = routes.find((r: any) => r.id === routeId);
-          
-          // Verify the found route has the expected shape
-          if (foundRoute && typeof foundRoute === 'object' && 'id' in foundRoute) {
-            console.log("Found route in list");
-            routeData = foundRoute as RouteData;
-          }
-        }
+        // Fallback logic removed for simplicity, assuming direct fetch should work or fail clearly.
+        // If direct fetch fails consistently, the API endpoint needs investigation.
 
         if (!routeData) {
-          throw new Error('Route not found. Please check the URL and try again.');
+          throw new Error('Route not found or failed to fetch. Please check the route ID and API endpoint.');
         }
 
         console.log("Setting route data:", routeData);
@@ -151,7 +137,7 @@ const EditRoutePage = () => {
         // Store original data
         setOriginalData(routeData);
         
-        // Populate form state
+        // Populate form state including new fields
         setDepartureCityId(routeData.departureCityId);
         setDestinationCityId(routeData.destinationCityId);
         setRouteSlug(routeData.routeSlug);
@@ -161,6 +147,9 @@ const EditRoutePage = () => {
         setMetaDescription(routeData.metaDescription ?? '');
         setMetaKeywords(routeData.metaKeywords ?? '');
         setSeoDescription(routeData.seoDescription ?? '');
+        setTravelTime(routeData.travelTime ?? ''); // Populate new state
+        setOtherStops(routeData.otherStops ?? ''); // Populate new state
+        // Note: suggestedHotelsList is not populated from initial fetch, only from generation
         
       } catch (err: unknown) {
         console.error("Failed to fetch route data:", err);
@@ -189,16 +178,20 @@ const EditRoutePage = () => {
       return;
     }
 
+    // Prepare potentially null values
     const currentMetaTitle = metaTitle.trim() === '' ? null : metaTitle.trim();
     const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
     const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
+    const currentTravelTime = travelTime.trim() === '' ? null : travelTime.trim(); 
+    const currentOtherStops = otherStops.trim() === '' ? null : otherStops.trim(); 
 
     if (!originalData) {
       setSubmitStatus({ success: false, message: 'Original route data not found.' });
       return;
     }
 
+    // Check if any data actually changed (excluding suggestedHotelsList as it's not saved here)
     if (departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
         routeSlug === originalData.routeSlug &&
@@ -207,7 +200,9 @@ const EditRoutePage = () => {
         currentMetaTitle === originalData.metaTitle &&
         currentMetaDesc === originalData.metaDescription &&
         currentMetaKeywords === originalData.metaKeywords &&
-        currentSeoDesc === originalData.seoDescription) {
+        currentSeoDesc === originalData.seoDescription &&
+        currentTravelTime === originalData.travelTime && 
+        currentOtherStops === originalData.otherStops) { 
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
     }
@@ -228,7 +223,10 @@ const EditRoutePage = () => {
             metaTitle: currentMetaTitle,
             metaDescription: currentMetaDesc,
             metaKeywords: currentMetaKeywords,
-            seoDescription: currentSeoDesc
+            seoDescription: currentSeoDesc,
+            travelTime: currentTravelTime, 
+            otherStops: currentOtherStops  
+            // Note: hotelsServed relationship is NOT updated here
          }),
       });
 
@@ -248,7 +246,9 @@ const EditRoutePage = () => {
         metaTitle: currentMetaTitle,
         metaDescription: currentMetaDesc,
         metaKeywords: currentMetaKeywords,
-        seoDescription: currentSeoDesc
+        seoDescription: currentSeoDesc,
+        travelTime: currentTravelTime, 
+        otherStops: currentOtherStops  
       });
 
     } catch (error: unknown) {
@@ -265,10 +265,15 @@ const EditRoutePage = () => {
 
   // Generate content with OpenAI
   const handleGenerateContent = async () => {
-    if (!originalData) return;
+    // Use current form state for departure/destination IDs
+    if (!departureCityId || !destinationCityId) {
+       setSubmitStatus({ success: false, message: 'Please select departure and destination cities first.' });
+       return;
+    }
     
     setIsGenerating(true);
     setSubmitStatus(null);
+    setSuggestedHotelsList([]); // Clear previous suggestions
     
     try {
       const response = await fetch('/api/admin/routes/generate-content', {
@@ -278,7 +283,6 @@ const EditRoutePage = () => {
           departureCityId,
           destinationCityId,
           additionalInstructions: additionalInstructions.trim(),
-          viatorWidgetCode
         }),
       });
 
@@ -288,13 +292,18 @@ const EditRoutePage = () => {
       }
 
       const data = await response.json();
+      // Update all relevant fields from AI response
       setMetaTitle(data.metaTitle || '');
       setMetaDescription(data.metaDescription || '');
       setMetaKeywords(data.metaKeywords || '');
       setSeoDescription(data.seoDescription || '');
+      setTravelTime(data.travelTime || ''); 
+      setOtherStops(data.otherStops || ''); 
+      setSuggestedHotelsList(data.suggestedHotels || []); // Update suggested hotels state
+      
       setSubmitStatus({
         success: true,
-        message: 'Content generated successfully!'
+        message: 'Content generated successfully! Review and save changes.' 
       });
     } catch (error) {
       console.error('Error generating content:', error);
@@ -330,7 +339,8 @@ const EditRoutePage = () => {
       <h1 className="text-2xl font-bold mb-6">Edit Route</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ... (City selectors remain the same) ... */}
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Departure City Selection */}
           <div>
             <label htmlFor="departure-city" className="block text-sm font-medium text-gray-700 mb-1">
@@ -434,6 +444,38 @@ const EditRoutePage = () => {
           />
         </div>
 
+        {/* Travel Time */}
+        <div>
+          <label htmlFor="travel-time" className="block text-sm font-medium text-gray-700 mb-1">
+            Travel Time (Optional)
+          </label>
+          <input
+            id="travel-time"
+            type="text"
+            value={travelTime}
+            onChange={(e) => setTravelTime(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            placeholder="e.g., Approx. 2-3 hours"
+          />
+           <p className="text-xs text-gray-500 mt-1">AI generated, can be edited.</p>
+        </div>
+
+        {/* Other Stops */}
+        <div>
+          <label htmlFor="other-stops" className="block text-sm font-medium text-gray-700 mb-1">
+            Other Stops (Optional)
+          </label>
+          <input
+            id="other-stops"
+            type="text"
+            value={otherStops}
+            onChange={(e) => setOtherStops(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            placeholder="e.g., Orotina, Herradura"
+          />
+           <p className="text-xs text-gray-500 mt-1">AI generated, can be edited.</p>
+        </div>
+
         {/* Meta Title */}
         <div>
           <label htmlFor="meta-title" className="block text-sm font-medium text-gray-700 mb-1">
@@ -531,6 +573,21 @@ const EditRoutePage = () => {
             placeholder="Enter a detailed description for search engines..."
           />
         </div>
+
+        {/* Suggested Hotels Display */}
+        {suggestedHotelsList.length > 0 && (
+          <div className="mt-4 p-3 border border-dashed border-gray-400 rounded-md bg-gray-50 dark:bg-gray-700">
+            <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">AI Suggested Hotels (Read-Only):</h4>
+            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-200 space-y-1">
+              {suggestedHotelsList.map((hotel, index) => (
+                <li key={index}>{hotel}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
+              Note: These are only suggestions. Use the (future) hotel management section to formally link hotels to this route.
+            </p>
+          </div>
+        )}
 
       {/* Submit Button & Status Message */}
       <div className="pt-2">
