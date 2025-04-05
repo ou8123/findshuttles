@@ -210,13 +210,11 @@ export default async function RoutePage({ params }) {
           {/* 2. Hotels Served (Optional) */}
           <HotelsGrid hotels={route.hotelsServed} />
 
-          {/* 3. Widgets / Listings Section */}
-          <div className="booking-section mb-8">
-            <h2 className="text-xl font-semibold mb-0">Book Your Shuttle</h2>
-            <p className="text-sm italic text-gray-600 -mt-1 mb-3">Get on the road again!</p>
-              
-              {/* Widget with simple implementation that works reliably */}
-              {route.viatorWidgetCode ? (
+           {/* 3. Widgets / Listings Section */}
+           <div className="booking-section mb-8">
+             <h2 className="text-xl font-semibold mb-3">Book Your Shuttle</h2> 
+               {/* Widget with simple implementation that works reliably */}
+               {route.viatorWidgetCode ? (
                 <ViatorSimpleWidget 
                   key={`viator-${route.routeSlug}`} 
                   widgetCode={route.viatorWidgetCode}

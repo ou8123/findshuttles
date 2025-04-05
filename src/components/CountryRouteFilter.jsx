@@ -178,7 +178,7 @@ export default function CountryRouteFilter({ country, initialRoutes = [], cities
                 {filteredLists.departingRoutes.length > 0 && (
                   <div>
                     <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200 border-b pb-1 border-gray-300 dark:border-gray-600">
-                      Departing from {filteredLists.selectedCityName}
+                      Departing From {filteredLists.selectedCityName}
                     </h3>
                     {renderRouteList(filteredLists.departingRoutes)}
                   </div>
@@ -188,7 +188,7 @@ export default function CountryRouteFilter({ country, initialRoutes = [], cities
                  {filteredLists.arrivingRoutes.length > 0 && (
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700"> {/* Add separator */}
                     <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200 border-b pb-1 border-gray-300 dark:border-gray-600">
-                      Arriving to {filteredLists.selectedCityName}
+                      Arriving At {filteredLists.selectedCityName}
                     </h3>
                     {renderRouteList(filteredLists.arrivingRoutes)}
                   </div>
