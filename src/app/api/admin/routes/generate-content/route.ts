@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     const processedInstructions = preprocessAdditionalInstructions(additionalInstructions);
     
     // --- Prepare prompt for OpenAI using the new structure ---
-    const systemPromptContent = `You are a professional travel writer creating SEO-optimized content for airport and intercity shuttle routes. Your task is to generate concise, informative, and professional content tailored for travelers booking point-to-point transport. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, seoDescription, otherStops, travelTime, and suggestedHotels. Do not include markdown, formatting, or commentary.`;
+    const systemPromptContent = `You are a professional travel writer creating SEO-optimized content for airport and intercity shuttle routes. Your task is to generate concise, informative, and professional content tailored for travelers booking point-to-point transport. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, seoDescription, otherStops, and travelTime. Do not include markdown, formatting, or commentary.`;
     
     // Base part of the user prompt
     let userPromptContent = `Generate content for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a one-way transport service. Use a neutral, professional, and helpful tone.
@@ -213,8 +213,7 @@ Return ONLY a valid JSON object in this format:
   "metaKeywords": "String: Comma-separated keywords including city names, country, 'shuttle', 'transfer', 'transport', and 1–2 attractions.",
   "seoDescription": "String (2–3 concise paragraphs): See structure below.",
   "otherStops": "String (optional, max 50 characters): List 1–3 plausible intermediate towns or cities. Return null if not explicitly instructed. CRITICAL: Do not return placeholder text like 'e.g., Town A, Town B'.",
-  "travelTime": "String (optional, max 30 characters): e.g., 'Approx. 2–3 hours'. Return null if unknown.",
-  "suggestedHotels": "Array of 2–5 hotel names (strings), or null if no suggestions."
+  "travelTime": "String (optional, max 30 characters): e.g., 'Approx. 2–3 hours'. Return null if unknown."
 }
 
 seoDescription Structure:
@@ -294,17 +293,13 @@ This route is a CITY-TO-CITY transfer. Structure the description accordingly:
 `;
     }
 
-    // Add Hotel Suggestions instructions (applies to all route types)
-    userPromptContent += `
-
-Hotel Suggestions (new field):
-If applicable, return a field called suggestedHotels, which is an array of 2–5 hotel names (as strings) that are likely served by this shuttle route. Base your suggestions on well-known, established hotels or resorts in the destination city (${destinationCityName}).
-
-Format example: ["Hotel Costa Verde", "Si Como No Resort", "Hotel Pochote Grande"]
-
-If unsure or there are no prominent options, return null.
-
-Do not include extra commentary — only hotel names in an array.`;
+    // Removed Hotel Suggestions instructions
+    // userPromptContent += `
+    // Hotel Suggestions (new field):
+    // If applicable, return a field called suggestedHotels, which is an array of 2–5 hotel names (as strings) that are likely served by this shuttle route. Base your suggestions on well-known, established hotels or resorts in the destination city (${destinationCityName}).
+    // Format example: ["Hotel Costa Verde", "Si Como No Resort", "Hotel Pochote Grande"]
+    // If unsure or there are no prominent options, return null.
+    // Do not include extra commentary — only hotel names in an array.`;
 
     // Conditionally append processed instructions from the form
     if (processedInstructions) {
@@ -490,8 +485,9 @@ Do not include extra commentary — only hotel names in an array.`;
         }
         
         // Validate required fields (seoDescription is mandatory, others might be generated)
+        // Removed suggestedHotels from requiredFields
         const requiredFields = ['metaTitle', 'metaDescription', 'metaKeywords', 'seoDescription'];
-        // Optional fields: otherStops, travelTime, suggestedHotels
+        // Optional fields: otherStops, travelTime
         for (const field of requiredFields) {
           if (!parsedResponse[field]) {
             // Allow retry if a required field is missing
@@ -542,21 +538,9 @@ Do not include extra commentary — only hotel names in an array.`;
             }
         }
         
-        // Validate suggestedHotels (should be array of strings or null)
-        const hotelsField = 'suggestedHotels';
-        if (parsedResponse[hotelsField] !== undefined && parsedResponse[hotelsField] !== null) {
-            if (!Array.isArray(parsedResponse[hotelsField]) || !parsedResponse[hotelsField].every(item => typeof item === 'string')) {
-                 if (retryCount < maxRetries) {
-                    console.warn(`Retrying: Optional field '${hotelsField}' has incorrect type (${typeof parsedResponse[hotelsField]}). Expected array of strings or null.`);
-                    return generateContent(retryCount + 1, maxRetries); // Retry
-                 } else {
-                    console.warn(`Optional field '${hotelsField}' has incorrect type (${typeof parsedResponse[hotelsField]}) after retries. Setting to null.`);
-                    parsedResponse[hotelsField] = null; // Set to null if type is wrong after retries
-                 }
-            }
-        } else if (parsedResponse[hotelsField] === undefined) {
-             parsedResponse[hotelsField] = null; // Default to null if undefined
-        }
+        // Removed validation for suggestedHotels
+        // const hotelsField = 'suggestedHotels';
+        // ... validation logic removed ...
 
 
         // Additional validation (optional): Check if additional instructions were incorporated
@@ -566,6 +550,9 @@ Do not include extra commentary — only hotel names in an array.`;
         // Add displayName field
         parsedResponse.displayName = `Shuttles from ${departureCityName} to ${destinationCityName}`;
         
+        // Ensure suggestedHotels is null or undefined in the final response if it was disabled
+        parsedResponse.suggestedHotels = null; 
+
         console.log("Content generation successful");
         return parsedResponse;
       } catch (error) {

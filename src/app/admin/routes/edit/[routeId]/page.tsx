@@ -56,7 +56,8 @@ const EditRoutePage = () => {
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [travelTime, setTravelTime] = useState(''); 
   const [otherStops, setOtherStops] = useState(''); 
-  const [suggestedHotelsList, setSuggestedHotelsList] = useState<string[]>([]); // Added state for suggested hotels
+  // Removed suggestedHotelsList state
+  // const [suggestedHotelsList, setSuggestedHotelsList] = useState<string[]>([]); 
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -290,7 +291,8 @@ const EditRoutePage = () => {
     
     setIsGenerating(true);
     setSubmitStatus(null);
-    setSuggestedHotelsList([]); // Clear previous suggestions
+    // Removed clearing suggestedHotelsList
+    // setSuggestedHotelsList([]); 
     
     try {
       const response = await fetch('/api/admin/routes/generate-content', {
@@ -320,7 +322,8 @@ const EditRoutePage = () => {
       setSeoDescription(data.seoDescription || '');
       setTravelTime(data.travelTime || ''); // Update travel time from AI
       setOtherStops(data.otherStops || ''); // Update other stops from AI
-      setSuggestedHotelsList(data.suggestedHotels || []); // Update suggested hotels state
+      // Removed setting suggestedHotelsList
+      // setSuggestedHotelsList(data.suggestedHotels || []); 
       
       setSubmitStatus({
         success: true,
@@ -643,20 +646,8 @@ const EditRoutePage = () => {
           />
         </div>
 
-        {/* Suggested Hotels Display */}
-        {suggestedHotelsList.length > 0 && (
-          <div className="mt-4 p-3 border border-dashed border-gray-400 rounded-md bg-gray-50 dark:bg-gray-700">
-            <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">AI Suggested Hotels (Read-Only):</h4>
-            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-200 space-y-1">
-              {suggestedHotelsList.map((hotel, index) => (
-                <li key={index}>{hotel}</li>
-              ))}
-            </ul>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
-              Note: These are only suggestions. Use the (future) hotel management section to formally link hotels to this route.
-            </p>
-          </div>
-        )}
+        {/* Removed Suggested Hotels Display */}
+        {/* {suggestedHotelsList.length > 0 && ( ... )} */}
 
       {/* Submit Button & Status Message */}
       <div className="pt-2">

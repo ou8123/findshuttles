@@ -82,7 +82,7 @@ export default function RouteSummaryBlock({ route }) {
           <p><span className="font-semibold">Arriving At:</span> {destinationCity.name}</p>
          )}
          {otherStops && (
-           <p><span className="font-semibold">Possible Other Pick-up Points / Stops:</span> {otherStops}</p>
+           <p><span className="font-semibold">Optional Stops:</span> {otherStops}</p>
          )}
          {travelTime && (
            <p><span className="font-semibold">Travel Time:</span> {formatTravelTime(travelTime)}</p>
