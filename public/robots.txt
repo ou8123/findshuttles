@@ -2,6 +2,5 @@
 User-agent: *
 Allow: /
 
-# Sitemaps
-Sitemap: https://findshuttles.netlify.app/sitemap.xml
-Sitemap: https://findshuttles.netlify.app/api/sitemap
+# Sitemap (ensure this matches your production domain)
+Sitemap: https://www.bookshuttles.com/sitemap.xml
