@@ -10,8 +10,10 @@ import AutoScroller from '@/components/AutoScroller';
 import FormattedDescription from '@/components/FormattedDescription';
 import RouteSummaryBlock from '@/components/RouteSummaryBlock'; // Added
 import HotelsGrid from '@/components/HotelsGrid'; // Added
-import AmenitiesTable from '@/components/AmenitiesTable'; // Added
+// import AmenitiesTable from '@/components/AmenitiesTable'; // Removed - Replaced by Highlights Grid
 import Link from 'next/link'; // Ensure Link is imported if not already
+// Import necessary Heroicons for the Highlights Grid helper
+import * as HIcons from '@heroicons/react/24/outline';
 
 // Generate viewport metadata as a simple JavaScript function
 export function generateViewport() {
@@ -116,6 +118,25 @@ async function fetchRouteData(routeSlug) {
   }
 }
 
+// Helper function to get Heroicon component by name string
+// Returns outline version by default
+const getAmenityIcon = (iconName) => {
+  if (!iconName || typeof iconName !== 'string') return null;
+  
+  // Construct the expected component name (e.g., "WifiIcon")
+  const componentName = iconName.endsWith('Icon') ? iconName : `${iconName}Icon`;
+  
+  // Check if the icon exists in the imported Heroicons object
+  if (HIcons[componentName]) {
+    return HIcons[componentName];
+  }
+  
+  // Fallback or default icon if needed, otherwise null
+  // console.warn(`Amenity icon "${componentName}" not found in Heroicons.`);
+  return HIcons['CheckCircleIcon']; // Default to CheckCircleIcon if not found
+};
+
+
 /**
  * Route Page - Converted to JavaScript
  * 
@@ -205,9 +226,48 @@ export default async function RoutePage({ params }) {
           {/* === Layout Order === */}
 
           {/* 1. Top Route Summary Block */}
-          <RouteSummaryBlock route={route} /> 
+          <RouteSummaryBlock route={route} />
 
-          {/* 2. Hotels Served (Optional) */}
+          {/* NEW: Highlights Grid (Replaces AmenitiesTable) */}
+          {route.amenities && route.amenities.length > 0 && (
+            <div className="highlights-section mt-6 mb-6"> {/* Added mb-6 */}
+              <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Route Highlights</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                {route.amenities.map((amenity) => {
+                  const IconComponent = getAmenityIcon(amenity.icon); // Use the helper
+                  return (
+                    <div key={amenity.id} className="inline-flex items-center bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full">
+                      {IconComponent && <IconComponent className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />} 
+                      {amenity.name}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* MOVED UP: Route Description Section */}
+          {route.seoDescription && (
+            <div className="description-section my-8">
+              <h2 className="text-xl font-semibold mb-3 text-current dark:text-white"> 
+                Route Description
+               </h2>
+              <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
+                {/* Standard disclaimer - Moved inside div, above description */}
+                <p className="text-sm italic font-bold text-red-600 dark:text-red-400 mb-3"> 
+                  Route descriptions often refer only to the first listing shown.<br />
+                  Amenities and services vary by provider.<br />
+                  Please review individual listings before booking.
+                </p>
+                <FormattedDescription 
+                  text={route.seoDescription} 
+                  className="text-current dark:text-gray-200"
+               />
+             </div>
+           </div>
+         )}
+
+          {/* 2. Hotels Served (Optional) - Position relative to Booking Widget */}
           <HotelsGrid hotels={route.hotelsServed} />
 
            {/* 3. Widgets / Listings Section */}
@@ -228,29 +288,9 @@ export default async function RoutePage({ params }) {
               )}
             </div>
             
-             {/* 4. Route Description Section */}
-             {route.seoDescription && (
-               <div className="description-section my-8">
-                 <h2 className="text-xl font-semibold mb-3 text-current dark:text-white"> 
-                   Route Description
-                  </h2>
-                 <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
-                   {/* Standard disclaimer - Moved inside div, above description */}
-                   <p className="text-sm italic font-bold text-red-600 dark:text-red-400 mb-3"> 
-                     Route descriptions often refer only to the first listing shown.<br />
-                     Amenities and services vary by provider.<br />
-                     Please review individual listings before booking.
-                   </p>
-                   <FormattedDescription 
-                     text={route.seoDescription} 
-                     className="text-current dark:text-gray-200"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 5. Amenity Table */}
-            <AmenitiesTable amenities={route.amenities} />
+             {/* 4. Route Description Section - MOVED UP */}
+             
+            {/* 5. Amenity Table - REMOVED */}
 
             {/* 6. Map Section (Bottom of Page) */}
             {route.departureCity?.latitude && route.departureCity?.longitude &&
@@ -283,6 +323,22 @@ export default async function RoutePage({ params }) {
   
            </div> {/* Closes <div id="route-content" ... > */}
          </div> {/* Closes <div className="container mx-auto"> */}
+         
+         {/* Breadcrumb Schema Markup */}
+         <script
+           type="application/ld+json"
+           dangerouslySetInnerHTML={{ __html: JSON.stringify({
+             "@context": "https://schema.org",
+             "@type": "BreadcrumbList",
+             "itemListElement": breadcrumbItems.map((item, index) => ({
+               "@type": "ListItem",
+               "position": index + 1,
+               "name": item.name,
+               // Use NEXT_PUBLIC_SITE_URL from env, fallback needed
+               ...(item.current ? {} : { "item": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'}${item.href}` }) 
+             }))
+           }) }}
+         />
       </AutoScroller>
   );
 }

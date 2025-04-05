@@ -3,6 +3,14 @@
 
 import React from 'react';
 import Link from 'next/link'; // Import Link
+import { 
+  ClockIcon, 
+  MapPinIcon,        // Keep MapPinIcon
+  StopCircleIcon,    // Use StopCircleIcon instead of StopIcon
+  // BuildingOfficeIcon, // Remove BuildingOfficeIcon
+  GlobeAltIcon,
+  PaperAirplaneIcon 
+} from '@heroicons/react/24/outline'; // Using outline style
 
 /**
  * Displays the top summary block for a route page.
@@ -71,21 +79,44 @@ export default function RouteSummaryBlock({ route }) {
       </h1>
       
       {/* Route Details */}
-      <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+      <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300"> {/* Increased space-y */}
         {countryDisplay && (
-          <p><span className="font-semibold">🌍 {countryDisplay}</span></p>
+          <div className="flex items-center">
+            <GlobeAltIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            <p><span className="font-semibold">{countryDisplay}</span></p> {/* Removed emoji */}
+          </div>
         )}
         {departureCity?.name && (
-          <p><span className="font-semibold">Departing From:</span> {departureCity.name}</p>
+          <div className="flex items-center">
+            {route.isAirportPickup ? (
+              <PaperAirplaneIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            ) : (
+              <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> // Changed to MapPinIcon
+            )}
+            <p><span className="font-semibold">Departing From:</span> {departureCity.name}</p>
+          </div>
         )}
         {destinationCity?.name && (
-          <p><span className="font-semibold">Arriving At:</span> {destinationCity.name}</p>
+          <div className="flex items-center">
+              {route.isAirportDropoff ? (
+              <PaperAirplaneIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            ) : (
+              <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> // Changed to MapPinIcon
+            )}
+            <p><span className="font-semibold">Arriving At:</span> {destinationCity.name}</p>
+          </div>
          )}
          {otherStops && (
-           <p><span className="font-semibold">Optional Stops:</span> {otherStops}</p>
+           <div className="flex items-center">
+             <StopCircleIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> {/* Changed to StopCircleIcon */}
+             <p><span className="font-semibold">Optional Stops:</span> {otherStops}</p>
+           </div>
          )}
          {travelTime && (
-           <p><span className="font-semibold">Travel Time:</span> {formatTravelTime(travelTime)}</p>
+           <div className="flex items-center">
+             <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+             <p><span className="font-semibold">Travel Time:</span> {formatTravelTime(travelTime)}</p>
+           </div>
          )}
        </div>
  
