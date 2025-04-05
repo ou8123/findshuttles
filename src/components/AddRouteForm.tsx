@@ -24,6 +24,9 @@ interface CountryWithCitiesLookup {
 // Define libraries for Google Maps API
 const libraries: ("places")[] = ['places'];
 
+// Define type for route type state
+type RouteType = 'airportPickup' | 'airportDropoff' | 'cityToCity';
+
 const AddRouteForm = () => {
   // State for internal locations lookup data
   const [locationsLookup, setLocationsLookup] = useState<CountryWithCitiesLookup[]>([]);
@@ -45,6 +48,7 @@ const AddRouteForm = () => {
   const [metaDescription, setMetaDescription] = useState<string>('');
   const [metaKeywords, setMetaKeywords] = useState<string>('');
   const [seoDescription, setSeoDescription] = useState<string>('');
+  const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags, default to cityToCity
 
   // State for ChatGPT generation
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -338,6 +342,7 @@ const AddRouteForm = () => {
     console.log('submitRouteData called. States:', {
       selectedDepartureCity: selectedDepartureCity,
       selectedDestinationCity: selectedDestinationCity,
+      routeType: routeType, // Log the selected route type
     });
 
     // Validate that cities were selected AND matched in our DB
@@ -369,6 +374,10 @@ const AddRouteForm = () => {
           metaDescription: metaDescription || undefined,
           metaKeywords: metaKeywords || undefined,
           seoDescription: seoDescription || undefined,
+          // Set flags based on routeType state
+          isAirportPickup: routeType === 'airportPickup',
+          isAirportDropoff: routeType === 'airportDropoff',
+          isCityToCity: routeType === 'cityToCity',
         }),
       });
 
@@ -400,6 +409,7 @@ const AddRouteForm = () => {
         setMetaDescription('');
         setMetaKeywords('');
         setSeoDescription('');
+        setRouteType('cityToCity'); // Reset route type
         if (departureInputRef.current) departureInputRef.current.value = '';
         if (destinationInputRef.current) destinationInputRef.current.value = '';
         
@@ -456,7 +466,7 @@ const AddRouteForm = () => {
             onChange={handleDepartureInputChange}
           />
         </Autocomplete>
-        {departureName && !selectedDepartureCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{departureName}&quot; not found in our system.</p>}
+        {departureName && !selectedDepartureCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city "{departureName}" not found in our system.</p>}
       </div>
 
       {/* Destination City Autocomplete */}
@@ -479,7 +489,7 @@ const AddRouteForm = () => {
             onChange={handleDestinationInputChange}
           />
         </Autocomplete>
-        {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city &quot;{destinationName}&quot; not found in our system.</p>}
+        {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city "{destinationName}" not found in our system.</p>}
       </div>
 
       {/* Loading/Error state for internal location data */}
@@ -504,6 +514,55 @@ const AddRouteForm = () => {
           className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900"
           placeholder="Paste the full HTML/script code from Viator here..."
         />
+      </div>
+
+      {/* Route Type Flags */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Route Type (Select one):</label>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center">
+            <input
+              id="isAirportPickup"
+              name="routeType" // Use radio buttons for mutual exclusivity
+              type="radio"
+              value="airportPickup" // Assign value
+              checked={routeType === 'airportPickup'}
+              onChange={(e) => setRouteType(e.target.value as RouteType)}
+              className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+            />
+            <label htmlFor="isAirportPickup" className="ml-2 block text-sm text-gray-900">
+              Airport Pickup
+            </label>
+          </div>
+          <div className="flex items-center">
+            <input
+              id="isAirportDropoff"
+              name="routeType"
+              type="radio"
+              value="airportDropoff" // Assign value
+              checked={routeType === 'airportDropoff'}
+              onChange={(e) => setRouteType(e.target.value as RouteType)}
+              className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+            />
+            <label htmlFor="isAirportDropoff" className="ml-2 block text-sm text-gray-900">
+              Airport Dropoff
+            </label>
+          </div>
+          <div className="flex items-center">
+            <input
+              id="isCityToCity"
+              name="routeType"
+              type="radio"
+              value="cityToCity" // Assign value
+              checked={routeType === 'cityToCity'}
+              onChange={(e) => setRouteType(e.target.value as RouteType)}
+              className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+            />
+            <label htmlFor="isCityToCity" className="ml-2 block text-sm text-gray-900">
+              City-to-City
+            </label>
+          </div>
+        </div>
       </div>
 
       {/* Meta Title */}
@@ -613,7 +672,10 @@ const AddRouteForm = () => {
                     departureCityId: selectedDepartureCity.id,
                     destinationCityId: selectedDestinationCity.id,
                     additionalInstructions: additionalInstructions.trim(),
-                    viatorWidgetCode
+                    // Pass the current route type flags to the API
+                    isAirportPickup: routeType === 'airportPickup',
+                    isAirportDropoff: routeType === 'airportDropoff',
+                    isCityToCity: routeType === 'cityToCity',
                   }),
                 });
 
@@ -627,6 +689,7 @@ const AddRouteForm = () => {
                 setMetaDescription(data.metaDescription || '');
                 setMetaKeywords(data.metaKeywords || '');
                 setSeoDescription(data.seoDescription || '');
+                // Note: travelTime and otherStops are not set by this button currently
                 setSubmitStatus({
                   success: true,
                   message: 'Content generated successfully!'

@@ -1,6 +1,10 @@
-import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextResponse, NextRequest } from 'next/server'; // Import NextRequest
 import prisma from '@/lib/prisma';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth"; // Using shared authOptions
+import slugify from 'slugify';
+import { Prisma } from '@prisma/client'; // Import Prisma
+import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Import type
 
 const openai = new OpenAI({
@@ -131,11 +135,14 @@ export async function POST(request: Request) {
       );
     }
     
-    // We need to fetch the city and country names from the database using the IDs
+    // Destructure required fields and new flags from request body
     const { 
       departureCityId, 
       destinationCityId,
-      additionalInstructions = '' // This is what the user provides in the form
+      isAirportPickup = false, // Default to false if not provided
+      isAirportDropoff = false, // Default to false if not provided
+      isCityToCity = true, // Default to true if others are false
+      additionalInstructions = '' 
     } = requestData;
 
     // Validate required fields
@@ -146,17 +153,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch city information from database
+    // Fetch city information from database using include
     const departureCity = await prisma.city.findUnique({
       where: { id: departureCityId },
-      include: { country: true }
+      include: { country: true } // Include country for name
     });
 
     const destinationCity = await prisma.city.findUnique({
       where: { id: destinationCityId },
-      include: { country: true }
+      include: { country: true } // Include country for name
     });
-
+ 
     if (!departureCity || !destinationCity) {
       return NextResponse.json(
         { error: 'Could not find departure or destination city' },
@@ -164,23 +171,32 @@ export async function POST(request: Request) {
       );
     }
 
-    // Extract needed information
+    // Extract needed information correctly from the included relation
     const departureCityName = departureCity.name;
     const destinationCityName = destinationCity.name;
-    const destinationCountryName = destinationCity.country.name;
+    // Ensure country object exists before accessing name
+    const destinationCountryName = destinationCity.country?.name; 
+
+    // Add a check in case country wasn't included properly
+    if (!destinationCountryName) {
+       console.error("Could not retrieve destination country name for city ID:", destinationCityId);
+       return NextResponse.json({ error: 'Internal server error: Could not determine destination country.' }, { status: 500 });
+    }
+
 
     // Debug log
     console.log(`Generating content for: ${departureCityName} to ${destinationCityName}, ${destinationCountryName}`);
+    console.log(`Route Type Flags: Pickup=${isAirportPickup}, Dropoff=${isAirportDropoff}, City=${isCityToCity}`);
     console.log(`Additional instructions: ${additionalInstructions.substring(0, 100)}${additionalInstructions.length > 100 ? '...' : ''}`);
 
     // Preprocess the additional instructions (neutralize tone, remove URLs, remove tax mentions)
     const processedInstructions = preprocessAdditionalInstructions(additionalInstructions);
     
     // --- Prepare prompt for OpenAI using the new structure ---
-    // Use the latest prompt provided by the user (2025-04-04 v9 - Final Prompt)
     const systemPromptContent = `You are a professional travel writer creating SEO-optimized content for airport and intercity shuttle routes. Your task is to generate concise, informative, and professional content tailored for travelers booking point-to-point transport. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, seoDescription, otherStops, travelTime, and suggestedHotels. Do not include markdown, formatting, or commentary.`;
     
-    let userPromptContent = `Generate content for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a one-way transport service, typically used for airport or intercity travel. Do not describe the service as a sightseeing tour. Use a neutral, professional, and helpful tone.
+    // Base part of the user prompt
+    let userPromptContent = `Generate content for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a one-way transport service. Use a neutral, professional, and helpful tone.
 
 Do not include:
 - Mentions of hotels, specific pickup/drop-off locations, or surrounding towns (this is shown elsewhere on the page)
@@ -188,6 +204,7 @@ Do not include:
 - Promotional or emotional language
 - Travel time in the seoDescription (this is returned separately and shown at the top)
 - Any use of possessive phrasing like “our shuttle,” “our service,” or “our drivers.” Refer to the transport as “this shuttle service,” “the provider,” or simply “the service.”
+- Mentions of taxes, fees, or handling charges.
 
 Return ONLY a valid JSON object in this format:
 {
@@ -201,25 +218,95 @@ Return ONLY a valid JSON object in this format:
 }
 
 seoDescription Structure:
+`;
 
-Allow up to 3 short paragraphs if it flows naturally:
+    // Conditionally add SEO description structure based on route type flags
+    // Prioritize Airport Dropoff for the specific airport prompt
+    if (isAirportDropoff) { // Use the flag from the request
+      userPromptContent += `
+This route is an AIRPORT DROPOFF. Structure the description accordingly:
 
-1. Paragraph 1 – Transport Overview:
-- Describe the route as a practical, point-to-point shuttle service.
-- Briefly mention general amenities (A/C, Wi-Fi, reclining seats, snack stops, airport greeting, etc.) if known.
-- Do not include travel time or platform branding.
-- Do not use possessive phrasing like “our shuttle service” or “our vehicles.”
+1. Paragraph 1 – Airport Transfer Focus:
+- Describe the route as a practical airport drop-off service TO the airport (${destinationCityName}).
+- Emphasize convenience for catching a flight.
+- Briefly mention general amenities (A/C, Wi-Fi, etc.) if known.
+- Do not include travel time, platform branding, or hotel names.
+- Do not use possessive phrasing.
+- Use a neutral, professional tone. If including any goodbye/farewell phrasing, use it sparingly, as the traveler may not be leaving the country.
 
-2. Paragraph 2 – Destination Introduction:
-- Introduce the destination city briefly.
-- You MUST include 2–3 specific named attractions such as: resorts, national parks, beaches, adventure parks, volcanoes, waterfalls, hiking trails, or similar.
-- ALSO include 1–2 activities: surfing, kayaking, hiking, birdwatching, estuary tours, ziplining, etc.
+2. Paragraph 2 – Optional Local Highlights (${destinationCityName}):
+- Use varied transitional language such as:
+  - “If you have time before your flight…”
+  - “If ${destinationCityName} is part of your itinerary…”
+  - “For those with a day or two to explore near the airport…”
+- Mention 2–3 named attractions in or near the city (resorts, parks, beaches, etc.).
+- Include 1–2 activities (surfing, kayaking, hiking, birdwatching, etc.).
 
 3. (Optional) Paragraph 3 – Wrap-Up:
-- Optionally add a helpful summary or travel context.
-- Keep tone factual and informative — no hype.`; // Removed Hotel Suggestions section from here as it's part of the JSON spec now
+- Optionally provide a helpful summary or final tip.
+- Keep the tone factual and informative — not promotional.
+`;
+    } else if (isAirportPickup) { // Use the flag from the request
+        // Structure for Airport Pickup (similar but focuses on arrival)
+        userPromptContent += `
+This route is an AIRPORT PICKUP. Structure the description accordingly:
 
-    // Conditionally append processed instructions
+1. Paragraph 1 – Arrival & Welcome:
+- Describe the route as a pickup service FROM the airport (${departureCityName}).
+- Emphasize convenience for arriving travelers heading to ${destinationCityName}.
+- Use varied welcome language like:
+  - “Welcome to ${destinationCountryName}”
+  - “Adventure awaits in ${destinationCountryName}”
+  - “Upon arrival in ${destinationCountryName}…” 
+  - You may also invent your own warm, professional welcoming lines.
+- Mention general amenities (A/C, Wi-Fi, airport greeting, etc.) if known.
+- Do not include travel time, platform branding, or hotel names.
+- Keep tone friendly, but not overdone.
+
+2. Paragraph 2 – Destination Overview (${destinationCityName}):
+- Introduce ${destinationCityName} briefly.
+- Mention 2–3 named attractions in or near the city (resorts, beaches, parks, volcanoes, etc.).
+- Include 1–2 activities like surfing, hiking, estuary tours, kayaking, etc.
+
+3. (Optional) Paragraph 3 – Wrap-Up:
+- Add a helpful travel tip or regional summary.
+- Keep tone factual and helpful.
+`;
+    } else { // Default to City-to-City
+      userPromptContent += `
+This route is a CITY-TO-CITY transfer. Structure the description accordingly:
+
+1. Paragraph 1 – Transport Overview:
+- Describe the route as a point-to-point shuttle between ${departureCityName} and ${destinationCityName}.
+- Mention general amenities if applicable (A/C, Wi-Fi, reclining seats, snack stops, etc.).
+- Use light travel-forward tone with variety (e.g., “your next adventure,” “enjoy the scenery,” “journey onward,” etc.).
+- Do not include travel time or hotel/platform branding.
+- Avoid possessive phrasing like “our shuttle” or “our drivers.”
+
+2. Paragraph 2 – Destination Overview (${destinationCityName}):
+- Introduce the city briefly.
+- Mention 2–3 named attractions (resorts, national parks, beaches, adventure parks, volcanoes, waterfalls, hiking trails, etc.).
+- Include 1–2 popular activities like birdwatching, surfing, kayaking, ziplining, etc.
+
+3. (Optional) Paragraph 3 – Wrap-Up:
+- Optionally conclude with a neutral summary or travel context.
+- Maintain a factual and informative tone.
+`;
+    }
+
+    // Add Hotel Suggestions instructions (applies to all route types)
+    userPromptContent += `
+
+Hotel Suggestions (new field):
+If applicable, return a field called suggestedHotels, which is an array of 2–5 hotel names (as strings) that are likely served by this shuttle route. Base your suggestions on well-known, established hotels or resorts in the destination city (${destinationCityName}).
+
+Format example: ["Hotel Costa Verde", "Si Como No Resort", "Hotel Pochote Grande"]
+
+If unsure or there are no prominent options, return null.
+
+Do not include extra commentary — only hotel names in an array.`;
+
+    // Conditionally append processed instructions from the form
     if (processedInstructions) {
       userPromptContent += `\n\nThe following is additional information about this specific service. Use it naturally to improve the quality and accuracy of the output:\n${processedInstructions}`;
     }

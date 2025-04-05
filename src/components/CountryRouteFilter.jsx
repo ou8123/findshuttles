@@ -93,10 +93,10 @@ export default function CountryRouteFilter({ country, initialRoutes = [], cities
             <Link href={`/routes/${route.routeSlug}`} className="text-blue-600 hover:underline dark:text-blue-400">
               {route.departureCity?.name || 'Unknown'} to {route.destinationCity?.name || 'Unknown'}
             </Link>
-            {/* Display travel time if available */}
+            {/* Display travel time if available - Removed hardcoded tilde */}
             {route.travelTime && (
               <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 whitespace-nowrap">
-                🕒 ~{route.travelTime}
+                🕒 {route.travelTime} 
               </span>
             )}
           </div>

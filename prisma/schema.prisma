@@ -36,6 +36,7 @@ model City {
   slug       String
   latitude   Float?
   longitude  Float?
+  // isAirportCity Boolean  @default(false) // Removed this flag
   countryId  String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -68,6 +69,9 @@ model Route {
   displayName          String   @default("")
   otherStops           String? // AI-generated possible other stops
   travelTime           String? // AI-generated approximate travel time
+  isAirportPickup      Boolean  @default(false) // New flag
+  isAirportDropoff     Boolean  @default(false) // New flag
+  isCityToCity         Boolean  @default(false) // New flag
   departureCity        City     @relation("DepartureCity", fields: [departureCityId], references: [id])
   departureCountry     Country  @relation("DepartureCountry", fields: [departureCountryId], references: [id])
   destinationCity      City     @relation("DestinationCity", fields: [destinationCityId], references: [id])

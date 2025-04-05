@@ -13,7 +13,10 @@ interface City {
   };
 }
 
-// Updated interface to include new fields
+// Define type for route type state used in the form
+type RouteType = 'airportPickup' | 'airportDropoff' | 'cityToCity';
+
+// Updated interface to include new fields from the database
 interface RouteData {
     id: string;
     departureCityId: string;
@@ -27,6 +30,9 @@ interface RouteData {
     seoDescription?: string | null;
     travelTime?: string | null; 
     otherStops?: string | null; 
+    isAirportPickup: boolean; // Added flag
+    isAirportDropoff: boolean; // Added flag
+    isCityToCity: boolean; // Added flag
     // Note: hotelsServed is a relation, not fetched directly here usually
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
@@ -51,6 +57,7 @@ const EditRoutePage = () => {
   const [travelTime, setTravelTime] = useState(''); 
   const [otherStops, setOtherStops] = useState(''); 
   const [suggestedHotelsList, setSuggestedHotelsList] = useState<string[]>([]); // Added state for suggested hotels
+  const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   
@@ -100,39 +107,20 @@ const EditRoutePage = () => {
       setIsLoadingRoute(true);
       setError(null);
       try {
-        // Fetch the specific route directly
-        let routeData: RouteData | null = null;
+        console.log(`Attempting to fetch route with ID: ${routeId}`);
+        const response = await fetch(`/api/admin/routes/${routeId}`);
         
-        try {
-          console.log(`Attempting to fetch route with ID: ${routeId}`);
-          const specificResponse = await fetch(`/api/admin/routes/${routeId}`);
-          
-          if (specificResponse.ok) {
-            const specificData = await specificResponse.json();
-            if (specificData && typeof specificData === 'object' && 'id' in specificData) {
-              console.log("Successfully fetched route directly");
-              // Ensure the fetched data conforms to RouteData, including optional fields
-              routeData = {
-                ...specificData,
-                travelTime: specificData.travelTime ?? null,
-                otherStops: specificData.otherStops ?? null,
-              } as RouteData;
-            }
-          } else {
-            console.warn(`Direct route fetch returned status: ${specificResponse.status}`);
-          }
-        } catch (specificErr) {
-          console.warn("Could not fetch specific route, trying list fallback:", specificErr);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+          throw new Error(errorData.error || `Failed to fetch route: ${response.status}`);
         }
         
-        // Fallback logic removed for simplicity, assuming direct fetch should work or fail clearly.
-        // If direct fetch fails consistently, the API endpoint needs investigation.
+        const routeData: RouteData = await response.json();
+        console.log("Successfully fetched route directly:", routeData);
 
-        if (!routeData) {
-          throw new Error('Route not found or failed to fetch. Please check the route ID and API endpoint.');
+        if (!routeData || typeof routeData !== 'object' || !routeData.id) {
+          throw new Error('Invalid route data received from API.');
         }
-
-        console.log("Setting route data:", routeData);
         
         // Store original data
         setOriginalData(routeData);
@@ -147,9 +135,18 @@ const EditRoutePage = () => {
         setMetaDescription(routeData.metaDescription ?? '');
         setMetaKeywords(routeData.metaKeywords ?? '');
         setSeoDescription(routeData.seoDescription ?? '');
-        setTravelTime(routeData.travelTime ?? ''); // Populate new state
-        setOtherStops(routeData.otherStops ?? ''); // Populate new state
-        // Note: suggestedHotelsList is not populated from initial fetch, only from generation
+        setTravelTime(routeData.travelTime ?? ''); 
+        setOtherStops(routeData.otherStops ?? ''); 
+        
+        // Set initial routeType based on fetched flags
+        if (routeData.isAirportPickup) {
+          setRouteType('airportPickup');
+        } else if (routeData.isAirportDropoff) {
+          setRouteType('airportDropoff');
+        } else {
+          // Explicitly check isCityToCity or default if others are false
+          setRouteType(routeData.isCityToCity ? 'cityToCity' : 'cityToCity'); 
+        }
         
       } catch (err: unknown) {
         console.error("Failed to fetch route data:", err);
@@ -165,6 +162,14 @@ const EditRoutePage = () => {
 
     fetchRoute();
   }, [routeId]);
+
+  // Helper to determine original route type for comparison
+  const getOriginalRouteType = (): RouteType => {
+    if (!originalData) return 'cityToCity'; // Default if no original data
+    if (originalData.isAirportPickup) return 'airportPickup';
+    if (originalData.isAirportDropoff) return 'airportDropoff';
+    return 'cityToCity'; // Default if neither airport flag is true
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -185,13 +190,17 @@ const EditRoutePage = () => {
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
     const currentTravelTime = travelTime.trim() === '' ? null : travelTime.trim(); 
     const currentOtherStops = otherStops.trim() === '' ? null : otherStops.trim(); 
+    const currentIsAirportPickup = routeType === 'airportPickup';
+    const currentIsAirportDropoff = routeType === 'airportDropoff';
+    const currentIsCityToCity = routeType === 'cityToCity';
 
     if (!originalData) {
       setSubmitStatus({ success: false, message: 'Original route data not found.' });
       return;
     }
 
-    // Check if any data actually changed (excluding suggestedHotelsList as it's not saved here)
+    // Check if any data actually changed
+    const originalRouteType = getOriginalRouteType();
     if (departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
         routeSlug === originalData.routeSlug &&
@@ -202,7 +211,9 @@ const EditRoutePage = () => {
         currentMetaKeywords === originalData.metaKeywords &&
         currentSeoDesc === originalData.seoDescription &&
         currentTravelTime === originalData.travelTime && 
-        currentOtherStops === originalData.otherStops) { 
+        currentOtherStops === originalData.otherStops &&
+        routeType === originalRouteType // Compare route type state
+        ) { 
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
     }
@@ -225,8 +236,11 @@ const EditRoutePage = () => {
             metaKeywords: currentMetaKeywords,
             seoDescription: currentSeoDesc,
             travelTime: currentTravelTime, 
-            otherStops: currentOtherStops  
-            // Note: hotelsServed relationship is NOT updated here
+            otherStops: currentOtherStops,
+            // Send updated flags based on routeType state
+            isAirportPickup: currentIsAirportPickup,
+            isAirportDropoff: currentIsAirportDropoff,
+            isCityToCity: currentIsCityToCity,
          }),
       });
 
@@ -248,7 +262,10 @@ const EditRoutePage = () => {
         metaKeywords: currentMetaKeywords,
         seoDescription: currentSeoDesc,
         travelTime: currentTravelTime, 
-        otherStops: currentOtherStops  
+        otherStops: currentOtherStops,
+        isAirportPickup: currentIsAirportPickup,
+        isAirportDropoff: currentIsAirportDropoff,
+        isCityToCity: currentIsCityToCity,
       });
 
     } catch (error: unknown) {
@@ -283,6 +300,10 @@ const EditRoutePage = () => {
           departureCityId,
           destinationCityId,
           additionalInstructions: additionalInstructions.trim(),
+          // Pass the current route type flags to the API
+          isAirportPickup: routeType === 'airportPickup',
+          isAirportDropoff: routeType === 'airportDropoff',
+          isCityToCity: routeType === 'cityToCity',
         }),
       });
 
@@ -297,8 +318,8 @@ const EditRoutePage = () => {
       setMetaDescription(data.metaDescription || '');
       setMetaKeywords(data.metaKeywords || '');
       setSeoDescription(data.seoDescription || '');
-      setTravelTime(data.travelTime || ''); 
-      setOtherStops(data.otherStops || ''); 
+      setTravelTime(data.travelTime || ''); // Update travel time from AI
+      setOtherStops(data.otherStops || ''); // Update other stops from AI
       setSuggestedHotelsList(data.suggestedHotels || []); // Update suggested hotels state
       
       setSubmitStatus({
@@ -339,7 +360,6 @@ const EditRoutePage = () => {
       <h1 className="text-2xl font-bold mb-6">Edit Route</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
-        {/* ... (City selectors remain the same) ... */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Departure City Selection */}
           <div>
@@ -442,6 +462,55 @@ const EditRoutePage = () => {
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900"
             placeholder="Paste the full HTML/script code from Viator here..."
           />
+        </div>
+
+        {/* Route Type Flags */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Route Type (Select one):</label>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <input
+                id="isAirportPickup"
+                name="routeType" // Use radio buttons for mutual exclusivity
+                type="radio"
+                value="airportPickup" // Assign value
+                checked={routeType === 'airportPickup'}
+                onChange={(e) => setRouteType(e.target.value as RouteType)}
+                className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+              />
+              <label htmlFor="isAirportPickup" className="ml-2 block text-sm text-gray-900">
+                Airport Pickup
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                id="isAirportDropoff"
+                name="routeType"
+                type="radio"
+                value="airportDropoff" // Assign value
+                checked={routeType === 'airportDropoff'}
+                onChange={(e) => setRouteType(e.target.value as RouteType)}
+                className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+              />
+              <label htmlFor="isAirportDropoff" className="ml-2 block text-sm text-gray-900">
+                Airport Dropoff
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                id="isCityToCity"
+                name="routeType"
+                type="radio"
+                value="cityToCity" // Assign value
+                checked={routeType === 'cityToCity'}
+                onChange={(e) => setRouteType(e.target.value as RouteType)}
+                className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+              />
+              <label htmlFor="isCityToCity" className="ml-2 block text-sm text-gray-900">
+                City-to-City
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* Travel Time */}

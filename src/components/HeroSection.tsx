@@ -9,12 +9,12 @@ const HeroSection = () => {
         </h1>
         <p className="text-lg md:text-xl text-gray-700 mb-6">
           Simple booking for airport transfers and city-to-city shuttles.
-        </p>
-        <p className="text-base md:text-lg text-gray-600">
-          From airport transfers to city-hopping, find the shuttles that fit your trip.
-        </p>
-      </div>
-    </section>
+         </p>
+         <p className="text-base md:text-lg text-gray-600">
+           From airport pickups and dropoffs to city-hopping, find the shuttles that fit your trip.
+         </p>
+       </div>
+     </section>
   );
 };
 

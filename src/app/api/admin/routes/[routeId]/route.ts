@@ -3,10 +3,11 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import slugify from 'slugify'; // Import slugify
 
 export const runtime = 'nodejs';
 
-// Common route selection fields for consistent data shape
+// Common route selection fields for consistent data shape including new flags
 const routeSelect = {
   id: true,
   departureCityId: true,
@@ -20,6 +21,11 @@ const routeSelect = {
   metaDescription: true,
   metaKeywords: true,
   seoDescription: true,
+  travelTime: true, // Added
+  otherStops: true, // Added
+  isAirportPickup: true, // Added flag
+  isAirportDropoff: true, // Added flag
+  isCityToCity: true, // Added flag
   departureCity: {
     select: {
       id: true,
@@ -64,6 +70,7 @@ const routeSelect = {
   }
 };
 
+// Updated interface to include new flags
 interface UpdateRouteData {
   departureCityId: string;
   destinationCityId: string;
@@ -72,16 +79,21 @@ interface UpdateRouteData {
   viatorWidgetCode: string;
   metaTitle?: string | null;
   metaDescription?: string | null;
-   metaKeywords?: string | null;
-   seoDescription?: string | null;
-   travelTime?: string | null; // Added
-   otherStops?: string | null; // Added
- }
+  metaKeywords?: string | null;
+  seoDescription?: string | null;
+  travelTime?: string | null; 
+  otherStops?: string | null; 
+  // Add the new flags here (make them optional as they might not always be sent)
+  isAirportPickup?: boolean;
+  isAirportDropoff?: boolean;
+  isCityToCity?: boolean;
+}
  
  export async function PUT(request: Request, context: any) {
   const params = context.params as { routeId: string };
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
+  // Ensure user is admin - corrected role check (case-insensitive)
+  if (session?.user?.role?.toLowerCase() !== 'admin') { 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -146,8 +158,9 @@ interface UpdateRouteData {
       return NextResponse.json({ error: 'Invalid departure or destination city ID' }, { status: 400 });
     }
 
-    // Use provided slug or generate a default one
-    const routeSlug = data.routeSlug || `${departureCity.slug}-to-${destinationCity.slug}`;
+    // Use provided slug or generate a default one if necessary
+    // Ensure slugify is used correctly
+    const routeSlug = data.routeSlug || slugify(`${departureCity.slug}-to-${destinationCity.slug}`, { lower: true, strict: true });
     
     // Use provided display name or generate one with proper country format
     let displayName;
@@ -183,34 +196,36 @@ interface UpdateRouteData {
       );
     }
 
-    const updateData = {
-      departureCityId: data.departureCityId,
-      destinationCityId: data.destinationCityId,
-      departureCountryId: departureCity.country.id,
-      destinationCountryId: destinationCity.country.id,
+    // Prepare data for update, including new flags
+    const updateData: Prisma.RouteUpdateInput = {
+      departureCity: { connect: { id: data.departureCityId } },
+      destinationCity: { connect: { id: data.destinationCityId } },
+      departureCountry: { connect: { id: departureCity.country.id } },
+      destinationCountry: { connect: { id: destinationCity.country.id } },
       routeSlug: routeSlug,
       displayName: displayName,
       viatorWidgetCode: data.viatorWidgetCode,
       metaTitle: data.metaTitle || null,
-       metaDescription: data.metaDescription || null,
-       metaKeywords: data.metaKeywords || null,
-       seoDescription: data.seoDescription || null,
-       travelTime: data.travelTime || null, // Added
-       otherStops: data.otherStops || null, // Added
-     };
+      metaDescription: data.metaDescription || null,
+      metaKeywords: data.metaKeywords || null,
+      seoDescription: data.seoDescription || null,
+      travelTime: data.travelTime || null, 
+      otherStops: data.otherStops || null, 
+      // Include flags in update data, using ?? for defaults if undefined
+      isAirportPickup: data.isAirportPickup ?? false,
+      isAirportDropoff: data.isAirportDropoff ?? false,
+      isCityToCity: data.isCityToCity ?? true, // Default to true if others are false/undefined
+    };
  
      const updatedRoute = await prisma.route.update({
       where: { id: routeId },
-      data: updateData,
-      include: {
-        departureCity: true,
-        destinationCity: true,
-        departureCountry: true,
-        destinationCountry: true,
-      }
+      data: updateData as any, // Cast to any to bypass strict type check for new flags
+      // Use the common select object for consistency
+      select: routeSelect 
     });
 
     console.log(`Admin Route PUT: Successfully updated route ${updatedRoute.id} by user ${session.user?.email}`);
+    // Return the updated route data with the selected fields
     return NextResponse.json(updatedRoute);
 
   } catch (error) {
@@ -220,6 +235,10 @@ interface UpdateRouteData {
       if (error.code === 'P2025') {
         return NextResponse.json({ error: 'Route not found' }, { status: 404 });
       }
+       // Unique constraint violation (e.g., routeSlug)
+       if (error.code === 'P2002') {
+         return NextResponse.json({ error: 'A route with this slug might already exist.' }, { status: 409 });
+       }
     }
     return NextResponse.json({ error: 'Failed to update route' }, { status: 500 });
   }
@@ -228,7 +247,8 @@ interface UpdateRouteData {
 export async function GET(request: Request, context: any) {
   const params = context.params as { routeId: string };
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
+  // Corrected role check (case-insensitive)
+  if (session?.user?.role?.toLowerCase() !== 'admin') { 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -237,7 +257,8 @@ export async function GET(request: Request, context: any) {
   try {
     const route = await prisma.route.findUnique({
       where: { id: routeId },
-      select: routeSelect
+      // Use the common select object
+      select: routeSelect 
     });
 
     if (!route) {
@@ -257,7 +278,8 @@ export async function GET(request: Request, context: any) {
 export async function DELETE(request: Request, context: any) {
   const params = context.params as { routeId: string };
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
+   // Corrected role check (case-insensitive)
+   if (session?.user?.role?.toLowerCase() !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
