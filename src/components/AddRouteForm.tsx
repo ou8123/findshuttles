@@ -25,7 +25,7 @@ interface CountryWithCitiesLookup {
 const libraries: ("places")[] = ['places'];
 
 // Define type for route type state
-type RouteType = 'airportPickup' | 'airportDropoff' | 'cityToCity';
+type RouteType = 'airportPickup' | 'airportDropoff' | 'cityToCity' | 'privateDriver' | 'sightseeingShuttle';
 
 const AddRouteForm = () => {
   // State for internal locations lookup data
@@ -49,6 +49,8 @@ const AddRouteForm = () => {
   const [metaKeywords, setMetaKeywords] = useState<string>('');
   const [seoDescription, setSeoDescription] = useState<string>('');
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags, default to cityToCity
+  // Note: We don't need separate state for each boolean flag, 
+  // the single 'routeType' state handles which one is active.
 
   // State for ChatGPT generation
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -378,6 +380,8 @@ const AddRouteForm = () => {
           isAirportPickup: routeType === 'airportPickup',
           isAirportDropoff: routeType === 'airportDropoff',
           isCityToCity: routeType === 'cityToCity',
+          isPrivateDriver: routeType === 'privateDriver', // Pass new flag
+          isSightseeingShuttle: routeType === 'sightseeingShuttle', // Pass new flag
         }),
       });
 
@@ -562,6 +566,35 @@ const AddRouteForm = () => {
               City-to-City
             </label>
           </div>
+          {/* New Radio Buttons */}
+          <div className="flex items-center">
+            <input
+              id="isPrivateDriver"
+              name="routeType"
+              type="radio"
+              value="privateDriver" 
+              checked={routeType === 'privateDriver'}
+              onChange={(e) => setRouteType(e.target.value as RouteType)}
+              className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+            />
+            <label htmlFor="isPrivateDriver" className="ml-2 block text-sm text-gray-900">
+              Private Driving Service
+            </label>
+          </div>
+          <div className="flex items-center">
+            <input
+              id="isSightseeingShuttle"
+              name="routeType"
+              type="radio"
+              value="sightseeingShuttle" 
+              checked={routeType === 'sightseeingShuttle'}
+              onChange={(e) => setRouteType(e.target.value as RouteType)}
+              className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+            />
+            <label htmlFor="isSightseeingShuttle" className="ml-2 block text-sm text-gray-900">
+              Sightseeing Shuttle
+            </label>
+          </div>
         </div>
       </div>
 
@@ -676,6 +709,8 @@ const AddRouteForm = () => {
                     isAirportPickup: routeType === 'airportPickup',
                     isAirportDropoff: routeType === 'airportDropoff',
                     isCityToCity: routeType === 'cityToCity',
+                    isPrivateDriver: routeType === 'privateDriver', // Pass new flag
+                    isSightseeingShuttle: routeType === 'sightseeingShuttle', // Pass new flag
                   }),
                 });
 

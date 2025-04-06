@@ -154,6 +154,12 @@ export async function GET(req: Request, context: any) {
         destinationCountry: { 
           select: { name: true } 
         },
+        amenities: {
+          select: {
+            name: true,
+            icon: true
+          }
+        },
       },
     });
 

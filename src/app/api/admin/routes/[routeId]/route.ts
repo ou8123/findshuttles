@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import slugify from 'slugify'; // Import slugify
+import { matchAmenities } from '@/lib/amenity-matcher'; // Import the amenity matcher utility
 
 export const runtime = 'nodejs';
 
@@ -21,11 +22,14 @@ const routeSelect = {
   metaDescription: true,
   metaKeywords: true,
   seoDescription: true,
+  additionalInstructions: true,
   travelTime: true, // Added
   otherStops: true, // Added
-  isAirportPickup: true, // Added flag
-  isAirportDropoff: true, // Added flag
-  isCityToCity: true, // Added flag
+  isAirportPickup: true, 
+  isAirportDropoff: true, 
+  isCityToCity: true, 
+  isPrivateDriver: true, // Added new flag
+  isSightseeingShuttle: true, // Added new flag
   departureCity: {
     select: {
       id: true,
@@ -70,7 +74,7 @@ const routeSelect = {
   }
 };
 
-// Updated interface to include new flags
+// Updated interface to include new flags and additional instructions
 interface UpdateRouteData {
   departureCityId: string;
   destinationCityId: string;
@@ -83,10 +87,13 @@ interface UpdateRouteData {
   seoDescription?: string | null;
   travelTime?: string | null; 
   otherStops?: string | null; 
-  // Add the new flags here (make them optional as they might not always be sent)
+  additionalInstructions?: string | null;
+  // Corrected: Add the new flags here
   isAirportPickup?: boolean;
   isAirportDropoff?: boolean;
   isCityToCity?: boolean;
+  isPrivateDriver?: boolean; // Added new flag
+  isSightseeingShuttle?: boolean; // Added new flag
 }
  
  export async function PUT(request: Request, context: any) {
@@ -113,8 +120,14 @@ interface UpdateRouteData {
       { status: 400 }
     );
   }
-  if (data.departureCityId === data.destinationCityId) {
-    return NextResponse.json({ error: 'Departure and destination cities cannot be the same.' }, { status: 400 });
+  
+  // Allow same departure/destination only for specific types
+  // Use the boolean flags directly from the request body 'data'
+  // Ensure the flags exist in the data object before checking
+  const isPrivate = data.isPrivateDriver === true;
+  const isSightseeing = data.isSightseeingShuttle === true;
+  if (data.departureCityId === data.destinationCityId && !isPrivate && !isSightseeing) {
+    return NextResponse.json({ error: 'Departure and destination cities cannot be the same for this route type.' }, { status: 400 });
   }
 
   try {
@@ -196,6 +209,21 @@ interface UpdateRouteData {
       );
     }
 
+    // Get matched amenity names and find/create amenities
+    const matchedAmenityNames = await matchAmenities(data.seoDescription || '', data.additionalInstructions || '');
+    
+    // Find or create each amenity and get their IDs
+    const amenityIdsToSet = await Promise.all(
+      matchedAmenityNames.map(async (name) => {
+        const amenity = await prisma.amenity.upsert({
+          where: { name },
+          create: { name },
+          update: {} // Don't update if exists
+        });
+        return { id: amenity.id };
+      })
+    );
+
     // Prepare data for update, including new flags
     const updateData: Prisma.RouteUpdateInput = {
       departureCity: { connect: { id: data.departureCityId } },
@@ -209,19 +237,27 @@ interface UpdateRouteData {
       metaDescription: data.metaDescription || null,
       metaKeywords: data.metaKeywords || null,
       seoDescription: data.seoDescription || null,
-      travelTime: data.travelTime || null, 
-      otherStops: data.otherStops || null, 
-      // Include flags in update data, using ?? for defaults if undefined
+      additionalInstructions: data.additionalInstructions || null,
+      travelTime: data.travelTime || null,
+      otherStops: data.otherStops || null,
       isAirportPickup: data.isAirportPickup ?? false,
       isAirportDropoff: data.isAirportDropoff ?? false,
-      isCityToCity: data.isCityToCity ?? true, // Default to true if others are false/undefined
+      isCityToCity: data.isCityToCity ?? true, // Default might need adjustment based on other flags
+      isPrivateDriver: data.isPrivateDriver ?? false, // Add new flag
+      isSightseeingShuttle: data.isSightseeingShuttle ?? false, // Add new flag
+      amenities: {
+        set: amenityIdsToSet, // Ensure amenities are updated based on new description
+      },
     };
- 
-     const updatedRoute = await prisma.route.update({
+
+
+    const updatedRoute = await prisma.route.update({
       where: { id: routeId },
-      data: updateData as any, // Cast to any to bypass strict type check for new flags
-      // Use the common select object for consistency
-      select: routeSelect 
+      data: updateData,
+      select: { // Ensure amenities are selected in the response
+        ...routeSelect,
+        amenities: { select: { id: true, name: true } }, // Select amenity details
+      }
     });
 
     console.log(`Admin Route PUT: Successfully updated route ${updatedRoute.id} by user ${session.user?.email}`);
@@ -233,7 +269,10 @@ interface UpdateRouteData {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Record not found for update
       if (error.code === 'P2025') {
-        return NextResponse.json({ error: 'Route not found' }, { status: 404 });
+         // Log more details for P2025 specifically
+         console.error(`Prisma P2025 Error Details: Target - ${error.meta?.target}, Cause - ${error.meta?.cause}`);
+         // Provide a more specific error message if possible, otherwise keep generic
+         return NextResponse.json({ error: 'Route or a related record (like an Amenity) not found during update.' }, { status: 404 });
       }
        // Unique constraint violation (e.g., routeSlug)
        if (error.code === 'P2002') {
@@ -258,7 +297,11 @@ export async function GET(request: Request, context: any) {
     const route = await prisma.route.findUnique({
       where: { id: routeId },
       // Use the common select object
-      select: routeSelect 
+      // Ensure amenities are included in the GET response as well
+      select: {
+        ...routeSelect,
+        amenities: true, // Ensure amenities are selected
+      }
     });
 
     if (!route) {

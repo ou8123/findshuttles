@@ -74,6 +74,11 @@ async function fetchRouteData(routeSlug) {
         departureCountryId: true,
         destinationCityId: true,
         destinationCountryId: true,
+        isAirportPickup: true, // Fetch flags needed for amenity logic
+        isAirportDropoff: true,
+        isCityToCity: true,
+        isPrivateDriver: true, // Fetch new flag
+        isSightseeingShuttle: true, // Fetch new flag
         // Include related data with specific fields
         departureCity: {
           select: {
@@ -102,10 +107,11 @@ async function fetchRouteData(routeSlug) {
             name: true // Select only the name from hotels
           }
         },
-        amenities: {
+        amenities: { // Keep fetching amenities in case needed later
           select: {
-            name: true,
-            icon: true // Select name and icon from amenities
+            id: true, 
+            name: true
+            // Removed icon: true as it doesn't exist on the Amenity model
           }
         }
       }
@@ -184,6 +190,51 @@ export default async function RoutePage({ params }) {
     { name: `${route.departureCity?.name || 'Unknown'} to ${route.destinationCity?.name || 'Unknown'}`, current: true }
   ];
 
+  // --- Prepare Product Schema JSON-LD ---
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'; // Base URL from env or fallback
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    // Use displayName or construct a name
+    "name": route.displayName || `Shuttle: ${route.departureCity?.name} to ${route.destinationCity?.name}`,
+    // Use metaDescription or fallback
+    "description": route.metaDescription || `Book reliable shuttle transportation from ${route.departureCity?.name} to ${route.destinationCity?.name}.`,
+    "brand": {
+      "@type": "Brand",
+      "name": "BookShuttles.com" // Static brand name
+    },
+    "category": "Travel", // Static category
+    // Construct the canonical URL for the route
+    "url": `${siteUrl}/routes/${route.routeSlug}`, 
+    // Offers and Review are omitted as data is not available
+  };
+  // --- End Product Schema ---
+
+  // Define the mapping from camelCase amenity key to display text (emoji + name)
+  // This should align with the names stored in your Amenity table
+  const amenityDisplayMap = {
+    privateShuttle: "🚐 Private Shuttle",
+    ac: "✅ A/C", 
+    wifi: "📶 WiFi",
+    optionalStops: "🛑 Driver Will Make Stops on Request", 
+    hotelPickup: "📍 Hotel Pickup",
+    airportPickup: "📍 Airport Pickup",
+    bottledWater: "💧 Bottled Water",
+    carSeats: "🧸 Car Seats Available", 
+    bilingualDriver: "🧑‍✈️ Bilingual Driver",
+    flightDelayFriendly: "🕒 Flight Delay Friendly",
+    alcoholicBeverages: "🍷 Complimentary Alcoholic Beverages", 
+    scenicStops: "📷 Scenic / Wildlife Stops", 
+    serviceAnimals: "🦮 Service Animals Allowed", 
+    wheelchairAccessible: "♿️ Wheelchair Accessible" 
+  };
+
+  // Helper function to convert DB amenity name to camelCase key
+  const toCamelCase = (str) => { // Removed :string type annotation
+    if (!str) return '';
+    return str.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
+  }
+
   return (
     <AutoScroller scrollToSelector="#route-content">
       {/* Main container with standard width */}
@@ -228,25 +279,7 @@ export default async function RoutePage({ params }) {
           {/* 1. Top Route Summary Block */}
           <RouteSummaryBlock route={route} />
 
-          {/* NEW: Highlights Grid (Replaces AmenitiesTable) */}
-          {route.amenities && route.amenities.length > 0 && (
-            <div className="highlights-section mt-6 mb-6"> {/* Added mb-6 */}
-              <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Route Highlights</h2>
-              <div className="flex flex-wrap items-center gap-2">
-                {route.amenities.map((amenity) => {
-                  const IconComponent = getAmenityIcon(amenity.icon); // Use the helper
-                  return (
-                    <div key={amenity.id} className="inline-flex items-center bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full">
-                      {IconComponent && <IconComponent className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />} 
-                      {amenity.name}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* MOVED UP: Route Description Section */}
+          {/* 2. Route Description Section */}
           {route.seoDescription && (
             <div className="description-section my-8">
               <h2 className="text-xl font-semibold mb-3 text-current dark:text-white"> 
@@ -259,6 +292,7 @@ export default async function RoutePage({ params }) {
                   Amenities and services vary by provider.<br />
                   Please review individual listings before booking.
                 </p>
+                {/* Render the seoDescription from DB (should NOT contain summary line now) */}
                 <FormattedDescription 
                   text={route.seoDescription} 
                   className="text-current dark:text-gray-200"
@@ -267,10 +301,37 @@ export default async function RoutePage({ params }) {
            </div>
          )}
 
-          {/* 2. Hotels Served (Optional) - Position relative to Booking Widget */}
+          {/* 3. Amenities Grid (Re-added) */}
+          {route.amenities && route.amenities.length > 0 && (
+            <div className="mt-6 mb-6"> 
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2"> 
+                Amenities (May Vary by Listing)
+              </h3>
+              {/* Use Tailwind classes for the grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-800 dark:text-gray-200">
+                {/* Map route amenities directly from DB */}
+                {route.amenities.map((amenity) => {
+                  // Convert DB name (e.g., "Private Shuttle") to camelCase key ("privateShuttle")
+                  const amenityKey = toCamelCase(amenity.name); 
+                  const amenityDisplayContent = amenityKey ? amenityDisplayMap[amenityKey] : null;
+                  
+                  // Render the grid item directly if a mapping exists, otherwise show raw name
+                  if (amenityDisplayContent) {
+                    return <div key={amenity.id}>{amenityDisplayContent}</div>;
+                  } else {
+                    // Fallback for debugging if name doesn't match map
+                    console.warn(`Amenity name "${amenity.name}" (key: "${amenityKey}") not found in amenityDisplayMap.`);
+                    return <div key={amenity.id}>❓ {amenity.name || 'Unknown Amenity'}</div>; 
+                  }
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 4. Hotels Served (Optional) */}
           <HotelsGrid hotels={route.hotelsServed} />
 
-           {/* 3. Widgets / Listings Section */}
+           {/* 5. Widgets / Listings Section */}
            <div className="booking-section mb-8">
              <h2 className="text-xl font-semibold mb-3">Book Your Shuttle</h2> 
                {/* Widget with simple implementation that works reliably */}
@@ -288,11 +349,7 @@ export default async function RoutePage({ params }) {
               )}
             </div>
             
-             {/* 4. Route Description Section - MOVED UP */}
-             
-            {/* 5. Amenity Table - REMOVED */}
-
-            {/* 6. Map Section (Bottom of Page) */}
+             {/* 6. Map Section (Bottom of Page) */}
             {route.departureCity?.latitude && route.departureCity?.longitude &&
             route.destinationCity?.latitude && route.destinationCity?.longitude && (
               <div className="map-section my-8">
@@ -338,6 +395,12 @@ export default async function RoutePage({ params }) {
                ...(item.current ? {} : { "item": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'}${item.href}` }) 
              }))
            }) }}
+         />
+
+         {/* Product Schema Markup */}
+         <script
+           type="application/ld+json"
+           dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
          />
       </AutoScroller>
   );

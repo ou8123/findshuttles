@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Start seeding ...');
+  console.log('Restoring all routes...');
 
-  // Create Costa Rica
+  // Get or create Costa Rica
   const costaRica = await prisma.country.upsert({
     where: { slug: 'costa-rica' },
     update: {},
@@ -14,47 +14,9 @@ async function main() {
       slug: 'costa-rica',
     },
   });
-  console.log('Created/found country:', costaRica.name);
+  console.log('Using country:', costaRica.name);
 
-  // Create Montezuma del Sol (fictional)
-  const montezuma = await prisma.city.upsert({
-    where: { 
-      name_countryId: {
-        name: 'Montezuma del Sol',
-        countryId: costaRica.id
-      }
-    },
-    update: {},
-    create: {
-      name: 'Montezuma del Sol',
-      slug: 'montezuma-del-sol',
-      countryId: costaRica.id,
-      latitude: 9.6547,
-      longitude: -85.0694,
-    },
-  });
-  console.log('Created/found city:', montezuma.name, 'in', costaRica.name);
-
-  // Create Puerto Luna (fictional)
-  const puertoLuna = await prisma.city.upsert({
-    where: { 
-      name_countryId: {
-        name: 'Puerto Luna',
-        countryId: costaRica.id
-      }
-    },
-    update: {},
-    create: {
-      name: 'Puerto Luna',
-      slug: 'puerto-luna',
-      countryId: costaRica.id,
-      latitude: 9.9567,
-      longitude: -84.8456,
-    },
-  });
-  console.log('Created/found city:', puertoLuna.name, 'in', costaRica.name);
-
-  // Create San Jose
+  // Get or create San Jose city
   const sanJose = await prisma.city.upsert({
     where: { 
       name_countryId: {
@@ -62,7 +24,10 @@ async function main() {
         countryId: costaRica.id
       }
     },
-    update: {},
+    update: {
+      latitude: 9.9281,
+      longitude: -84.0907,
+    },
     create: {
       name: 'San Jose',
       slug: 'san-jose-costa-rica',
@@ -71,9 +36,9 @@ async function main() {
       longitude: -84.0907,
     },
   });
-  console.log('Created/found city:', sanJose.name, 'in', costaRica.name);
+  console.log('Using city:', sanJose.name);
 
-  // Create Santa Teresa
+  // Get or create Santa Teresa city
   const santaTeresa = await prisma.city.upsert({
     where: { 
       name_countryId: {
@@ -81,7 +46,10 @@ async function main() {
         countryId: costaRica.id
       }
     },
-    update: {},
+    update: {
+      latitude: 9.6433,
+      longitude: -85.1677,
+    },
     create: {
       name: 'Santa Teresa',
       slug: 'santa-teresa-costa-rica',
@@ -90,26 +58,29 @@ async function main() {
       longitude: -85.1677,
     },
   });
-  console.log('Created/found city:', santaTeresa.name, 'in', costaRica.name);
+  console.log('Using city:', santaTeresa.name);
 
-  // Create Valle Verde (fictional)
-  const valleVerde = await prisma.city.upsert({
+  // Get or create Jaco city
+  const jaco = await prisma.city.upsert({
     where: { 
       name_countryId: {
-        name: 'Valle Verde',
+        name: 'Jacó',
         countryId: costaRica.id
       }
     },
-    update: {},
+    update: {
+      latitude: 9.6167,
+      longitude: -84.6294,
+    },
     create: {
-      name: 'Valle Verde',
-      slug: 'valle-verde',
+      name: 'Jacó',
+      slug: 'jaco',
       countryId: costaRica.id,
-      latitude: 9.7456,
-      longitude: -84.2345,
+      latitude: 9.6167,
+      longitude: -84.6294,
     },
   });
-  console.log('Created/found city:', valleVerde.name, 'in', costaRica.name);
+  console.log('Using city:', jaco.name);
 
   // Create amenities
   const amenities = [
@@ -164,7 +135,7 @@ async function main() {
       seoDescription: 'Reliable shuttle service from San Jose to the beautiful beach town of Santa Teresa. Professional drivers and comfortable vehicles make your journey smooth and enjoyable.',
     },
   });
-  console.log('Created/found route:', sanJoseToSantaTeresa.routeSlug);
+  console.log('Created/updated route:', sanJoseToSantaTeresa.routeSlug);
 
   // Add amenities to San Jose to Santa Teresa route
   await prisma.route.update({
@@ -183,34 +154,32 @@ async function main() {
   });
   console.log('Added amenities to San Jose to Santa Teresa route');
 
-  // Create Montezuma del Sol to Puerto Luna route
-  const montezumaRoute = await prisma.route.upsert({
-    where: { routeSlug: 'montezuma-del-sol-to-puerto-luna' },
+  // Create San Jose to Jaco route
+  const sanJoseToJaco = await prisma.route.upsert({
+    where: { routeSlug: 'san-jose-to-jaco' },
     update: {},
     create: {
-      departureCityId: montezuma.id,
-      destinationCityId: puertoLuna.id,
+      departureCityId: sanJose.id,
+      destinationCityId: jaco.id,
       departureCountryId: costaRica.id,
       destinationCountryId: costaRica.id,
-      routeSlug: 'montezuma-del-sol-to-puerto-luna',
-      displayName: 'Shuttles from Montezuma del Sol to Puerto Luna',
-      viatorWidgetCode: `
-        <div 
-          data-vi-partner-id="P00097086" 
-          data-vi-widget-ref="W-montezuma-puerto-luna"
-        ></div>
-      `,
-      metaTitle: 'Montezuma del Sol to Puerto Luna | Shuttle & Transfer Service',
-      metaDescription: 'Convenient shuttle service from Montezuma del Sol to Puerto Luna. Easy online booking with reliable local providers.',
-      metaKeywords: 'Montezuma del Sol, Puerto Luna, Costa Rica shuttle, transfer service',
-      seoDescription: 'Sample SEO description for the route.',
+      routeSlug: 'san-jose-to-jaco',
+      displayName: 'Shuttles from San José to Jacó',
+      viatorWidgetCode: `<div 
+  data-vi-partner-id="P00097086" 
+  data-vi-widget-ref="W-311ca00e-dc16-4c3d-951c-332e35bd0245"
+></div>`,
+      metaTitle: 'San José to Jacó | Shuttle & Transfer Service',
+      metaDescription: 'Convenient shuttle service from San José to Jacó Beach. Easy online booking with reliable local providers.',
+      metaKeywords: 'San José, Jacó, Costa Rica shuttle, transfer service, beach shuttle',
+      seoDescription: 'Book your shuttle transportation from San José to the beautiful beach town of Jacó. Quick, reliable service with comfortable vehicles and experienced drivers.',
     },
   });
-  console.log('Created/found route:', montezumaRoute.routeSlug);
+  console.log('Created/updated route:', sanJoseToJaco.routeSlug);
 
-  // Add amenities to Montezuma del Sol to Puerto Luna route
+  // Add amenities to San Jose to Jaco route
   await prisma.route.update({
-    where: { routeSlug: 'montezuma-del-sol-to-puerto-luna' },
+    where: { routeSlug: 'san-jose-to-jaco' },
     data: {
       amenities: {
         connect: [
@@ -223,21 +192,9 @@ async function main() {
       }
     }
   });
-  console.log('Added amenities to Montezuma del Sol to Puerto Luna route');
+  console.log('Added amenities to San Jose to Jaco route');
 
-  // Create admin user
-  const adminEmail = 'aiaffiliatecom@gmail.com';
-  const adminUser = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {},
-    create: {
-      email: adminEmail,
-      role: 'ADMIN',
-    },
-  });
-  console.log('Created/found admin user:', adminUser.email);
-
-  console.log('Seeding finished.');
+  console.log('All routes restored successfully!');
 }
 
 main()

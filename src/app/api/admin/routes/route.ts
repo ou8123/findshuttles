@@ -4,10 +4,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth"; // Using shared authOptions
 import slugify from 'slugify';
 import { Prisma } from '@prisma/client'; // Import Prisma
+import { matchAmenities } from '@/lib/amenity-matcher'; // Import the amenity matcher utility
 
 // Helper function to generate a unique slug
-async function generateUniqueSlug(departureCityName: string, destinationCityName: string): Promise<string> {
-  const baseSlug = slugify(`${departureCityName}-to-${destinationCityName}`, { lower: true, strict: true });
+async function generateUniqueSlug(departureCitySlug: string, destinationCitySlug: string): Promise<string> { // Corrected param names
+  const baseSlug = slugify(`${departureCitySlug}-to-${destinationCitySlug}`, { lower: true, strict: true });
   let uniqueSlug = baseSlug;
   let counter = 1;
 
@@ -47,20 +48,22 @@ export async function POST(request: Request) {
       otherStops, 
       isAirportPickup, // Expect boolean
       isAirportDropoff, // Expect boolean
-      isCityToCity // Expect boolean
+      isCityToCity, // Expect boolean
+      isPrivateDriver, // New flag
+      isSightseeingShuttle // New flag
     } = body;
 
     // Basic validation
     if (!departureCityId || !destinationCityId || !viatorWidgetCode) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    if (departureCityId === destinationCityId) {
-        return NextResponse.json({ error: 'Departure and destination cities cannot be the same.' }, { status: 400 });
+    // Allow same departure/destination only for specific types
+    if (departureCityId === destinationCityId && !isPrivateDriver && !isSightseeingShuttle) {
+        return NextResponse.json({ error: 'Departure and destination cities cannot be the same for this route type.' }, { status: 400 });
     }
      // Validate boolean flags (ensure they are actually booleans if provided)
-     if ((isAirportPickup !== undefined && typeof isAirportPickup !== 'boolean') ||
-         (isAirportDropoff !== undefined && typeof isAirportDropoff !== 'boolean') ||
-         (isCityToCity !== undefined && typeof isCityToCity !== 'boolean')) {
+     const booleanFlags = [isAirportPickup, isAirportDropoff, isCityToCity, isPrivateDriver, isSightseeingShuttle];
+     if (booleanFlags.some(flag => flag !== undefined && typeof flag !== 'boolean')) {
        return NextResponse.json({ error: 'Invalid type for route type flags.' }, { status: 400 });
      }
 
@@ -79,35 +82,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid city ID provided' }, { status: 400 });
     }
 
-    // Generate unique slug
+    // Generate unique slug using city slugs
     const routeSlug = await generateUniqueSlug(departureCity.slug, destinationCity.slug);
     
     // Generate default display name
     const displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}`;
 
-    // Ensure only one flag is true, default to cityToCity if none are explicitly true
+    // --- Logic to ensure only one route type flag is true ---
     let finalIsAirportPickup = isAirportPickup === true;
     let finalIsAirportDropoff = isAirportDropoff === true;
     let finalIsCityToCity = isCityToCity === true;
+    let finalIsPrivateDriver = isPrivateDriver === true;
+    let finalIsSightseeingShuttle = isSightseeingShuttle === true;
 
-    if (finalIsAirportPickup && finalIsAirportDropoff) {
-        // Invalid state, default to cityToCity or handle as error
-        console.warn("Both airport pickup and dropoff flags were true, defaulting to cityToCity");
-        finalIsAirportPickup = false;
+    const trueFlags = [
+        finalIsAirportPickup, 
+        finalIsAirportDropoff, 
+        finalIsCityToCity, 
+        finalIsPrivateDriver, 
+        finalIsSightseeingShuttle
+    ].filter(Boolean).length;
+
+    if (trueFlags > 1) {
+        // If multiple flags are true, prioritize (e.g., Airport > Private > Sightseeing > City) or default to CityToCity
+        console.warn("Multiple route type flags were true. Prioritizing or defaulting to CityToCity.");
+        finalIsAirportPickup = false; // Reset all
         finalIsAirportDropoff = false;
+        finalIsPrivateDriver = false;
+        finalIsSightseeingShuttle = false;
+        finalIsCityToCity = true; // Default
+        // Add more sophisticated prioritization logic here if needed
+    } else if (trueFlags === 0) {
+        // If no flag is explicitly true, default to CityToCity
+        console.warn("No route type flag was true. Defaulting to CityToCity.");
         finalIsCityToCity = true;
-    } else if (finalIsAirportPickup) {
-        finalIsCityToCity = false;
-        finalIsAirportDropoff = false;
-    } else if (finalIsAirportDropoff) {
-        finalIsCityToCity = false;
-        finalIsAirportPickup = false;
-    } else {
-        // If neither airport flag is true, ensure cityToCity is true
-        finalIsCityToCity = true; 
+        // Ensure others are false if defaulting
         finalIsAirportPickup = false;
         finalIsAirportDropoff = false;
+        finalIsPrivateDriver = false;
+        finalIsSightseeingShuttle = false;
     }
+    // --- End route type flag logic ---
 
 
     const newRoute = await prisma.route.create({
@@ -126,13 +141,26 @@ export async function POST(request: Request) {
         travelTime: travelTime || null, // Save travelTime
         otherStops: otherStops || null, // Save otherStops
         // Use the validated/corrected flags
-        isAirportPickup: finalIsAirportPickup, 
-        isAirportDropoff: finalIsAirportDropoff, 
-        isCityToCity: finalIsCityToCity, 
+        isAirportPickup: finalIsAirportPickup,
+        isAirportDropoff: finalIsAirportDropoff,
+        isCityToCity: finalIsCityToCity,
+        isPrivateDriver: finalIsPrivateDriver, // Save new flag
+        isSightseeingShuttle: finalIsSightseeingShuttle, // Save new flag
+        // Automatically associate amenities based on seoDescription
+        amenities: {
+          connect: (await matchAmenities(seoDescription || "")).map(id => ({ id })), // Pass empty string if seoDescription is null
+        },
       },
+      // Include amenities in the returned object to confirm association
+      include: {
+        amenities: true, 
+      }
     });
 
-    console.log(`[API POST /api/admin/routes] Route created successfully: ${newRoute.id}`);
+    // Explicitly check if amenities exist on the returned object before logging length
+    const amenityCount = newRoute.amenities ? newRoute.amenities.length : 0;
+    console.log(`[API POST /api/admin/routes] Route created successfully: ${newRoute.id} with ${amenityCount} amenities associated.`);
+    
     return NextResponse.json(newRoute, { status: 201 });
   } catch (error) {
     console.error("[API POST /api/admin/routes] Failed to create route:", error);
@@ -145,16 +173,13 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: NextRequest) { // Use NextRequest to access searchParams
-    // No session check needed for public GET? Re-add if admin only.
-    // const session = await getServerSession(authOptions);
-    // if (session?.user?.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
-
-    // Get search query parameter
+export async function GET(request: NextRequest) { 
+    // Get query parameters for pagination and search
     const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '25'); // Default limit
     const search = searchParams.get('search');
+    const skip = (page - 1) * limit;
 
     // Build the where clause for filtering
     let whereClause: Prisma.RouteWhereInput = {};
@@ -165,11 +190,19 @@ export async function GET(request: NextRequest) { // Use NextRequest to access s
           { routeSlug: { contains: search, mode: 'insensitive' } },
           { departureCity: { name: { contains: search, mode: 'insensitive' } } },
           { destinationCity: { name: { contains: search, mode: 'insensitive' } } },
+          { departureCountry: { name: { contains: search, mode: 'insensitive' } } },
+          { destinationCountry: { name: { contains: search, mode: 'insensitive' } } },
         ],
       };
     }
     
     try {
+        // Fetch total count first for pagination calculation
+        const totalItems = await prisma.route.count({ where: whereClause });
+        const totalPages = Math.ceil(totalItems / limit);
+        const hasMore = page < totalPages;
+
+        // Fetch the paginated and sorted routes
         const routes = await prisma.route.findMany({
             where: whereClause, // Apply the filter
             include: {
@@ -183,14 +216,27 @@ export async function GET(request: NextRequest) { // Use NextRequest to access s
                     select: { name: true } 
                 }, 
                 destinationCountry: { 
-                    select: { name: true } 
-                },
-            },
-            orderBy: {
-                 displayName: 'asc' 
-            }
-        });
-        return NextResponse.json({ routes }); // Wrap in an object like { routes: [...] }
+                     select: { name: true } 
+                 },
+             },
+             orderBy: {
+                  createdAt: 'desc' // Sort by creation date, newest first
+             },
+             skip: skip,
+             take: limit,
+         });
+
+         // Construct pagination object
+         const pagination = {
+             page,
+             limit,
+             totalItems,
+             totalPages,
+             hasMore
+         };
+
+        // Return data in the expected format for the frontend
+        return NextResponse.json({ routes, pagination }); 
     } catch (error) {
         console.error("Failed to fetch routes:", error);
         return NextResponse.json({ error: 'Failed to fetch routes' }, { status: 500 });

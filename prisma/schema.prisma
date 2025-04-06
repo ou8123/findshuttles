@@ -36,56 +36,19 @@ model City {
   slug       String
   latitude   Float?
   longitude  Float?
-  // isAirportCity Boolean  @default(false) // Removed this flag
   countryId  String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   country    Country  @relation(fields: [countryId], references: [id])
   routesFrom Route[]  @relation("DepartureCity")
   routesTo   Route[]  @relation("DestinationCity")
-  hotels     Hotel[]  // Added relation to Hotel model
+  hotels     Hotel[]
 
   @@unique([name, countryId])
   @@unique([slug, countryId])
+  @@index([countryId])
   @@index([name])
   @@index([slug])
-  @@index([countryId])
-}
-
-model Route {
-  id                   String   @id @default(cuid())
-  departureCityId      String
-  departureCountryId   String
-  destinationCityId    String
-  destinationCountryId String
-  routeSlug            String   @unique
-  viatorWidgetCode     String
-  seoDescription       String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  metaDescription      String?
-  metaKeywords         String?
-  metaTitle            String?
-  displayName          String   @default("")
-  otherStops           String? // AI-generated possible other stops
-  travelTime           String? // AI-generated approximate travel time
-  isAirportPickup      Boolean  @default(false) // New flag
-  isAirportDropoff     Boolean  @default(false) // New flag
-  isCityToCity         Boolean  @default(false) // New flag
-  departureCity        City     @relation("DepartureCity", fields: [departureCityId], references: [id])
-  departureCountry     Country  @relation("DepartureCountry", fields: [departureCountryId], references: [id])
-  destinationCity      City     @relation("DestinationCity", fields: [destinationCityId], references: [id])
-  destinationCountry   Country  @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
-  hotelsServed         Hotel[]  @relation("RouteHotels")
-  amenities            Amenity[] @relation("RouteAmenities")
-
-  @@index([displayName])
-  @@index([routeSlug])
-  @@index([departureCityId])
-  @@index([destinationCityId])
-  @@index([departureCountryId])
-  @@index([destinationCountryId])
-  @@index([createdAt])
 }
 
 model Hotel {
@@ -104,10 +67,48 @@ model Hotel {
 model Amenity {
   id        String   @id @default(cuid())
   name      String   @unique
-  icon      String? // Optional: path or identifier for an icon
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   routes    Route[]  @relation("RouteAmenities")
 
   @@index([name])
+}
+
+model Route {
+  id                   String    @id @default(cuid())
+  departureCityId      String
+  departureCountryId   String
+  destinationCityId    String
+  destinationCountryId String
+  routeSlug            String    @unique
+  displayName          String    @default("")
+  viatorWidgetCode     String
+  seoDescription       String?
+  additionalInstructions String?
+  otherStops          String?
+  travelTime          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  metaDescription      String?
+  metaKeywords         String?
+  metaTitle            String?
+  isAirportPickup      Boolean   @default(false)
+  isAirportDropoff     Boolean   @default(false)
+  isCityToCity         Boolean   @default(true) // Default to true if others are false
+  isPrivateDriver      Boolean   @default(false) // New type
+  isSightseeingShuttle Boolean   @default(false) // New type
+  departureCity        City      @relation("DepartureCity", fields: [departureCityId], references: [id])
+  departureCountry     Country   @relation("DepartureCountry", fields: [departureCountryId], references: [id])
+  destinationCity      City      @relation("DestinationCity", fields: [destinationCityId], references: [id])
+  destinationCountry   Country   @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
+  amenities           Amenity[]  @relation("RouteAmenities")
+  hotelsServed        Hotel[]    @relation("RouteHotels")
+
+  @@index([routeSlug])
+  @@index([displayName])
+  @@index([departureCityId])
+  @@index([departureCountryId])
+  @@index([destinationCityId])
+  @@index([destinationCountryId])
+  @@index([createdAt])
 }

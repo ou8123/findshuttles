@@ -142,6 +142,8 @@ export async function POST(request: Request) {
       isAirportPickup = false, // Default to false if not provided
       isAirportDropoff = false, // Default to false if not provided
       isCityToCity = true, // Default to true if others are false
+      isPrivateDriver = false, // New flag
+      isSightseeingShuttle = false, // New flag
       additionalInstructions = '' 
     } = requestData;
 
@@ -186,127 +188,77 @@ export async function POST(request: Request) {
 
     // Debug log
     console.log(`Generating content for: ${departureCityName} to ${destinationCityName}, ${destinationCountryName}`);
-    console.log(`Route Type Flags: Pickup=${isAirportPickup}, Dropoff=${isAirportDropoff}, City=${isCityToCity}`);
+    console.log(`Route Type Flags: Pickup=${isAirportPickup}, Dropoff=${isAirportDropoff}, City=${isCityToCity}, Private=${isPrivateDriver}, Sightseeing=${isSightseeingShuttle}`); // Log new flags
     console.log(`Additional instructions: ${additionalInstructions.substring(0, 100)}${additionalInstructions.length > 100 ? '...' : ''}`);
 
     // Preprocess the additional instructions (neutralize tone, remove URLs, remove tax mentions)
     const processedInstructions = preprocessAdditionalInstructions(additionalInstructions);
     
-    // --- Prepare prompt for OpenAI using the new structure ---
-    const systemPromptContent = `You are a professional travel writer creating SEO-optimized content for airport and intercity shuttle routes. Your task is to generate concise, informative, and professional content tailored for travelers booking point-to-point transport. Always return a valid JSON object with the fields: metaTitle, metaDescription, metaKeywords, seoDescription, otherStops, and travelTime. Do not include markdown, formatting, or commentary.`;
-    
-    // Base part of the user prompt
-    let userPromptContent = `Generate content for a shuttle route from ${departureCityName} to ${destinationCityName} in ${destinationCountryName}. This is a one-way transport service. Use a neutral, professional, and helpful tone.
+    // --- Prepare prompt for OpenAI (New Prompt Structure) ---
+    const systemPromptContent = `You are an expert travel writer and SEO assistant. Given information about a shuttle route in JSON format, write high-quality, professional content for the route.
 
-Do not include:
-- Mentions of hotels, specific pickup/drop-off locations, or surrounding towns (this is shown elsewhere on the page)
-- Mentions of the platform name (e.g., BookShuttles.com)
-- Promotional or emotional language
-- Travel time in the seoDescription (this is returned separately and shown at the top)
-- Any use of possessive phrasing like “our shuttle,” “our service,” or “our drivers.” Refer to the transport as “this shuttle service,” “the provider,” or simply “the service.”
-- Mentions of taxes, fees, or handling charges.
-
-Return ONLY a valid JSON object in this format:
+Respond only with a valid JSON object in the following format:
 {
-  "metaTitle": "String (max 70 characters): SEO title for the route page.",
-  "metaDescription": "String (150–160 characters): SEO meta description summarizing the route and destination.",
-  "metaKeywords": "String: Comma-separated keywords including city names, country, 'shuttle', 'transfer', 'transport', and 1–2 attractions.",
-  "seoDescription": "String (2–3 concise paragraphs): See structure below.",
-  "otherStops": "String (optional, max 50 characters): List 1–3 plausible intermediate towns or cities. Return null if not explicitly instructed. CRITICAL: Do not return placeholder text like 'e.g., Town A, Town B'.",
-  "travelTime": "String (optional, max 30 characters): e.g., 'Approx. 2–3 hours'. Return null if unknown."
+  "seoDescription": string, // 2–3 paragraph SEO-optimized description, no amenities listed
+  "metaTitle": string,      // concise, SEO title for browser tab (60–70 chars)
+  "metaDescription": string, // short description for meta tag (150–160 chars)
+  "metaKeywords": string,    // comma-separated keywords (8–12 total)
+  "otherStops": string | null, // if applicable, list intermediate towns or transfer points
+  "travelTime": string        // e.g. "Approx. 4–5 hours"
 }
 
-seoDescription Structure:
-`;
+NEVER include emojis. Do NOT mention amenities in the seoDescription. Do not include disclaimers. Do not include operator names.
 
-    // Conditionally add SEO description structure based on route type flags
-    // Prioritize Airport Dropoff for the specific airport prompt
-    if (isAirportDropoff) { // Use the flag from the request
-      userPromptContent += `
-This route is an AIRPORT DROPOFF. Structure the description accordingly:
+If additionalInstructions are provided in the input JSON, integrate them naturally into the content.
 
-1. Paragraph 1 – Airport Transfer Focus:
-- Describe the route as a practical airport drop-off service TO the airport (${destinationCityName}).
-- Emphasize convenience for catching a flight.
-- Briefly mention general amenities (A/C, Wi-Fi, etc.) if known.
-- Do not include travel time, platform branding, or hotel names.
-- Do not use possessive phrasing.
-- Use a neutral, professional tone. If including any goodbye/farewell phrasing, use it sparingly, as the traveler may not be leaving the country.
+---
+Tone and content must vary based on the routeType:
 
-2. Paragraph 2 – Optional Local Highlights (${destinationCityName}):
-- Use varied transitional language such as:
-  - “If you have time before your flight…”
-  - “If ${destinationCityName} is part of your itinerary…”
-  - “For those with a day or two to explore near the airport…”
-- Mention 2–3 named attractions in or near the city (resorts, parks, beaches, etc.).
-- Include 1–2 activities (surfing, kayaking, hiking, birdwatching, etc.).
+- "airportPickup":
+  Use a welcoming tone (e.g., "Welcome to [Country]", "Your Costa Rican journey begins..."). Mention a smooth pickup from the airport and highlight the destination city.
 
-3. (Optional) Paragraph 3 – Wrap-Up:
-- Optionally provide a helpful summary or final tip.
-- Keep the tone factual and informative — not promotional.
-`;
-    } else if (isAirportPickup) { // Use the flag from the request
-        // Structure for Airport Pickup (similar but focuses on arrival)
-        userPromptContent += `
-This route is an AIRPORT PICKUP. Structure the description accordingly:
+- "airportDropoff":
+  Begin by stating the route ends at the airport. Then suggest possible attractions or activities near the airport city for travelers with time before their flight. Avoid farewell phrases.
 
-1. Paragraph 1 – Arrival & Welcome:
-- Describe the route as a pickup service FROM the airport (${departureCityName}).
-- Emphasize convenience for arriving travelers heading to ${destinationCityName}.
-- Use varied welcome language like:
-  - “Welcome to ${destinationCountryName}”
-  - “Adventure awaits in ${destinationCountryName}”
-  - “Upon arrival in ${destinationCountryName}…” 
-  - You may also invent your own warm, professional welcoming lines.
-- Mention general amenities (A/C, Wi-Fi, airport greeting, etc.) if known.
-- Do not include travel time, platform branding, or hotel names.
-- Keep tone friendly, but not overdone.
+- "cityToCity":
+  Use flexible language like "Continue your Costa Rican adventure" or "Enjoy the scenic ride..." Highlight both departure and destination cities briefly, with a focus on the destination.
 
-2. Paragraph 2 – Destination Overview (${destinationCityName}):
-- Introduce ${destinationCityName} briefly.
-- Mention 2–3 named attractions in or near the city (resorts, beaches, parks, volcanoes, etc.).
-- Include 1–2 activities like surfing, hiking, estuary tours, kayaking, etc.
+- "privateDrivingService":
+  Emphasize the flexibility and comfort of a private driver. Mention that the itinerary can include stops for sightseeing, meals, or photos, and that the route can end in a different city or return to the original point. Use language like "custom experience" or "personalized day trip."
 
-3. (Optional) Paragraph 3 – Wrap-Up:
-- Add a helpful travel tip or regional summary.
-- Keep tone factual and helpful.
-`;
-    } else { // Default to City-to-City
-      userPromptContent += `
-This route is a CITY-TO-CITY transfer. Structure the description accordingly:
+- "sightseeingShuttle":
+  Use a light, day-tour tone. Emphasize that the shuttle includes planned scenic stops, photo opportunities, or short hikes. Indicate that the trip starts and ends in the same location.
 
-1. Paragraph 1 – Transport Overview:
-- Describe the route as a point-to-point shuttle between ${departureCityName} and ${destinationCityName}.
-- Mention general amenities if applicable (A/C, Wi-Fi, reclining seats, snack stops, etc.).
-- Use light travel-forward tone with variety (e.g., “your next adventure,” “enjoy the scenery,” “journey onward,” etc.).
-- Do not include travel time or hotel/platform branding.
-- Avoid possessive phrasing like “our shuttle” or “our drivers.”
+---
 
-2. Paragraph 2 – Destination Overview (${destinationCityName}):
-- Introduce the city briefly.
-- Mention 2–3 named attractions (resorts, national parks, beaches, adventure parks, volcanoes, waterfalls, hiking trails, etc.).
-- Include 1–2 popular activities like birdwatching, surfing, kayaking, ziplining, etc.
+Always include the following in seoDescription:
+1. A short paragraph about the transportation itself (convenient, comfortable, reliable – no exaggerated phrases)
+2. A second paragraph introducing the destination, with at least 2–3 named attractions and 1–2 activities travelers can enjoy there (e.g., hiking, kayaking, wildlife watching).
 
-3. (Optional) Paragraph 3 – Wrap-Up:
-- Optionally conclude with a neutral summary or travel context.
-- Maintain a factual and informative tone.
-`;
-    }
+If the route ends at an airport, say: "If you have time before your flight, consider exploring..."
 
-    // Removed Hotel Suggestions instructions
-    // userPromptContent += `
-    // Hotel Suggestions (new field):
-    // If applicable, return a field called suggestedHotels, which is an array of 2–5 hotel names (as strings) that are likely served by this shuttle route. Base your suggestions on well-known, established hotels or resorts in the destination city (${destinationCityName}).
-    // Format example: ["Hotel Costa Verde", "Si Como No Resort", "Hotel Pochote Grande"]
-    // If unsure or there are no prominent options, return null.
-    // Do not include extra commentary — only hotel names in an array.`;
+Format output as strict JSON. Do not include Markdown or code fences.
 
-    // Conditionally append processed instructions from the form
-    if (processedInstructions) {
-      userPromptContent += `\n\nThe following is additional information about this specific service. Use it naturally to improve the quality and accuracy of the output:\n${processedInstructions}`;
-    }
+---
+Ready to receive JSON input.`;
+    
+    // Determine routeType string based on boolean flags
+    let routeTypeString = 'cityToCity'; // Default
+    if (isAirportPickup) routeTypeString = 'airportPickup';
+    else if (isAirportDropoff) routeTypeString = 'airportDropoff';
+    else if (isPrivateDriver) routeTypeString = 'privateDrivingService';
+    else if (isSightseeingShuttle) routeTypeString = 'sightseeingShuttle';
 
-    // Construct the messages array
+    // Construct the input JSON for the AI
+    const aiInputJson = {
+        departureCity: departureCityName,
+        destinationCity: destinationCityName,
+        country: destinationCountryName,
+        routeType: routeTypeString,
+        additionalInstructions: processedInstructions || null // Send null if empty
+    };
+
+    // Construct the messages array for OpenAI
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
@@ -314,7 +266,8 @@ This route is a CITY-TO-CITY transfer. Structure the description accordingly:
       },
       {
         role: "user",
-        content: userPromptContent 
+        // Send the structured JSON input as the user message content
+        content: JSON.stringify(aiInputJson, null, 2) 
       }
     ];
     // --- End Prompt Preparation ---
@@ -330,7 +283,7 @@ This route is a CITY-TO-CITY transfer. Structure the description accordingly:
        console.log("SYSTEM MESSAGE: (Not a simple string)");
     }
     if (typeof messages[1].content === 'string') {
-      console.log("USER MESSAGE SAMPLE:", messages[1].content.substring(0, 200) + "...");
+      console.log("USER MESSAGE (AI Input JSON):", messages[1].content.substring(0, 200) + "...");
       console.log("USER MESSAGE TOTAL LENGTH:", messages[1].content.length);
     } else {
        console.log("USER MESSAGE: (Not a simple string)");
@@ -431,7 +384,8 @@ This route is a CITY-TO-CITY transfer. Structure the description accordingly:
           model: "gpt-4",
           messages: messages, // Use the messages array here
           temperature: 0.6, // Adjusted temperature as per example
-          max_tokens: 2000  
+          max_tokens: 2000,
+          // Removed response_format parameter
         });
 
         // Get the response text
@@ -475,83 +429,89 @@ This route is a CITY-TO-CITY transfer. Structure the description accordingly:
           parsedResponse.otherStops = null;
         }
         
-        // Process the seoDescription to ensure proper paragraph spacing
-        if (parsedResponse.seoDescription) {
-          parsedResponse.seoDescription = processDescription(parsedResponse.seoDescription);
-          
-          // Log a sample of processed description
+        // Process the main seoDescription first
+        let finalSeoDescription = '';
+        if (parsedResponse.seoDescription && typeof parsedResponse.seoDescription === 'string') {
+          finalSeoDescription = processDescription(parsedResponse.seoDescription);
           console.log("PROCESSED DESCRIPTION SAMPLE:", 
-            parsedResponse.seoDescription.substring(0, 150).replace(/\n/g, "\\n") + "...");
+            finalSeoDescription.substring(0, 150).replace(/\n/g, "\\n") + "...");
+        } else {
+           // Handle missing/invalid seoDescription 
+           if (retryCount < maxRetries) {
+              console.warn(`Retrying: Missing or invalid seoDescription in AI response.`);
+              return generateContent(retryCount + 1, maxRetries); // Retry
+           }
+           console.warn(`Missing or invalid seoDescription after retries. Proceeding with empty description.`);
+           // No need to throw error here if metaTitle etc are present, just proceed with empty desc
         }
-        
-        // Validate required fields (seoDescription is mandatory, others might be generated)
-        // Removed suggestedHotels from requiredFields
-        const requiredFields = ['metaTitle', 'metaDescription', 'metaKeywords', 'seoDescription'];
-        // Optional fields: otherStops, travelTime
+
+        // Assign the processed description back to the response object
+        parsedResponse.seoDescription = finalSeoDescription; 
+
+        // Validate required fields (Adjusted Validation Logic for metaTitle)
+        // Now expecting: metaTitle, metaDescription, metaKeywords, seoDescription
+        const requiredFields = ['metaTitle', 'metaDescription', 'metaKeywords', 'seoDescription']; 
         for (const field of requiredFields) {
-          if (!parsedResponse[field]) {
-            // Allow retry if a required field is missing
+          // Check if field is truly missing (undefined or null)
+          // Allow empty string for all these fields after retries
+          if (parsedResponse[field] === undefined || parsedResponse[field] === null) {
+             // Allow retry if a required field is missing
             if (retryCount < maxRetries) {
-              console.warn(`Retrying: Missing required field '${field}' in AI response.`);
+              console.warn(`Retrying: Missing required field '${field}' (undefined/null) in AI response.`);
               return generateContent(retryCount + 1, maxRetries); // Retry
             }
-            // If out of retries, throw error only for absolutely essential fields
-            if (field === 'seoDescription' || field === 'metaTitle') {
-               throw new Error(`Missing required field '${field}' after retries.`);
-            } else {
-               console.warn(`Missing optional/recoverable field '${field}' after retries. Proceeding without it.`);
-               parsedResponse[field] = ''; // Assign empty string to prevent downstream errors
-            }
+            // If out of retries, assign empty string instead of throwing error
+            console.warn(`Required field '${field}' is missing after retries. Proceeding with empty string.`);
+            parsedResponse[field] = ''; // Assign empty string
           }
-          // Check type, allow null for optional fields
-          if (typeof parsedResponse[field] !== 'string' && parsedResponse[field] !== null) {
+          // Check type if field exists and is not null (allow empty strings)
+          else if (typeof parsedResponse[field] !== 'string') {
              // Allow retry if type is wrong
             if (retryCount < maxRetries) {
-              console.warn(`Retrying: Field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string or null.`);
+              console.warn(`Retrying: Field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string.`);
               return generateContent(retryCount + 1, maxRetries); // Retry
             }
-             // If out of retries, handle based on field importance
-            if (field === 'seoDescription' || field === 'metaTitle') {
-              throw new Error(`Field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Expected string or null.`);
-            } else {
-               console.warn(`Field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Resetting to empty string.`);
-               parsedResponse[field] = ''; // Assign empty string
-            }
+             // If still wrong type after retries, assign empty string
+            console.warn(`Field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Resetting to empty string.`);
+            parsedResponse[field] = ''; // Assign empty string
           }
         }
 
+
         // Validate optional fields type (should be string or null)
-        const optionalStringFields = ['otherStops', 'travelTime'];
+        // Now expecting: otherStops, travelTime
+        const optionalStringFields = ['otherStops', 'travelTime']; 
         for (const field of optionalStringFields) {
-            if (parsedResponse[field] !== undefined && parsedResponse[field] !== null && typeof parsedResponse[field] !== 'string') {
-                 if (retryCount < maxRetries) {
-                    console.warn(`Retrying: Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string or null.`);
-                    return generateContent(retryCount + 1, maxRetries); // Retry
-                 } else {
-                    console.warn(`Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Setting to null.`);
-                    parsedResponse[field] = null; // Set to null if type is wrong after retries
+            // Check if the field exists and is not null, then validate its type
+            if (parsedResponse[field] !== undefined && parsedResponse[field] !== null) {
+                 if (typeof parsedResponse[field] !== 'string') {
+                    if (retryCount < maxRetries) {
+                       console.warn(`Retrying: Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string or null.`);
+                       return generateContent(retryCount + 1, maxRetries); // Retry
+                    } else {
+                       console.warn(`Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Setting to null.`);
+                       parsedResponse[field] = null; // Set to null if type is wrong after retries
+                    }
                  }
-            }
-             // Ensure optional fields exist, defaulting to null if undefined
-            if (parsedResponse[field] === undefined) {
-                parsedResponse[field] = null;
+            } else {
+                 // If field is undefined or null, ensure it's set to null
+                 parsedResponse[field] = null;
             }
         }
+        // --- End of Corrected Validation Loop ---
         
-        // Removed validation for suggestedHotels
-        // const hotelsField = 'suggestedHotels';
-        // ... validation logic removed ...
+        // Remove amenitySummaryLine if it exists (no longer expected)
+        if ('amenitySummaryLine' in parsedResponse) {
+            delete parsedResponse.amenitySummaryLine;
+        }
 
-
-        // Additional validation (optional): Check if additional instructions were incorporated
-        // Note: Removed processedInstructions check as it's not part of the new prompt structure
-        // if (processedInstructions && processedInstructions.length > 10) { ... }
-
-        // Add displayName field
-        parsedResponse.displayName = `Shuttles from ${departureCityName} to ${destinationCityName}`;
+        // Add displayName field (if needed, though maybe not necessary if only returning specific fields)
+        // parsedResponse.displayName = `Shuttles from ${departureCityName} to ${destinationCityName}`;
         
-        // Ensure suggestedHotels is null or undefined in the final response if it was disabled
-        parsedResponse.suggestedHotels = null; 
+        // Ensure suggestedHotels is not present
+        if ('suggestedHotels' in parsedResponse) {
+            delete parsedResponse.suggestedHotels;
+        }
 
         console.log("Content generation successful");
         return parsedResponse;

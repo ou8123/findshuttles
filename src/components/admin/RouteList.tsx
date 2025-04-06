@@ -250,6 +250,9 @@ const RouteList = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                                #
+                            </th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Display Name
                             </th>
@@ -301,6 +304,10 @@ const RouteList = () => {
                             
                             return (
                                 <tr key={route.id} className={isDeleting ? 'opacity-50' : ''}>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-500 w-12">
+                                        {/* Calculate number based on pagination */}
+                                        {(pagination.page - 1) * pageSize + index + 1}
+                                    </td>
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                                         {route.displayName}
                                     </td>
