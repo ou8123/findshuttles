@@ -298,35 +298,10 @@ export default async function RoutePage({ params }) {
                   className="text-current dark:text-gray-200"
                />
              </div>
-           </div>
-         )}
-
-          {/* 3. Amenities Grid (Re-added) */}
-          {route.amenities && route.amenities.length > 0 && (
-            <div className="mt-6 mb-6"> 
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2"> 
-                Amenities (May Vary by Listing)
-              </h3>
-              {/* Use Tailwind classes for the grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-800 dark:text-gray-200">
-                {/* Map route amenities directly from DB */}
-                {route.amenities.map((amenity) => {
-                  // Convert DB name (e.g., "Private Shuttle") to camelCase key ("privateShuttle")
-                  const amenityKey = toCamelCase(amenity.name); 
-                  const amenityDisplayContent = amenityKey ? amenityDisplayMap[amenityKey] : null;
-                  
-                  // Render the grid item directly if a mapping exists, otherwise show raw name
-                  if (amenityDisplayContent) {
-                    return <div key={amenity.id}>{amenityDisplayContent}</div>;
-                  } else {
-                    // Fallback for debugging if name doesn't match map
-                    console.warn(`Amenity name "${amenity.name}" (key: "${amenityKey}") not found in amenityDisplayMap.`);
-                    return <div key={amenity.id}>❓ {amenity.name || 'Unknown Amenity'}</div>; 
-                  }
-                })}
-              </div>
             </div>
           )}
+
+          {/* Amenities Grid removed - Now handled in RouteSummaryBlock */}
 
           {/* 4. Hotels Served (Optional) */}
           <HotelsGrid hotels={route.hotelsServed} />

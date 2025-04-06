@@ -195,7 +195,47 @@ export async function POST(request: Request) {
     const processedInstructions = preprocessAdditionalInstructions(additionalInstructions);
     
     // --- Prepare prompt for OpenAI (New Prompt Structure) ---
-    const systemPromptContent = `You are an expert travel writer and SEO assistant. Given information about a shuttle route in JSON format, write high-quality, professional content for the route.
+    
+    // Determine routeType string based on boolean flags
+    let routeTypeString = 'cityToCity'; // Default
+    if (isAirportPickup) routeTypeString = 'airportPickup';
+    else if (isAirportDropoff) routeTypeString = 'airportDropoff';
+    else if (isPrivateDriver) routeTypeString = 'privateDrivingService';
+    else if (isSightseeingShuttle) routeTypeString = 'sightseeingShuttle';
+
+    // --- NEW: Conditional logic for custom prompt phrasing ---
+    let routeDescriptionIntro = '';
+    const sameCity = departureCityName === destinationCityName; // Compare names
+
+    if (routeTypeString === 'privateDrivingService') {
+      routeDescriptionIntro = sameCity
+        ? `You are an expert travel writer. Write a professional, SEO-friendly description for a private driving service based in ${departureCityName}. This is a customizable, full-day service that may include scenic drives, stops at local attractions, and flexible transfers.`
+        : `You are an expert travel writer. Write a professional, SEO-friendly description for a private driving service from ${departureCityName} to ${destinationCityName}.`;
+    } else if (routeTypeString === 'sightseeingShuttle') {
+      routeDescriptionIntro = sameCity
+        ? `You are an expert travel writer. Write a professional, SEO-friendly description for a sightseeing shuttle tour starting and ending in ${departureCityName}. The trip includes roundtrip transport, scenic routes, and stops at notable local attractions.`
+        : `You are an expert travel writer. Write a professional, SEO-friendly description for a sightseeing shuttle from ${departureCityName} to ${destinationCityName}.`;
+    } else if (routeTypeString === 'airportPickup') {
+        routeDescriptionIntro = `You are an expert travel writer. Write a professional, SEO-friendly description for an airport pickup shuttle service from ${departureCityName} airport to ${destinationCityName}. Use a welcoming tone (e.g., "Welcome to ${destinationCountryName}", "Your ${destinationCountryName} journey begins..."). Mention a smooth pickup from the airport and highlight the destination city.`;
+    } else if (routeTypeString === 'airportDropoff') {
+        routeDescriptionIntro = `You are an expert travel writer. Write a professional, SEO-friendly description for an airport dropoff shuttle service from ${departureCityName} to ${destinationCityName} airport. Begin by stating the route ends at the airport. Then suggest possible attractions or activities near the airport city for travelers with time before their flight. Avoid farewell phrases.`;
+    } else { // Default to cityToCity
+      routeDescriptionIntro = `You are an expert travel writer. Write a professional, SEO-friendly description for a shuttle route from ${departureCityName} to ${destinationCityName}. Use flexible language like "Continue your ${destinationCountryName} adventure" or "Enjoy the scenic ride..." Highlight both departure and destination cities briefly, with a focus on the destination.`;
+    }
+    // --- End NEW conditional logic ---
+
+    // --- NEW: System Prompt using the intro ---
+    const systemPromptContent = `
+${routeDescriptionIntro}
+
+Include:
+1. A short paragraph describing the transport and type of service. Avoid vehicle or driver details unless specifically noted.
+2. A paragraph introducing the destination, starting with "If ${destinationCityName} is on your travel itinerary…" and naming 2–3 attractions (e.g., beaches, volcanoes, national parks) and 1–2 activities (e.g., surfing, hiking, birdwatching). If the route ends at an airport, instead say: "If you have time before your flight, consider exploring..."
+3. Travel time, stops, and route highlights if provided in the additionalInstructions below.
+
+NEVER include emojis. Do NOT mention amenities in the seoDescription. Do not include disclaimers. Do not include operator names.
+
+If additionalInstructions are provided in the input JSON, integrate them naturally into the content.
 
 Respond only with a valid JSON object in the following format:
 {
@@ -207,54 +247,16 @@ Respond only with a valid JSON object in the following format:
   "travelTime": string        // e.g. "Approx. 4–5 hours"
 }
 
-NEVER include emojis. Do NOT mention amenities in the seoDescription. Do not include disclaimers. Do not include operator names.
-
-If additionalInstructions are provided in the input JSON, integrate them naturally into the content.
-
----
-Tone and content must vary based on the routeType:
-
-- "airportPickup":
-  Use a welcoming tone (e.g., "Welcome to [Country]", "Your Costa Rican journey begins..."). Mention a smooth pickup from the airport and highlight the destination city.
-
-- "airportDropoff":
-  Begin by stating the route ends at the airport. Then suggest possible attractions or activities near the airport city for travelers with time before their flight. Avoid farewell phrases.
-
-- "cityToCity":
-  Use flexible language like "Continue your Costa Rican adventure" or "Enjoy the scenic ride..." Highlight both departure and destination cities briefly, with a focus on the destination.
-
-- "privateDrivingService":
-  Emphasize the flexibility and comfort of a private driver. Mention that the itinerary can include stops for sightseeing, meals, or photos, and that the route can end in a different city or return to the original point. Use language like "custom experience" or "personalized day trip."
-
-- "sightseeingShuttle":
-  Use a light, day-tour tone. Emphasize that the shuttle includes planned scenic stops, photo opportunities, or short hikes. Indicate that the trip starts and ends in the same location.
-
----
-
-Always include the following in seoDescription:
-1. A short paragraph about the transportation itself (convenient, comfortable, reliable – no exaggerated phrases)
-2. A second paragraph introducing the destination, with at least 2–3 named attractions and 1–2 activities travelers can enjoy there (e.g., hiking, kayaking, wildlife watching).
-
-If the route ends at an airport, say: "If you have time before your flight, consider exploring..."
-
 Format output as strict JSON. Do not include Markdown or code fences.
+`;
+    // --- End NEW System Prompt ---
 
----
-Ready to receive JSON input.`;
-    
-    // Determine routeType string based on boolean flags
-    let routeTypeString = 'cityToCity'; // Default
-    if (isAirportPickup) routeTypeString = 'airportPickup';
-    else if (isAirportDropoff) routeTypeString = 'airportDropoff';
-    else if (isPrivateDriver) routeTypeString = 'privateDrivingService';
-    else if (isSightseeingShuttle) routeTypeString = 'sightseeingShuttle';
-
-    // Construct the input JSON for the AI
+    // Construct the input JSON for the AI (User message)
     const aiInputJson = {
         departureCity: departureCityName,
         destinationCity: destinationCityName,
         country: destinationCountryName,
-        routeType: routeTypeString,
+        routeType: routeTypeString, // Keep routeType for context if needed by AI, though prompt handles phrasing
         additionalInstructions: processedInstructions || null // Send null if empty
     };
 
@@ -262,7 +264,7 @@ Ready to receive JSON input.`;
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: systemPromptContent
+        content: systemPromptContent // Use the new system prompt
       },
       {
         role: "user",
@@ -278,7 +280,7 @@ Ready to receive JSON input.`;
     console.log(`Route: ${departureCityName} to ${destinationCityName}`);
     // Add type checks before using substring for logging
     if (typeof messages[0].content === 'string') {
-      console.log("SYSTEM MESSAGE:", messages[0].content.substring(0, 100) + "...");
+      console.log("SYSTEM MESSAGE:", messages[0].content.substring(0, 200) + "..."); // Log more of system prompt
     } else {
        console.log("SYSTEM MESSAGE: (Not a simple string)");
     }

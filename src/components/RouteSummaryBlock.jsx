@@ -2,23 +2,86 @@
 // Disable TypeScript checking for this file
 
 import React from 'react';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
 import { 
   ClockIcon, 
-  MapPinIcon,        // Keep MapPinIcon
-  StopCircleIcon,    // Use StopCircleIcon instead of StopIcon
-  // BuildingOfficeIcon, // Remove BuildingOfficeIcon
+  MapPinIcon,
+  StopCircleIcon,
   GlobeAltIcon,
-  PaperAirplaneIcon 
-} from '@heroicons/react/24/outline'; // Using outline style
+  PaperAirplaneIcon,
+  // Import icons for amenities
+  WifiIcon,
+  TruckIcon, // Using TruckIcon for Private Shuttle
+  UserGroupIcon, // Using UserGroupIcon for Bilingual Driver
+  CameraIcon, // Using CameraIcon for Photo Stops
+  CalendarDaysIcon, // Using CalendarDaysIcon for Flexible Timing
+  SparklesIcon, // Using SparklesIcon for A/C (as CheckBadgeIcon is not available in outline)
+  GiftIcon, // Using GiftIcon for Bottled Water
+  FaceSmileIcon, // Using FaceSmileIcon for Car Seats
+  CheckBadgeIcon, // Using CheckBadgeIcon for Flight Delay Friendly
+  TicketIcon, // Using TicketIcon for Entrance Fees
+  ArrowPathRoundedSquareIcon, // Using ArrowPathRoundedSquareIcon for Round Trip
+  MapIcon, // Using MapIcon for Scenic Route
+  SparklesIcon as ComfortIcon, // Alias for Comfort category icon (example)
+  ExclamationCircleIcon, // Fallback/Error icon
+  CheckCircleIcon, // Default icon
+  HeartIcon, // Example for Accessibility
+  AdjustmentsHorizontalIcon // Example for Customization
+} from '@heroicons/react/24/outline'; 
+
+// Define amenity categories and their corresponding keys (using DB names)
+const amenityCategories = {
+  Logistics: {
+    keys: ['Hotel Pickup', 'Airport Pickup', 'Flight Delay Friendly', 'Round Trip'],
+    icon: TruckIcon 
+  },
+  Comfort: {
+    keys: ['A/C', 'WiFi', 'Bottled Water', 'Car Seats Available', 'Complimentary Alcoholic Beverages'],
+    icon: ComfortIcon 
+  },
+  Accessibility: {
+    keys: ['Wheelchair Accessible', 'Service Animals Allowed'],
+    icon: HeartIcon 
+  },
+  Customization: {
+    keys: ['Optional Stops', 'Private Shuttle', 'Bilingual Driver', 'Photo Stops', 'Flexible Timing', 'Scenic Route', 'Guided Tour', 'Entrance Fees Included'],
+    icon: AdjustmentsHorizontalIcon
+  }
+};
+
+// Mapping from DB amenity name to Heroicon component
+// Note: Ensure these names EXACTLY match the names stored in your Amenity table
+const amenityIconMap = {
+  'Private Shuttle': TruckIcon,
+  'A/C': SparklesIcon, // Using SparklesIcon as CheckBadgeIcon is not available in outline
+  'WiFi': WifiIcon,
+  'Optional Stops': StopCircleIcon,
+  'Hotel Pickup': MapPinIcon,
+  'Airport Pickup': PaperAirplaneIcon, // Use PaperAirplaneIcon for Airport Pickup consistency
+  'Bottled Water': GiftIcon,
+  'Car Seats Available': FaceSmileIcon,
+  'Bilingual Driver': UserGroupIcon,
+  'Flight Delay Friendly': CheckBadgeIcon, // CheckBadgeIcon IS available in outline
+  'Complimentary Alcoholic Beverages': GiftIcon, // Reusing GiftIcon
+  'Scenic Route': MapIcon,
+  'Photo Stops': CameraIcon,
+  'Service Animals Allowed': HeartIcon, // Reusing HeartIcon
+  'Wheelchair Accessible': HeartIcon, // Reusing HeartIcon
+  'Round Trip': ArrowPathRoundedSquareIcon,
+  'Guided Tour': UserGroupIcon, // Reusing UserGroupIcon
+  'Flexible Timing': CalendarDaysIcon,
+  'Entrance Fees Included': TicketIcon,
+};
+
 
 /**
  * Displays the top summary block for a route page.
  * Includes a link back to the main country page.
+ * Renders categorized amenity pills.
  * 
  * Props:
- * - route: The route data object containing departure/destination cities, countries (including departureCountry.slug),
- *          otherStops, and travelTime.
+ * - route: The route data object containing departure/destination cities, countries,
+ *          otherStops, travelTime, and the amenities relation.
  */
 export default function RouteSummaryBlock({ route }) {
   if (!route) {
@@ -31,7 +94,8 @@ export default function RouteSummaryBlock({ route }) {
     destinationCity, 
     destinationCountry, 
     otherStops, 
-    travelTime 
+    travelTime,
+    amenities // Expecting amenities array from the route object
   } = route;
 
   // Determine country display logic
@@ -55,21 +119,27 @@ export default function RouteSummaryBlock({ route }) {
     let formattedTime = timeStr.trim();
     const startsWithApprox = formattedTime.toLowerCase().startsWith('approx.');
     
-    // Remove "Approx." if present
     if (startsWithApprox) {
-      formattedTime = formattedTime.substring(7).trim(); // Remove "Approx. "
+      formattedTime = formattedTime.substring(7).trim(); 
     }
 
-    // If it wasn't originally "Approx." and it's not a range, prepend "About "
-    // Basic check for single number/word followed by "hour(s)"
     if (!startsWithApprox && !formattedTime.includes('-') && !formattedTime.toLowerCase().startsWith('about ') && 
         (formattedTime.match(/^\d+(\.\d+)?\s+hour(s)?$/i) || formattedTime.match(/^\w+\s+hour(s)?$/i))) {
        return `About ${formattedTime}`;
     }
     
-    // Return the cleaned or original time
     return formattedTime;
   };
+
+  // Filter amenities into categories
+  const categorizedAmenities = {};
+  if (amenities && Array.isArray(amenities)) {
+    for (const category in amenityCategories) {
+      categorizedAmenities[category] = amenities.filter(a => 
+        amenityCategories[category].keys.includes(a.name)
+      );
+    }
+  }
 
   return (
     <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 shadow-sm">
@@ -79,11 +149,11 @@ export default function RouteSummaryBlock({ route }) {
       </h1>
       
       {/* Route Details */}
-      <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300"> {/* Increased space-y */}
+      <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300 mb-4"> {/* Added mb-4 */}
         {countryDisplay && (
           <div className="flex items-center">
             <GlobeAltIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
-            <p><span className="font-semibold">{countryDisplay}</span></p> {/* Removed emoji */}
+            <p><span className="font-semibold">{countryDisplay}</span></p> 
           </div>
         )}
         {departureCity?.name && (
@@ -91,7 +161,7 @@ export default function RouteSummaryBlock({ route }) {
             {route.isAirportPickup ? (
               <PaperAirplaneIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
             ) : (
-              <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> // Changed to MapPinIcon
+              <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> 
             )}
             <p><span className="font-semibold">Departing From:</span> {departureCity.name}</p>
           </div>
@@ -101,14 +171,14 @@ export default function RouteSummaryBlock({ route }) {
               {route.isAirportDropoff ? (
               <PaperAirplaneIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
             ) : (
-              <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> // Changed to MapPinIcon
+              <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> 
             )}
             <p><span className="font-semibold">Arriving At:</span> {destinationCity.name}</p>
           </div>
          )}
          {otherStops && (
            <div className="flex items-center">
-             <StopCircleIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> {/* Changed to StopCircleIcon */}
+             <StopCircleIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" /> 
              <p><span className="font-semibold">Optional Stops:</span> {otherStops}</p>
            </div>
          )}
@@ -119,6 +189,35 @@ export default function RouteSummaryBlock({ route }) {
            </div>
          )}
        </div>
+
+      {/* Categorized Amenity Pills */}
+      <div className="space-y-3"> {/* Added space between categories */}
+        {Object.entries(categorizedAmenities).map(([category, items]) => {
+          if (items.length === 0) return null; // Don't render empty categories
+          
+          const CategoryIcon = amenityCategories[category].icon || CheckCircleIcon; // Fallback icon
+
+          return (
+            <section key={category} className="mb-3"> {/* Added mb-3 */}
+              <h4 className="text-sm font-semibold mb-1 text-gray-600 dark:text-gray-400 flex items-center">
+                 <CategoryIcon className="h-4 w-4 mr-1.5" /> {/* Category Icon */}
+                 {category}
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {items.map((amenity) => {
+                  const IconComponent = amenityIconMap[amenity.name] || CheckCircleIcon; // Fallback icon per amenity
+                  return (
+                    <span key={amenity.id} className="inline-flex items-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                      <IconComponent className="h-3.5 w-3.5 mr-1.5" />
+                      {amenity.name}
+                    </span>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
  
       {/* Link to Country Page */}
       {canLinkToCountry && (
