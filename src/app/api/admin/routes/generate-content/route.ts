@@ -225,32 +225,78 @@ export async function POST(request: Request) {
     }
     // --- End NEW conditional logic ---
 
-    // --- NEW: System Prompt using the intro ---
-    const systemPromptContent = `
-${routeDescriptionIntro}
+    const prompt = `
+You are an expert travel writer helping improve SEO for a shuttle booking site. Write an SEO-optimized, professional, and human-sounding description for a shuttle route.
 
-Include:
-1. A short paragraph describing the transport and type of service. Avoid vehicle or driver details unless specifically noted.
-2. A paragraph introducing the destination, starting with "If ${destinationCityName} is on your travel itinerary…" and naming 2–3 attractions (e.g., beaches, volcanoes, national parks) and 1–2 activities (e.g., surfing, hiking, birdwatching). If the route ends at an airport, instead say: "If you have time before your flight, consider exploring..."
-3. Travel time, stops, and route highlights if provided in the additionalInstructions below.
+Follow these instructions exactly:
+- Output valid JSON with three fields: "seoDescription", "metaTitle", and "metaDescription".
+- The "seoDescription" should be **2 to 3 natural paragraphs max**, not more. Each paragraph should have multiple sentences and sound like it was written by a person. Avoid overly short or broken-up paragraphs.
+- Do not include a title or heading inside the "seoDescription".
+- If "additionalComments" is provided, **incorporate the exact content naturally into the description**.
+- Do not mention specific vehicles, drivers, or operator names unless included in "additionalComments".
+- Do not use vague promotional phrases like "convenient like never before" or "premier platform".
 
-NEVER include emojis. Do NOT mention amenities in the seoDescription. Do not include disclaimers. Do not include operator names.
+Customize the tone and structure based on the route type below:
 
-If additionalInstructions are provided in the input JSON, integrate them naturally into the content.
+---
 
-Respond only with a valid JSON object in the following format:
+**If routeType is "airport pickup"**:
+- Use a warm, welcoming tone like: “Welcome to [country]!” or “Start your adventure in [destination city]…”
+- Avoid repeating the same phrase across different listings.
+- Introduce [destination city] in the second paragraph with 2–3 named attractions (e.g., beaches, national parks, volcanoes, waterfalls, adventure parks).
+- Mention 1–2 activities travelers can enjoy (e.g., surfing, kayaking, birdwatching, estuary tours).
+
+---
+
+**If routeType is "airport dropoff"**:
+- Mention airport drop-off first: “This shuttle takes you to [airport name or destination city] for your flight.”
+- In the second paragraph, mention optional things to do in or around [destination city] if travelers have a layover or extra time.
+- Avoid heavy farewell or departure tone—assume they might not be leaving the country yet.
+
+---
+
+**If routeType is "city to city"**:
+- Write a natural-sounding paragraph about traveling from [departure city] to [destination city].
+- Use varied language like “Enjoy the scenic ride,” “Your next destination,” or “A smooth journey through the region.”
+- In the second paragraph, introduce [destination city] with 2–3 specific attractions and 1–2 activities people can enjoy.
+
+---
+
+**If routeType is "private driving service"**:
+- Describe the service as a **versatile option for both full-day tours and point-to-point transfers**.
+- Emphasize flexibility and customizability (e.g., ability to make stops, visit sites).
+- Mention the general region or cities served if applicable.
+- In the second paragraph, highlight 2–3 attractions they might stop at (volcanoes, waterfalls, beaches, towns, etc.), and 1–2 activities.
+
+---
+
+**If routeType is "sightseeing shuttle"**:
+- Focus on the sightseeing loop experience, starting and ending in the same location.
+- Avoid saying “from X to X.”
+- Describe notable sites along the way and include examples of photo ops, nature stops, or towns.
+- Mention 2–3 places or attractions and 1–2 possible activities like hiking, visiting a park, or swimming.
+
+---
+
+Include only relevant info based on the route type. Here’s the data you’ll receive:
+
 {
-  "seoDescription": string, // 2–3 paragraph SEO-optimized description, no amenities listed
-  "metaTitle": string,      // concise, SEO title for browser tab (60–70 chars)
-  "metaDescription": string, // short description for meta tag (150–160 chars)
-  "metaKeywords": string,    // comma-separated keywords (8–12 total)
-  "otherStops": string | null, // if applicable, list intermediate towns or transfer points
-  "travelTime": string        // e.g. "Approx. 4–5 hours"
+  departureCity: string,
+  destinationCity: string,
+  countryName: string,
+  routeType: one of ["airport pickup", "airport dropoff", "city to city", "private driving service", "sightseeing shuttle"],
+  travelTime: string,
+  otherStops: string[], // may be empty
+  additionalComments: string // may be empty
 }
 
-Format output as strict JSON. Do not include Markdown or code fences.
-`;
-    // --- End NEW System Prompt ---
+Output must follow this structure exactly:
+{
+  "seoDescription": "LONGER PARAGRAPH TEXT HERE",
+  "metaTitle": "Concise and descriptive title for meta tag (max ~60 characters)",
+  "metaDescription": "1-sentence summary for meta description tag (max ~155 characters)"
+}
+`.trim();
 
     // Construct the input JSON for the AI (User message)
     const aiInputJson = {
@@ -265,7 +311,7 @@ Format output as strict JSON. Do not include Markdown or code fences.
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: systemPromptContent // Use the new system prompt
+        content: prompt // Use the new prompt variable
       },
       {
         role: "user",

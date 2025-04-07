@@ -1,5 +1,4 @@
-// @ts-nocheck
-// Disable TypeScript checking for this file to make it work with Netlify
+// Re-enable TypeScript checking
 
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
@@ -14,6 +13,22 @@ import HotelsGrid from '@/components/HotelsGrid'; // Added
 import Link from 'next/link'; // Ensure Link is imported if not already
 // Import necessary Heroicons for the Highlights Grid helper
 import * as HIcons from '@heroicons/react/24/outline';
+import { Prisma } from '@prisma/client'; // Import Prisma for JsonValue type
+
+// Define the structure for a waypoint stop (matching aiWaypoints.ts)
+interface WaypointStop {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+// Type guard to check if an object is a valid WaypointStop
+function isWaypointStop(obj: any): obj is WaypointStop {
+    return typeof obj === 'object' && obj !== null &&
+           typeof obj.name === 'string' &&
+           typeof obj.lat === 'number' &&
+           typeof obj.lng === 'number';
+}
 
 // Generate viewport metadata as a simple JavaScript function
 export function generateViewport() {
@@ -79,6 +94,7 @@ async function fetchRouteData(routeSlug) {
         isCityToCity: true,
         isPrivateDriver: true, // Fetch new flag
         isSightseeingShuttle: true, // Fetch new flag
+        mapWaypoints: true, // Fetch mapWaypoints
         // Include related data with specific fields
         departureCity: {
           select: {
@@ -144,10 +160,7 @@ const getAmenityIcon = (iconName) => {
 
 
 /**
- * Route Page - Converted to JavaScript
- * 
- * This version removes all TypeScript annotations to be compatible
- * with Next.js on Netlify
+ * Route Page - Now using .tsx extension
  */
 export default async function RoutePage({ params }) {
   // Get the route slug from params
@@ -235,6 +248,22 @@ export default async function RoutePage({ params }) {
     return str.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
   }
 
+  // --- Logic to determine map display ---
+  const isTourType = route.isPrivateDriver || route.isSightseeingShuttle;
+  const isSameCityRoute = route.departureCityId === route.destinationCityId;
+  // Safely check and filter mapWaypoints before checking length
+  const validWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
+  const hasValidWaypoints = validWaypoints.length >= 2;
+  
+  // Determine which map type to show
+  let mapType = 'standard'; // Default to standard A-to-B
+  if (isTourType && isSameCityRoute && hasValidWaypoints) {
+    mapType = 'waypoints'; // Show custom waypoint route
+  } else if (isTourType && isSameCityRoute && !hasValidWaypoints) {
+    mapType = 'none'; // Hide map for same-city tours without waypoints
+  }
+  // --- End map display logic ---
+
   return (
     <AutoScroller scrollToSelector="#route-content">
       {/* Main container with standard width */}
@@ -279,7 +308,10 @@ export default async function RoutePage({ params }) {
           {/* 1. Top Route Summary Block */}
           <RouteSummaryBlock route={route} />
 
-          {/* 2. Route Description Section */}
+          {/* 4. Hotels Served (Optional) */}
+          <HotelsGrid hotels={route.hotelsServed} />
+
+          {/* 2. Route Description Section (Moved Up) */}
           {route.seoDescription && (
             <div className="description-section my-8">
               <h2 className="text-xl font-semibold mb-3 text-current dark:text-white"> 
@@ -301,11 +333,6 @@ export default async function RoutePage({ params }) {
             </div>
           )}
 
-          {/* Amenities Grid removed - Now handled in RouteSummaryBlock */}
-
-          {/* 4. Hotels Served (Optional) */}
-          <HotelsGrid hotels={route.hotelsServed} />
-
            {/* 5. Widgets / Listings Section */}
            <div className="booking-section mb-8">
              <h2 className="text-xl font-semibold mb-3">Book Your Shuttle</h2> 
@@ -324,20 +351,39 @@ export default async function RoutePage({ params }) {
               )}
             </div>
             
-             {/* 6. Map Section (Bottom of Page) */}
-            {route.departureCity?.latitude && route.departureCity?.longitude &&
-            route.destinationCity?.latitude && route.destinationCity?.longitude && (
-              <div className="map-section my-8">
-                <h2 className="text-xl font-semibold mb-3">Estimated Route</h2> {/* Added mb-3 */}
-                {/* Removed caption as requested */}
-                <RouteMap
-                  departureLat={route.departureCity.latitude}
-                  departureLng={route.departureCity.longitude}
-                  destinationLat={route.destinationCity.latitude}
-                  destinationLng={route.destinationCity.longitude}
-                />
-               </div>
+             {/* 6. Map Section (Bottom of Page) - Conditional Rendering */}
+            <div className="map-section my-8">
+              {mapType === 'standard' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
+                <>
+                  <h2 className="text-xl font-semibold mb-3">Estimated Route</h2> 
+                  <RouteMap
+                    departureLat={route.departureCity.latitude}
+                    departureLng={route.departureCity.longitude}
+                    destinationLat={route.destinationCity.latitude}
+                    destinationLng={route.destinationCity.longitude}
+                  />
+                </>
               )}
+              {mapType === 'waypoints' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
+                 <>
+                   <h2 className="text-xl font-semibold mb-3">Suggested Route with Stops</h2>
+                   {/* Render RouteMap with waypoints */}
+                   <RouteMap
+                     departureLat={route.departureCity.latitude}
+                     departureLng={route.departureCity.longitude}
+                     destinationLat={route.destinationCity.latitude}
+                     destinationLng={route.destinationCity.longitude}
+                     waypoints={(validWaypoints as unknown) as WaypointStop[]}
+                   />
+                   <p className="text-xs text-gray-500 mt-1 text-center">This is a suggested route based on popular stops. Actual route may vary.</p>
+                 </>
+              )}
+               {mapType === 'none' && (
+                 <div className="flex items-center justify-center h-32 bg-gray-50 border border-dashed border-gray-300 rounded">
+                   <p className="text-gray-500 italic">Map directions not applicable for this same-city tour/service.</p>
+                 </div>
+               )}
+             </div>
   
              {/* 7. Cities Served List - Skipped as requested */}
   

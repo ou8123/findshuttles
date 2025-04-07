@@ -27,7 +27,10 @@ export function logError(error: Error | unknown, info?: string): void {
       browserInfo,
     };
     
-    console.error('[Error Logger]', errorDetails);
+    // console.error('[Error Logger]', errorDetails); // Temporarily comment out to prevent logger crash
+    // Fallback to simpler logging if the above line causes issues:
+    console.log('[Error Caught in Dev]', error instanceof Error ? error.message : String(error), info);
+
   } else {
     // Minimal logging for production - just the basics
     console.error('[Error]', 
@@ -39,43 +42,53 @@ export function logError(error: Error | unknown, info?: string): void {
 
 // Function to initialize global error listeners
 export function initializeErrorListeners(): () => void {
-  if (typeof window === 'undefined') {
-    return () => {}; // No-op for server-side
-  }
+  // --- Temporarily Disable Global Handlers ---
+  console.log("Skipping attachment of custom global error handlers for debugging.");
+  const originalOnError = typeof window !== 'undefined' ? window.onerror : null;
+  const originalOnUnhandledRejection = typeof window !== 'undefined' ? window.onunhandledrejection : null;
   
-  // Store original handlers to restore later
-  const originalOnError = window.onerror;
-  const originalOnUnhandledRejection = window.onunhandledrejection;
+  // if (typeof window === 'undefined') {
+  //   return () => {}; // No-op for server-side
+  // }
   
-  // Set up global error handler - simpler in production
-  window.onerror = function(message, source, lineno, colno, error) {
-    logError(error || new Error(String(message)), isDev ? `${source}:${lineno}:${colno}` : undefined);
-    
-    // Call original handler if it exists
-    if (typeof originalOnError === 'function') {
-      return originalOnError.apply(this, arguments as any);
-    }
-    
-    return false; // Let the error propagate
-  };
+  // // Store original handlers to restore later
+  // const originalOnError = window.onerror;
+  // const originalOnUnhandledRejection = window.onunhandledrejection;
   
-  // Set up unhandled promise rejection handler
-  window.onunhandledrejection = function(event) {
-    logError(event.reason, 'Unhandled Promise Rejection');
+  // // Set up global error handler - simpler in production
+  // window.onerror = function(message, source, lineno, colno, error) {
+  //   logError(error || new Error(String(message)), isDev ? `${source}:${lineno}:${colno}` : undefined);
     
-    // Call original handler if it exists
-    if (typeof originalOnUnhandledRejection === 'function') {
-      return originalOnUnhandledRejection.apply(this, arguments as any);
-    }
-  };
+  //   // Call original handler if it exists
+  //   if (typeof originalOnError === 'function') {
+  //     return originalOnError.apply(this, arguments as any);
+  //   }
+    
+  //   return false; // Let the error propagate
+  // };
+  
+  // // Set up unhandled promise rejection handler
+  // window.onunhandledrejection = function(event) {
+  //   logError(event.reason, 'Unhandled Promise Rejection');
+    
+  //   // Call original handler if it exists
+  //   if (typeof originalOnUnhandledRejection === 'function') {
+  //     return originalOnUnhandledRejection.apply(this, arguments as any);
+  //   }
+  // };
   
   // Only intercept console.error in development
-  let originalConsoleError: typeof console.error | undefined;
+  let originalConsoleError: typeof console.error | undefined; // Keep this for potential restoration logic if needed later
   if (isDev) {
     originalConsoleError = console.error;
     console.error = function(...args) {
-      // First, call the original console.error
-      originalConsoleError!.apply(this, args);
+      // First, call the original console.error if it exists
+      if (originalConsoleError) {
+        originalConsoleError.apply(this, args);
+      } else {
+        // Fallback if original is somehow missing (shouldn't happen in dev)
+        console.log("Original console.error missing, logging args:", ...args);
+      }
       
       // Only capture actual errors to avoid overhead
       if (args[0] instanceof Error) {
@@ -84,20 +97,24 @@ export function initializeErrorListeners(): () => void {
     };
   }
   
-  // Return cleanup function
+  // Return cleanup function (will restore originals if they existed)
   return () => {
-    window.onerror = originalOnError;
-    window.onunhandledrejection = originalOnUnhandledRejection;
-    if (isDev && originalConsoleError) {
-      console.error = originalConsoleError;
+    if (typeof window !== 'undefined') {
+       window.onerror = originalOnError;
+       window.onunhandledrejection = originalOnUnhandledRejection;
+       // console.error restoration is already commented out below
     }
+    // if (isDev && originalConsoleError) {
+    //   console.error = originalConsoleError;
+    // }
   };
 }
 
 // Create error handler with minimal overhead in production
 export function createGlobalErrorHandler() {
   if (typeof window !== 'undefined') {
-    const cleanup = initializeErrorListeners();
+    // Still call initialize to get the cleanup function, even though handlers aren't attached
+    const cleanup = initializeErrorListeners(); 
     
     // Only log device info in development
     if (isDev) {

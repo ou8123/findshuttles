@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth"; // Using shared authOptions
 import slugify from 'slugify';
 import { Prisma } from '@prisma/client'; // Import Prisma
 import { matchAmenities } from '@/lib/amenity-matcher'; // Import the amenity matcher utility
+import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint generator and type
 
 // Helper function to generate a unique slug
 async function generateUniqueSlug(departureCitySlug: string, destinationCitySlug: string): Promise<string> { // Corrected param names
@@ -19,6 +20,20 @@ async function generateUniqueSlug(departureCitySlug: string, destinationCitySlug
   }
   return uniqueSlug;
 }
+
+// Helper function to parse duration from travelTime string
+function parseDurationMinutes(travelTime: string | null | undefined): number {
+    if (!travelTime) return 240; // Default to 4 hours (240 mins) if not provided
+    const match = travelTime.match(/(\d+(\.\d+)?)/); // Find the first number (integer or decimal)
+    if (match && match[1]) {
+        const hours = parseFloat(match[1]);
+        if (!isNaN(hours)) {
+            return Math.round(hours * 60); // Convert hours to minutes
+        }
+    }
+    return 240; // Default if parsing fails
+}
+
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -124,13 +139,31 @@ export async function POST(request: Request) {
     }
     // --- End route type flag logic ---
 
+    // --- Generate waypoints if applicable ---
+    let generatedWaypoints: Prisma.JsonValue | null = null; // Use null directly
+    const estimatedDurationMinutes = parseDurationMinutes(travelTime); // Use helper function
 
-    const newRoute = await prisma.route.create({
-      data: {
-        departureCityId,
-        departureCountryId: departureCity.countryId,
-        destinationCityId,
-        destinationCountryId: destinationCity.countryId,
+    if ((finalIsPrivateDriver || finalIsSightseeingShuttle) && departureCity?.name && estimatedDurationMinutes > 0) { 
+        console.log(`Attempting to generate waypoints for ${departureCity.name}, duration: ${estimatedDurationMinutes} mins`);
+        const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
+            city: departureCity.name, 
+            durationMinutes: estimatedDurationMinutes,
+        });
+        // Assign if waypoints were generated, otherwise keep null
+        if (waypointsArray.length > 0) {
+           // Explicitly cast the array to Prisma.JsonValue which includes JsonArray
+           generatedWaypoints = waypointsArray as Prisma.JsonValue; 
+        }
+        console.log("Generated waypoints:", generatedWaypoints);
+    }
+    // --- End waypoint generation ---
+
+    // Prepare data for creation, using correct connect syntax for relations
+    const routeCreateData = {
+        departureCity: { connect: { id: departureCityId } }, // Corrected
+        departureCountry: { connect: { id: departureCity.countryId } }, // Corrected
+        destinationCity: { connect: { id: destinationCityId } }, // Corrected
+        destinationCountry: { connect: { id: destinationCity.countryId } }, // Corrected
         routeSlug,
         displayName, // Use generated display name
         viatorWidgetCode,
@@ -144,13 +177,17 @@ export async function POST(request: Request) {
         isAirportPickup: finalIsAirportPickup,
         isAirportDropoff: finalIsAirportDropoff,
         isCityToCity: finalIsCityToCity,
-        isPrivateDriver: finalIsPrivateDriver, // Save new flag
-        isSightseeingShuttle: finalIsSightseeingShuttle, // Save new flag
+        isPrivateDriver: finalIsPrivateDriver, 
+        isSightseeingShuttle: finalIsSightseeingShuttle, 
+        mapWaypoints: generatedWaypoints, // Assign the generated waypoints (JsonValue or null)
         // Automatically associate amenities based on seoDescription
         amenities: {
           connect: (await matchAmenities(seoDescription || "")).map(id => ({ id })), // Pass empty string if seoDescription is null
         },
-      },
+    };
+
+    const newRoute = await prisma.route.create({
+      data: routeCreateData as any, // Use 'as any' to bypass strict check for mapWaypoints if needed
       // Include amenities in the returned object to confirm association
       include: {
         amenities: true, 
@@ -158,7 +195,9 @@ export async function POST(request: Request) {
     });
 
     // Explicitly check if amenities exist on the returned object before logging length
-    const amenityCount = newRoute.amenities ? newRoute.amenities.length : 0;
+    // Add type assertion to help TS recognize the included relation
+    const routeWithAmenities = newRoute as typeof newRoute & { amenities: { id: string }[] };
+    const amenityCount = routeWithAmenities.amenities ? routeWithAmenities.amenities.length : 0;
     console.log(`[API POST /api/admin/routes] Route created successfully: ${newRoute.id} with ${amenityCount} amenities associated.`);
     
     return NextResponse.json(newRoute, { status: 201 });

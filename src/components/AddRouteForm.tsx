@@ -353,8 +353,9 @@ const AddRouteForm = () => {
       setIsSubmitting(false);
       return;
     }
-    if (selectedDepartureCity.id === selectedDestinationCity.id) {
-      setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same.' });
+    // Allow same departure/destination only for specific types
+    if (selectedDepartureCity.id === selectedDestinationCity.id && routeType !== 'privateDriver' && routeType !== 'sightseeingShuttle') {
+      setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same for this route type.' });
       setIsSubmitting(false);
       return;
     }

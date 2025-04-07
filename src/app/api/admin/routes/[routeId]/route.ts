@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import slugify from 'slugify'; // Import slugify
 import { matchAmenities } from '@/lib/amenity-matcher'; // Import the amenity matcher utility
+import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint generator and type
 
 export const runtime = 'nodejs';
 
@@ -23,13 +24,14 @@ const routeSelect = {
   metaKeywords: true,
   seoDescription: true,
   additionalInstructions: true,
-  travelTime: true, // Added
-  otherStops: true, // Added
+  travelTime: true, 
+  otherStops: true, 
   isAirportPickup: true, 
   isAirportDropoff: true, 
   isCityToCity: true, 
-  isPrivateDriver: true, // Added new flag
-  isSightseeingShuttle: true, // Added new flag
+  isPrivateDriver: true, 
+  isSightseeingShuttle: true, 
+  mapWaypoints: true, // Corrected: Select the new field
   departureCity: {
     select: {
       id: true,
@@ -88,12 +90,26 @@ interface UpdateRouteData {
   travelTime?: string | null; 
   otherStops?: string | null; 
   additionalInstructions?: string | null;
-  // Corrected: Add the new flags here
+  // Add the new flags here
   isAirportPickup?: boolean;
   isAirportDropoff?: boolean;
   isCityToCity?: boolean;
-  isPrivateDriver?: boolean; // Added new flag
-  isSightseeingShuttle?: boolean; // Added new flag
+  isPrivateDriver?: boolean; 
+  isSightseeingShuttle?: boolean; 
+  mapWaypoints?: Prisma.JsonValue | null; // Add mapWaypoints to allow manual override/clearing
+}
+
+// Helper function to parse duration from travelTime string
+function parseDurationMinutes(travelTime: string | null | undefined): number {
+    if (!travelTime) return 240; // Default to 4 hours (240 mins) if not provided
+    const match = travelTime.match(/(\d+(\.\d+)?)/); // Find the first number (integer or decimal)
+    if (match && match[1]) {
+        const hours = parseFloat(match[1]);
+        if (!isNaN(hours)) {
+            return Math.round(hours * 60); // Convert hours to minutes
+        }
+    }
+    return 240; // Default if parsing fails
 }
  
  export async function PUT(request: Request, context: any) {
@@ -123,7 +139,6 @@ interface UpdateRouteData {
   
   // Allow same departure/destination only for specific types
   // Use the boolean flags directly from the request body 'data'
-  // Ensure the flags exist in the data object before checking
   const isPrivate = data.isPrivateDriver === true;
   const isSightseeing = data.isSightseeingShuttle === true;
   if (data.departureCityId === data.destinationCityId && !isPrivate && !isSightseeing) {
@@ -131,6 +146,20 @@ interface UpdateRouteData {
   }
 
   try {
+    // Fetch the current route data including fields needed for waypoint logic
+    const currentRoute = await prisma.route.findUnique({
+        where: { id: routeId },
+        select: { 
+            mapWaypoints: true, 
+            departureCity: { select: { name: true } }, // Corrected: Select departure city name
+            travelTime: true 
+        } 
+    });
+
+    if (!currentRoute) {
+        return NextResponse.json({ error: 'Route not found' }, { status: 404 });
+    }
+
     // Fetch cities with their countries for validation
     const [departureCity, destinationCity] = await Promise.all([
       prisma.city.findUnique({
@@ -172,22 +201,16 @@ interface UpdateRouteData {
     }
 
     // Use provided slug or generate a default one if necessary
-    // Ensure slugify is used correctly
     const routeSlug = data.routeSlug || slugify(`${departureCity.slug}-to-${destinationCity.slug}`, { lower: true, strict: true });
     
     // Use provided display name or generate one with proper country format
     let displayName;
-    
     if (data.displayName) {
-      // Use the custom display name from the form if provided
       displayName = data.displayName;
     } else {
-      // Generate display name with country format
       if (departureCity.country.name === destinationCity.country.name) {
-        // Same country format: "Shuttles from City1 to City2, Country"
         displayName = `Shuttles from ${departureCity.name} to ${destinationCity.name}, ${departureCity.country.name}`;
       } else {
-        // Different countries format: "Shuttles from City1, Country1 to City2, Country2"
         displayName = `Shuttles from ${departureCity.name}, ${departureCity.country.name} to ${destinationCity.name}, ${destinationCity.country.name}`;
       }
     }
@@ -209,6 +232,38 @@ interface UpdateRouteData {
       );
     }
 
+    // --- Generate waypoints if applicable ---
+    let waypointsToSave: Prisma.JsonValue | null = data.mapWaypoints ?? null; // Default to provided or null
+
+    // Check if we need to *generate* waypoints
+    const shouldGenerateWaypoints = (isPrivate || isSightseeing) && 
+                                    (data.mapWaypoints === undefined || data.mapWaypoints === null || (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length === 0)) &&
+                                    (!currentRoute.mapWaypoints || (Array.isArray(currentRoute.mapWaypoints) && currentRoute.mapWaypoints.length === 0));
+
+    if (shouldGenerateWaypoints) {
+        const estimatedDurationMinutes = parseDurationMinutes(data.travelTime || currentRoute.travelTime); 
+        const departureCityNameForGen = departureCity?.name; // Use the newly fetched departure city name
+
+        if (departureCityNameForGen && estimatedDurationMinutes > 0) {
+            console.log(`Attempting to generate waypoints for ${departureCityNameForGen}, duration: ${estimatedDurationMinutes} mins (Update)`);
+            const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
+                city: departureCityNameForGen, 
+                durationMinutes: estimatedDurationMinutes,
+            });
+            if (waypointsArray.length > 0) {
+                // Correctly cast array to Prisma.JsonValue
+                waypointsToSave = waypointsArray as Prisma.JsonValue; 
+            } else {
+                waypointsToSave = null; // Ensure it's null if generation returns empty
+            }
+            console.log("Generated waypoints:", waypointsToSave);
+        } else {
+             waypointsToSave = null; // Ensure it's null if conditions not met
+        }
+    }
+    // --- End waypoint generation ---
+
+
     // Get matched amenity names and find/create amenities
     const matchedAmenityNames = await matchAmenities(data.seoDescription || '', data.additionalInstructions || '');
     
@@ -224,7 +279,7 @@ interface UpdateRouteData {
       })
     );
 
-    // Prepare data for update, including new flags
+    // Prepare data for update, including new flags and potentially generated waypoints
     const updateData: Prisma.RouteUpdateInput = {
       departureCity: { connect: { id: data.departureCityId } },
       destinationCity: { connect: { id: data.destinationCityId } },
@@ -242,9 +297,10 @@ interface UpdateRouteData {
       otherStops: data.otherStops || null,
       isAirportPickup: data.isAirportPickup ?? false,
       isAirportDropoff: data.isAirportDropoff ?? false,
-      isCityToCity: data.isCityToCity ?? true, // Default might need adjustment based on other flags
-      isPrivateDriver: data.isPrivateDriver ?? false, // Add new flag
-      isSightseeingShuttle: data.isSightseeingShuttle ?? false, // Add new flag
+      isCityToCity: data.isCityToCity ?? true, // Consider refining default based on other flags
+      isPrivateDriver: data.isPrivateDriver ?? false, 
+      isSightseeingShuttle: data.isSightseeingShuttle ?? false, 
+      mapWaypoints: waypointsToSave, // Save generated or provided waypoints
       amenities: {
         set: amenityIdsToSet, // Ensure amenities are updated based on new description
       },
@@ -253,9 +309,9 @@ interface UpdateRouteData {
 
     const updatedRoute = await prisma.route.update({
       where: { id: routeId },
-      data: updateData,
+      data: updateData, // Removed 'as any' - should work now with correct types
       select: { // Ensure amenities are selected in the response
-        ...routeSelect,
+        ...routeSelect, // Includes mapWaypoints now
         amenities: { select: { id: true, name: true } }, // Select amenity details
       }
     });
@@ -299,7 +355,7 @@ export async function GET(request: Request, context: any) {
       // Use the common select object
       // Ensure amenities are included in the GET response as well
       select: {
-        ...routeSelect,
+        ...routeSelect, // Includes mapWaypoints now
         amenities: true, // Ensure amenities are selected
       }
     });

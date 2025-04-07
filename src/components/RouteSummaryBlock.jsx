@@ -40,11 +40,11 @@ const amenityCategories = {
     icon: ComfortIcon 
   },
   Accessibility: {
-    keys: ['Wheelchair Accessible', 'Service Animals Allowed'],
+    keys: ['Wheelchair Accessible', 'Service Animals Allowed', 'Bilingual Driver'], // Moved Bilingual Driver here
     icon: HeartIcon 
   },
   Customization: {
-    keys: ['Optional Stops', 'Private Shuttle', 'Bilingual Driver', 'Photo Stops', 'Flexible Timing', 'Scenic Route', 'Guided Tour', 'Entrance Fees Included'],
+    keys: ['Optional Stops', 'Private Shuttle', 'Photo Stops', 'Flexible Timing', 'Scenic Route', 'Guided Tour', 'Entrance Fees Included'], // Removed Bilingual Driver from here
     icon: AdjustmentsHorizontalIcon
   }
 };
@@ -190,31 +190,31 @@ export default function RouteSummaryBlock({ route }) {
          )}
        </div>
 
-      {/* Categorized Amenity Pills */}
-      <div className="space-y-3"> {/* Added space between categories */}
+      {/* Categorized Highlights Grid */}
+      <div className="highlights-section mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 space-y-4">
         {Object.entries(categorizedAmenities).map(([category, items]) => {
           if (items.length === 0) return null; // Don't render empty categories
-          
+
           const CategoryIcon = amenityCategories[category].icon || CheckCircleIcon; // Fallback icon
 
           return (
-            <section key={category} className="mb-3"> {/* Added mb-3 */}
-              <h4 className="text-sm font-semibold mb-1 text-gray-600 dark:text-gray-400 flex items-center">
-                 <CategoryIcon className="h-4 w-4 mr-1.5" /> {/* Category Icon */}
+            <div key={category}>
+              <h4 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center">
+                 <CategoryIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" /> {/* Category Icon */}
                  {category}
               </h4>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-700 dark:text-gray-300 pl-7"> {/* Indent grid items */}
                 {items.map((amenity) => {
                   const IconComponent = amenityIconMap[amenity.name] || CheckCircleIcon; // Fallback icon per amenity
                   return (
-                    <span key={amenity.id} className="inline-flex items-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                      <IconComponent className="h-3.5 w-3.5 mr-1.5" />
-                      {amenity.name}
-                    </span>
+                    <div key={amenity.id} className="flex items-center">
+                      <IconComponent className="h-5 w-5 mr-2 text-blue-500" /> {/* Use consistent icon size */}
+                      <span>{amenity.name}</span>
+                    </div>
                   );
                 })}
               </div>
-            </section>
+            </div>
           );
         })}
       </div>

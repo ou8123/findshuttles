@@ -7,8 +7,11 @@ import { createGlobalErrorHandler } from '@/lib/errorLogger';
 // It should be included in the root layout
 export default function ErrorHandlerLoader() {
   useEffect(() => {
-    // Initialize the error handler on mount
-    const cleanup = createGlobalErrorHandler();
+    // --- Temporarily Disable Error Handler Initialization ---
+    console.log("Skipping createGlobalErrorHandler call for debugging.");
+    // const cleanup = createGlobalErrorHandler(); 
+    const cleanup = () => {}; // No-op cleanup
+    // --- End Temporary Disable ---
     
     // Clean up on unmount
     return () => {
