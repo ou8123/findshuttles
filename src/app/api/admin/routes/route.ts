@@ -65,7 +65,8 @@ export async function POST(request: Request) {
       isAirportDropoff, // Expect boolean
       isCityToCity, // Expect boolean
       isPrivateDriver, // New flag
-      isSightseeingShuttle // New flag
+      isSightseeingShuttle, // New flag
+      mapWaypoints: manualMapWaypoints // Check for manually provided waypoints
     } = body;
 
     // Basic validation
@@ -139,24 +140,58 @@ export async function POST(request: Request) {
     }
     // --- End route type flag logic ---
 
-    // --- Generate waypoints if applicable ---
-    let generatedWaypoints: Prisma.JsonValue | null = null; // Use null directly
-    const estimatedDurationMinutes = parseDurationMinutes(travelTime); // Use helper function
+    // --- Waypoint Logic: Use manual if provided, otherwise generate ---
+    let finalMapWaypoints: Prisma.JsonValue | null = null;
 
-    if ((finalIsPrivateDriver || finalIsSightseeingShuttle) && departureCity?.name && estimatedDurationMinutes > 0) { 
-        console.log(`Attempting to generate waypoints for ${departureCity.name}, duration: ${estimatedDurationMinutes} mins`);
-        const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
-            city: departureCity.name, 
-            durationMinutes: estimatedDurationMinutes,
-        });
-        // Assign if waypoints were generated, otherwise keep null
-        if (waypointsArray.length > 0) {
-           // Explicitly cast the array to Prisma.JsonValue which includes JsonArray
-           generatedWaypoints = waypointsArray as Prisma.JsonValue; 
+    if (manualMapWaypoints && Array.isArray(manualMapWaypoints) && manualMapWaypoints.length > 0) {
+        // Basic validation for manually provided waypoints (assuming WaypointStop structure: {name, lat, lng})
+        const isValidManual = manualMapWaypoints.every(
+            (wp: any) => typeof wp === 'object' && wp !== null && 
+                         typeof wp.name === 'string' && 
+                         typeof wp.lat === 'number' && 
+                         typeof wp.lng === 'number'
+        );
+        if (isValidManual) {
+            console.log("Using manually provided mapWaypoints.");
+            finalMapWaypoints = manualMapWaypoints as Prisma.JsonValue;
+        } else {
+            console.warn("Manual mapWaypoints provided but format is invalid (expected {name, lat, lng}). Ignoring.");
+            // Optionally return an error here if invalid format is critical
+            // return NextResponse.json({ error: 'Invalid format for provided mapWaypoints' }, { status: 400 });
         }
-        console.log("Generated waypoints:", generatedWaypoints);
+    } else if ((finalIsPrivateDriver || finalIsSightseeingShuttle) && departureCity?.name) {
+        // Only generate if not manually provided and route type is relevant
+        const estimatedDurationMinutes = parseDurationMinutes(travelTime); // Use helper function
+        if (estimatedDurationMinutes > 0) {
+            // Ensure country name is available before calling
+            const departureCountryName = departureCity.country?.name;
+            if (!departureCountryName) {
+                 console.error("Cannot generate waypoints: Departure country name is missing.");
+            } else {
+                 console.log(`No manual waypoints provided. Attempting to generate waypoints for ${departureCity.name}, ${departureCountryName}, duration: ${estimatedDurationMinutes} mins`);
+                 try {
+                     const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({
+                         city: departureCity.name,
+                         country: departureCountryName, // Pass the country name
+                         durationMinutes: estimatedDurationMinutes,
+                     });
+                     if (waypointsArray.length > 0) {
+                         finalMapWaypoints = waypointsArray as Prisma.JsonValue;
+                         console.log("Generated waypoints:", finalMapWaypoints);
+                     } else {
+                         console.log("Waypoint generation returned empty array.");
+                     }
+                 } catch (waypointError) {
+                     console.error("Error generating waypoints:", waypointError);
+                     // Decide if this error should prevent route creation or just log
+                 }
+            }
+        } else {
+             console.log("Skipping waypoint generation due to zero or invalid duration.");
+        }
     }
-    // --- End waypoint generation ---
+    // --- End waypoint logic ---
+
 
     // Prepare data for creation, using correct connect syntax for relations
     const routeCreateData = {
@@ -177,9 +212,9 @@ export async function POST(request: Request) {
         isAirportPickup: finalIsAirportPickup,
         isAirportDropoff: finalIsAirportDropoff,
         isCityToCity: finalIsCityToCity,
-        isPrivateDriver: finalIsPrivateDriver, 
-        isSightseeingShuttle: finalIsSightseeingShuttle, 
-        mapWaypoints: generatedWaypoints, // Assign the generated waypoints (JsonValue or null)
+        isPrivateDriver: finalIsPrivateDriver,
+        isSightseeingShuttle: finalIsSightseeingShuttle,
+        mapWaypoints: finalMapWaypoints, // Use the final waypoints (manual or generated)
         // Automatically associate amenities based on seoDescription
         amenities: {
           connect: (await matchAmenities(seoDescription || "")).map(id => ({ id })), // Pass empty string if seoDescription is null

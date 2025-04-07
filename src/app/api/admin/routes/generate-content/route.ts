@@ -146,6 +146,9 @@ export async function POST(request: Request) {
       isPrivateDriver = false, // New flag
       isSightseeingShuttle = false, // New flag
       additionalInstructions = ''
+      // Extract travelTime and otherStops from requestData if needed for prompt context
+      // travelTime, 
+      // otherStops 
     } = requestData;
 
     // Validate required fields
@@ -177,10 +180,10 @@ export async function POST(request: Request) {
     // Extract needed information correctly from the included relation
     const departureCityName = departureCity.name;
     const destinationCityName = destinationCity.name;
-    // Ensure country object exists before accessing name
-    const destinationCountryName = destinationCity.country?.name;
+    const departureCountryName = departureCity.country?.name || 'Unknown Country'; // Provide a fallback
+    const destinationCountryName = destinationCity.country?.name || departureCountryName; // Use departure's if destination missing
 
-    // Add a check in case country wasn't included properly
+    // Add a check in case country wasn't included properly (redundant with fallback but safe)
     if (!destinationCountryName) {
        console.error("Could not retrieve destination country name for city ID:", destinationCityId);
        return NextResponse.json({ error: 'Internal server error: Could not determine destination country.' }, { status: 500 });
@@ -204,119 +207,55 @@ export async function POST(request: Request) {
     else if (isPrivateDriver) routeTypeString = 'privateDrivingService';
     else if (isSightseeingShuttle) routeTypeString = 'sightseeingShuttle';
 
-    // --- NEW: Conditional logic for custom prompt phrasing ---
-    let routeDescriptionIntro = '';
-    const sameCity = departureCityName === destinationCityName; // Compare names
+    // Retrieve travelTime and otherStops from the request body if available, otherwise use defaults or null
+    // These might have been passed in the initial request or generated previously
+    const travelTime = requestData.travelTime || null; 
+    const otherStops = requestData.otherStops || []; // Default to empty array if not provided
 
-    if (routeTypeString === 'privateDrivingService') {
-      routeDescriptionIntro = sameCity
-        ? `You are an expert travel writer. Write a professional, SEO-friendly description for a private driving service based in ${departureCityName}. This is a customizable, full-day service that may include scenic drives, stops at local attractions, and flexible transfers.`
-        : `You are an expert travel writer. Write a professional, SEO-friendly description for a private driving service from ${departureCityName} to ${destinationCityName}.`;
-    } else if (routeTypeString === 'sightseeingShuttle') {
-      routeDescriptionIntro = sameCity
-        ? `You are an expert travel writer. Write a professional, SEO-friendly description for a sightseeing shuttle tour starting and ending in ${departureCityName}. The trip includes roundtrip transport, scenic routes, and stops at notable local attractions.`
-        : `You are an expert travel writer. Write a professional, SEO-friendly description for a sightseeing shuttle from ${departureCityName} to ${destinationCityName}.`;
-    } else if (routeTypeString === 'airportPickup') {
-        routeDescriptionIntro = `You are an expert travel writer. Write a professional, SEO-friendly description for an airport pickup shuttle service from ${departureCityName} airport to ${destinationCityName}. Use a welcoming tone (e.g., "Welcome to ${destinationCountryName}", "Your ${destinationCountryName} journey begins..."). Mention a smooth pickup from the airport and highlight the destination city.`;
-    } else if (routeTypeString === 'airportDropoff') {
-        routeDescriptionIntro = `You are an expert travel writer. Write a professional, SEO-friendly description for an airport dropoff shuttle service from ${departureCityName} to ${destinationCityName} airport. Begin by stating the route ends at the airport. Then suggest possible attractions or activities near the airport city for travelers with time before their flight. Avoid farewell phrases.`;
-    } else { // Default to cityToCity
-      routeDescriptionIntro = `You are an expert travel writer. Write a professional, SEO-friendly description for a shuttle route from ${departureCityName} to ${destinationCityName}. Use flexible language like "Continue your ${destinationCountryName} adventure" or "Enjoy the scenic ride..." Highlight both departure and destination cities briefly, with a focus on the destination.`;
-    }
-    // --- End NEW conditional logic ---
-
-    const prompt = `
-You are an expert travel writer helping improve SEO for a shuttle booking site. Write an SEO-optimized, professional, and human-sounding description for a shuttle route.
-
-Follow these instructions exactly:
-- Output valid JSON with three fields: "seoDescription", "metaTitle", and "metaDescription".
-- The "seoDescription" should be **2 to 3 natural paragraphs max**, not more. Each paragraph should have multiple sentences and sound like it was written by a person. Avoid overly short or broken-up paragraphs.
-- Do not include a title or heading inside the "seoDescription".
-- If "additionalComments" is provided, **incorporate the exact content naturally into the description**.
-- Do not mention specific vehicles, drivers, or operator names unless included in "additionalComments".
-- Do not use vague promotional phrases like "convenient like never before" or "premier platform".
-
-Customize the tone and structure based on the route type below:
-
----
-
-**If routeType is "airport pickup"**:
-- Use a warm, welcoming tone like: “Welcome to [country]!” or “Start your adventure in [destination city]…”
-- Avoid repeating the same phrase across different listings.
-- Introduce [destination city] in the second paragraph with 2–3 named attractions (e.g., beaches, national parks, volcanoes, waterfalls, adventure parks).
-- Mention 1–2 activities travelers can enjoy (e.g., surfing, kayaking, birdwatching, estuary tours).
-
----
-
-**If routeType is "airport dropoff"**:
-- Mention airport drop-off first: “This shuttle takes you to [airport name or destination city] for your flight.”
-- In the second paragraph, mention optional things to do in or around [destination city] if travelers have a layover or extra time.
-- Avoid heavy farewell or departure tone—assume they might not be leaving the country yet.
-
----
-
-**If routeType is "city to city"**:
-- Write a natural-sounding paragraph about traveling from [departure city] to [destination city].
-- Use varied language like “Enjoy the scenic ride,” “Your next destination,” or “A smooth journey through the region.”
-- In the second paragraph, introduce [destination city] with 2–3 specific attractions and 1–2 activities people can enjoy.
-
----
-
-**If routeType is "private driving service"**:
-- Describe the service as a **versatile option for both full-day tours and point-to-point transfers**.
-- Emphasize flexibility and customizability (e.g., ability to make stops, visit sites).
-- Mention the general region or cities served if applicable.
-- In the second paragraph, highlight 2–3 attractions they might stop at (volcanoes, waterfalls, beaches, towns, etc.), and 1–2 activities.
-
----
-
-**If routeType is "sightseeing shuttle"**:
-- Focus on the sightseeing loop experience, starting and ending in the same location.
-- Avoid saying “from X to X.”
-- Describe notable sites along the way and include examples of photo ops, nature stops, or towns.
-- Mention 2–3 places or attractions and 1–2 possible activities like hiking, visiting a park, or swimming.
-
----
-
-Include only relevant info based on the route type. Here’s the data you’ll receive:
-
-{
-  departureCity: string,
-  destinationCity: string,
-  countryName: string,
-  routeType: one of ["airport pickup", "airport dropoff", "city to city", "private driving service", "sightseeing shuttle"],
-  travelTime: string,
-  otherStops: string[], // may be empty
-  additionalComments: string // may be empty
-}
-
-Output must follow this structure exactly:
-{
-  "seoDescription": "LONGER PARAGRAPH TEXT HERE",
-  "metaTitle": "Concise and descriptive title for meta tag (max ~60 characters)",
-  "metaDescription": "1-sentence summary for meta description tag (max ~155 characters)"
-}
-`.trim();
-
-    // Construct the input JSON for the AI (User message)
-    const aiInputJson = {
-        departureCity: departureCityName,
-        destinationCity: destinationCityName,
-        country: destinationCountryName,
-        routeType: routeTypeString, // Keep routeType for context if needed by AI, though prompt handles phrasing
-        additionalInstructions: processedInstructions || null // Send null if empty
-    };
-
-    // Construct the messages array for OpenAI
+    // Construct the messages array for OpenAI - ** NEW VERSION from User **
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: prompt // Use the new prompt variable
+        content: `
+You are a professional travel content writer generating SEO content for shuttle routes around the world. Assume locations are in the country provided unless stated otherwise. Avoid confusing cities with the same name in different countries (e.g., San Jose in Costa Rica vs. San Jose in California). Do not invent or assume details about a location. Write for a shuttle booking site that connects travelers with third-party transport providers.
+`.trim()
       },
       {
         role: "user",
-        // Send the structured JSON input as the user message content
-        content: JSON.stringify(aiInputJson, null, 2)
+        content: `
+Generate SEO content for the following shuttle route:
+
+Route type: ${routeTypeString}
+Departure city: ${departureCityName}, ${departureCountryName}
+Destination city: ${destinationCityName}, ${destinationCountryName}
+Is airport pickup? ${isAirportPickup}
+Is airport dropoff? ${isAirportDropoff}
+Travel duration: ${travelTime || 'Not provided'}
+Other stops (if any): ${otherStops?.join(', ') || 'None'}
+Additional comments: ${processedInstructions || 'None'}
+
+Instructions:
+- All content must be human-like, SEO-optimized, and in natural language.
+- If the route is an **airport pickup**, open with a welcoming tone: e.g., “Welcome to ${destinationCountryName}” or “Adventure starts in ${destinationCountryName}…”
+- If the route is an **airport dropoff**, start with dropoff info, then offer ideas for what to do in the area if travelers have time — no farewells unless appropriate.
+- If departure and destination are the same (e.g., sightseeing route), DO NOT describe it as a transfer — highlight interesting stops or themes for the loop.
+- For **private driving service**, describe it as flexible transport: “ideal for point-to-point transfers between smaller towns or for a full-day custom itinerary.”
+- Always include **2–3 named attractions** in or near the destination: beaches, volcanoes, parks, waterfalls, cloud forests, adventure zones, etc.
+- Tie **activities to attractions** (e.g., “surfing at Playa Tamarindo,” “hiking to La Fortuna Waterfall,” “ziplining in Monteverde”).
+- Mention 1–2 relevant activities that match the attractions and local vibe.
+- Do not mention vehicle type or driver unless details are explicitly provided.
+- Do not name the operator or use vague marketing phrases like “premier service.”
+- Output valid JSON with the exact structure below — do NOT include extra fields or explanations:
+
+{
+  "seoDescription": "Up to 3 paragraphs. First part focuses on the transport. Then introduce the destination with named places and activities.",
+  "metaTitle": "Concise title like '[Departure] to [Destination] Shuttle'",
+  "metaDescription": "1-sentence summary including transport and 1 destination highlight",
+  "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
+  "otherStops": ["List", "real", "intermediate", "places", "if", "any"],
+  "travelTime": "e.g. 3.5 hours"
+}
+`.trim()
       }
     ];
     // --- End Prompt Preparation ---
@@ -468,6 +407,44 @@ Output must follow this structure exactly:
           throw new Error(`Failed to parse OpenAI response as JSON: ${parseError.message}`);
         }
 
+        // --- NEW: Validate mapWaypoints if present ---
+        // Note: The prompt no longer asks for mapWaypoints here, so this validation might be redundant
+        // but leaving it in case the AI still returns it sometimes.
+        if ((routeTypeString === 'privateDrivingService' || routeTypeString === 'sightseeingShuttle') && parsedResponse.mapWaypoints) {
+          if (
+            !Array.isArray(parsedResponse.mapWaypoints) ||
+            !parsedResponse.mapWaypoints.every(
+              (wp: any) => // Use 'any' or define a Waypoint type
+                typeof wp === 'object' &&
+                wp !== null &&
+                typeof wp.name === 'string' &&
+                typeof wp.lat === 'number' && // Check for lat (number)
+                typeof wp.lng === 'number'    // Check for lng (number)
+            )
+          ) {
+            // If format is invalid, log a warning and remove the field
+            console.warn("Invalid format for mapWaypoints received from AI. Removing field.");
+            delete parsedResponse.mapWaypoints; // Or set to null: parsedResponse.mapWaypoints = null;
+          } else {
+             console.log(`Received ${parsedResponse.mapWaypoints.length} valid mapWaypoints.`);
+          }
+        } else if (parsedResponse.mapWaypoints) {
+           // If waypoints are present for a type that shouldn't have them, remove them
+           console.warn(`mapWaypoints received for unexpected routeType '${routeTypeString}'. Removing field.`);
+           delete parsedResponse.mapWaypoints;
+        }
+        // --- END: Validate mapWaypoints ---
+
+        // Ensure parsedResponse is an object before proceeding with field checks
+        if (typeof parsedResponse !== 'object' || parsedResponse === null) {
+           // Handle case where parsedResponse is not an object (e.g., retry or throw)
+           if (retryCount < maxRetries) {
+              console.warn(`Retrying: Parsed response is not an object.`);
+              return generateContent(retryCount + 1, maxRetries);
+           }
+           throw new Error('Parsed OpenAI response was not a valid JSON object.');
+        }
+
         // Backend Safeguard for otherStops example text
         if (
           parsedResponse.otherStops &&
@@ -498,72 +475,82 @@ Output must follow this structure exactly:
         parsedResponse.seoDescription = finalSeoDescription;
 
         // Validate required fields (Adjusted Validation Logic for metaTitle)
-        // Now expecting: metaTitle, metaDescription, metaKeywords, seoDescription
-        const requiredFields = ['metaTitle', 'metaDescription', 'metaKeywords', 'seoDescription'];
+        // Now expecting: metaTitle, metaDescription, metaKeywords, seoDescription, travelTime, otherStops
+        const requiredFields = ['metaTitle', 'metaDescription', 'metaKeywords', 'seoDescription', 'travelTime', 'otherStops'];
+        const responseAsRecord = parsedResponse as Record<string, any>; // Cast here
         for (const field of requiredFields) {
           // Check if field is truly missing (undefined or null)
-          // Allow empty string for all these fields after retries
-          if (parsedResponse[field] === undefined || parsedResponse[field] === null) {
+          // Allow empty string for string fields, null for others after retries
+          if (responseAsRecord[field] === undefined || responseAsRecord[field] === null) {
              // Allow retry if a required field is missing
             if (retryCount < maxRetries) {
               console.warn(`Retrying: Missing required field '${field}' (undefined/null) in AI response.`);
               return generateContent(retryCount + 1, maxRetries); // Retry
             }
-            // If out of retries, assign empty string instead of throwing error
-            console.warn(`Required field '${field}' is missing after retries. Proceeding with empty string.`);
-            parsedResponse[field] = ''; // Assign empty string
+            // If out of retries, assign default based on expected type
+            console.warn(`Required field '${field}' is missing after retries. Proceeding with default.`);
+            if (field === 'otherStops') {
+                 responseAsRecord[field] = []; // Default to empty array for otherStops
+            } else {
+                 responseAsRecord[field] = ''; // Default to empty string for others
+            }
           }
-          // Check type if field exists and is not null (allow empty strings)
-          else if (typeof parsedResponse[field] !== 'string') {
-             // Allow retry if type is wrong
+          // Check type if field exists and is not null (allow empty strings for string types)
+          else if (field === 'otherStops') {
+              if (!Array.isArray(responseAsRecord[field]) || !responseAsRecord[field].every(item => typeof item === 'string')) {
+                  if (retryCount < maxRetries) {
+                      console.warn(`Retrying: Field '${field}' has incorrect type (${typeof responseAsRecord[field]}). Expected array of strings.`);
+                      return generateContent(retryCount + 1, maxRetries); // Retry
+                  }
+                  console.warn(`Field '${field}' has incorrect type (${typeof responseAsRecord[field]}) after retries. Resetting to empty array.`);
+                  responseAsRecord[field] = []; // Reset to empty array
+              }
+          } else if (typeof responseAsRecord[field] !== 'string') {
+             // Allow retry if type is wrong for other string fields
             if (retryCount < maxRetries) {
-              console.warn(`Retrying: Field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string.`);
+              console.warn(`Retrying: Field '${field}' has incorrect type (${typeof responseAsRecord[field]}). Expected string.`);
               return generateContent(retryCount + 1, maxRetries); // Retry
             }
              // If still wrong type after retries, assign empty string
-            console.warn(`Field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Resetting to empty string.`);
-            parsedResponse[field] = ''; // Assign empty string
+            console.warn(`Field '${field}' has incorrect type (${typeof responseAsRecord[field]}) after retries. Resetting to empty string.`);
+            responseAsRecord[field] = ''; // Assign empty string
           }
         }
 
 
-        // Validate optional fields type (should be string or null)
-        // Now expecting: otherStops, travelTime
-        const optionalStringFields = ['otherStops', 'travelTime'];
-        for (const field of optionalStringFields) {
-            // Check if the field exists and is not null, then validate its type
-            if (parsedResponse[field] !== undefined && parsedResponse[field] !== null) {
-                 if (typeof parsedResponse[field] !== 'string') {
-                    if (retryCount < maxRetries) {
-                       console.warn(`Retrying: Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}). Expected string or null.`);
-                       return generateContent(retryCount + 1, maxRetries); // Retry
-                    } else {
-                       console.warn(`Optional field '${field}' has incorrect type (${typeof parsedResponse[field]}) after retries. Setting to null.`);
-                       parsedResponse[field] = null; // Set to null if type is wrong after retries
-                    }
-                 }
-            } else {
-                 // If field is undefined or null, ensure it's set to null
-                 parsedResponse[field] = null;
-            }
+        // Validate optional fields type (should be string or null) - Now handled within the required loop above
+        // const optionalStringFields = ['otherStops', 'travelTime']; // Removed this loop as fields are now required
+
+        // --- NEW: Deduplicate metaKeywords ---
+        if (responseAsRecord.metaKeywords && typeof responseAsRecord.metaKeywords === 'string') {
+          const keywords = responseAsRecord.metaKeywords.split(',')
+            .map(kw => kw.trim().toLowerCase()) // Trim whitespace and convert to lowercase for better matching
+            .filter(kw => kw.length > 0); // Remove empty strings
+          const uniqueKeywords = [...new Set(keywords)]; // Use Set for deduplication
+          responseAsRecord.metaKeywords = uniqueKeywords.join(', '); // Join back with comma and space
+          console.log("Deduplicated metaKeywords:", responseAsRecord.metaKeywords);
         }
-        // --- End of Corrected Validation Loop ---
+        // --- END: Deduplicate metaKeywords ---
+
+
+        // Cast to 'any' before final checks to bypass potential inference issues
+        const finalResponse = parsedResponse as any;
 
         // Remove amenitySummaryLine if it exists (no longer expected)
-        if ('amenitySummaryLine' in parsedResponse) {
-            delete parsedResponse.amenitySummaryLine;
+        if ('amenitySummaryLine' in finalResponse) {
+            delete finalResponse.amenitySummaryLine;
         }
 
         // Add displayName field (if needed, though maybe not necessary if only returning specific fields)
         // parsedResponse.displayName = `Shuttles from ${departureCityName} to ${destinationCityName}`;
 
         // Ensure suggestedHotels is not present
-        if ('suggestedHotels' in parsedResponse) {
-            delete parsedResponse.suggestedHotels;
+        if ('suggestedHotels' in finalResponse) {
+            delete finalResponse.suggestedHotels;
         }
 
         console.log("Content generation successful");
-        return parsedResponse;
+        return finalResponse; // Return the casted variable
       } catch (error) {
         // If we have retries left for any error, try again
         if (retryCount < maxRetries) {

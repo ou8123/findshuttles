@@ -64,11 +64,12 @@ export async function GET(req: Request) {
         destination: destinationCoords,
         key: apiKey,
         mode: TravelMode.driving,
-        region: 'CR',
-        ...(waypointCoords && waypointCoords.length > 0 && {
-          waypoints: waypointCoords, // Pass the array of LatLng directly
-          optimize: false
-        })
+        region: 'CR' // Explicitly bias to Costa Rica
+        // Temporarily removing waypoints from the request to isolate the issue
+        // ...(waypointCoords && waypointCoords.length > 0 && {
+        //   waypoints: waypointCoords, 
+        //   optimize: false
+        // })
       }
     };
 

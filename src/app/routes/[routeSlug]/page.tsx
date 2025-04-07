@@ -53,13 +53,18 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  // Use custom meta title if available, otherwise fallback to display name
-  const title = route.metaTitle || 
-    route.displayName || 
-    `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`;
+  // Determine title based on route type and cities
+  let title = route.metaTitle || route.displayName; // Start with meta or display name
+  if (!title) { // If neither metaTitle nor displayName is set
+    if (route.isPrivateDriver && route.departureCityId === route.destinationCityId) {
+      title = `Private Driving Service in ${route.departureCity.name}`;
+    } else {
+      title = `Shuttles from ${route.departureCity.name} to ${route.destinationCity.name}`;
+    }
+  }
 
   return {
-    title: title,
+    title: title, // Use the determined title
     description: route.metaDescription || route.seoDescription || `Find shuttle transportation from ${route.departureCity.name} to ${route.destinationCity.name}`,
     keywords: route.metaKeywords || `shuttle, transportation, ${route.departureCity.name}, ${route.destinationCity.name}`,
   };
@@ -171,7 +176,7 @@ export default async function RoutePage({ params }) {
   if (!routeSlug) {
     notFound();
   }
-  
+
   // Fetch the route data
   const route = await fetchRouteData(routeSlug);
   
@@ -196,12 +201,17 @@ export default async function RoutePage({ params }) {
     day: 'numeric'
   });
 
-  // Prepare breadcrumb data
+  // Prepare breadcrumb data - Adjust last item for private driver same-city routes
+  const lastBreadcrumbName = (route.isPrivateDriver && route.departureCityId === route.destinationCityId)
+    ? route.displayName || `Private Driving Service in ${route.departureCity?.name || 'City'}` // Use display name or generic
+    : `${route.departureCity?.name || 'Unknown'} to ${route.destinationCity?.name || 'Unknown'}`;
+
   const breadcrumbItems = [
     { name: 'Home', href: '/' },
     { name: route.departureCountry?.name || 'Country', href: `/countries/${route.departureCountry?.slug || ''}` },
-    { name: `${route.departureCity?.name || 'Unknown'} to ${route.destinationCity?.name || 'Unknown'}`, current: true }
+    { name: lastBreadcrumbName, current: true }
   ];
+
 
   // --- Prepare Product Schema JSON-LD ---
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'; // Base URL from env or fallback
@@ -251,8 +261,9 @@ export default async function RoutePage({ params }) {
   // --- Logic to determine map display ---
   const isTourType = route.isPrivateDriver || route.isSightseeingShuttle;
   const isSameCityRoute = route.departureCityId === route.destinationCityId;
-  // Safely check and filter mapWaypoints before checking length
-  const validWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
+  // Safely check and filter mapWaypoints, then assert the type of the resulting array
+  const filteredWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
+  const validWaypoints = filteredWaypoints as unknown as WaypointStop[]; // Assert type here
   const hasValidWaypoints = validWaypoints.length >= 2;
   
   // Determine which map type to show
@@ -302,6 +313,7 @@ export default async function RoutePage({ params }) {
               ))}
             </ol>
           </nav>
+
 
           {/* === Layout Order === */}
 
@@ -374,11 +386,29 @@ export default async function RoutePage({ params }) {
                      destinationLat={route.destinationCity.latitude}
                      destinationLng={route.destinationCity.longitude}
                      waypoints={(validWaypoints as unknown) as WaypointStop[]}
-                   />
-                   <p className="text-xs text-gray-500 mt-1 text-center">This is a suggested route based on popular stops. Actual route may vary.</p>
-                 </>
-              )}
-               {mapType === 'none' && (
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-center">This is a suggested route based on popular stops. Actual route may vary.</p>
+
+                    {/* Waypoint List Display */}
+                    {validWaypoints && validWaypoints.length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Stops Along the Way</h3>
+                        <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1 text-sm">
+                          {/* Assert the type via unknown first */}
+                          {(validWaypoints as unknown as WaypointStop[]).map((waypoint, index) => ( 
+                            <li key={index}>
+                              {waypoint.name || `Stop ${index + 1}`} 
+                              {/* Optionally display coordinates if needed, but name is usually sufficient here */}
+                              {/* {wp.lat && wp.lng ? ` (Lat: ${wp.lat.toFixed(4)}, Lng: ${wp.lng.toFixed(4)})` : ''} */}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {/* End Waypoint List Display */}
+                  </>
+               )}
+                {mapType === 'none' && (
                  <div className="flex items-center justify-center h-32 bg-gray-50 border border-dashed border-gray-300 rounded">
                    <p className="text-gray-500 italic">Map directions not applicable for this same-city tour/service.</p>
                  </div>

@@ -151,7 +151,7 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
         where: { id: routeId },
         select: { 
             mapWaypoints: true, 
-            departureCity: { select: { name: true } }, // Corrected: Select departure city name
+            departureCity: { select: { name: true, country: { select: { name: true } } } }, // Select country name here
             travelTime: true 
         } 
     });
@@ -236,29 +236,59 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
     let waypointsToSave: Prisma.JsonValue | null = data.mapWaypoints ?? null; // Default to provided or null
 
     // Check if we need to *generate* waypoints
+    // Regenerate if it's a tour type AND the user didn't explicitly provide waypoints in this request
     const shouldGenerateWaypoints = (isPrivate || isSightseeing) && 
-                                    (data.mapWaypoints === undefined || data.mapWaypoints === null || (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length === 0)) &&
-                                    (!currentRoute.mapWaypoints || (Array.isArray(currentRoute.mapWaypoints) && currentRoute.mapWaypoints.length === 0));
+                                    (data.mapWaypoints === undefined || data.mapWaypoints === null || (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length === 0));
+                                    // Removed the check against currentRoute.mapWaypoints - we want to regenerate if the user clears the field
 
     if (shouldGenerateWaypoints) {
         const estimatedDurationMinutes = parseDurationMinutes(data.travelTime || currentRoute.travelTime); 
         const departureCityNameForGen = departureCity?.name; // Use the newly fetched departure city name
+        const departureCountryNameForGen = departureCity?.country?.name; // Get country name from fetched city data
 
-        if (departureCityNameForGen && estimatedDurationMinutes > 0) {
-            console.log(`Attempting to generate waypoints for ${departureCityNameForGen}, duration: ${estimatedDurationMinutes} mins (Update)`);
-            const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
-                city: departureCityNameForGen, 
-                durationMinutes: estimatedDurationMinutes,
-            });
-            if (waypointsArray.length > 0) {
-                // Correctly cast array to Prisma.JsonValue
-                waypointsToSave = waypointsArray as Prisma.JsonValue; 
-            } else {
-                waypointsToSave = null; // Ensure it's null if generation returns empty
+        if (departureCityNameForGen && departureCountryNameForGen && estimatedDurationMinutes > 0) { // Check country name too
+            console.log(`Attempting to generate waypoints for ${departureCityNameForGen}, ${departureCountryNameForGen}, duration: ${estimatedDurationMinutes} mins (Update)`);
+            try {
+                const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
+                    city: departureCityNameForGen, 
+                    country: departureCountryNameForGen, // Pass country name
+                    durationMinutes: estimatedDurationMinutes,
+                });
+                if (waypointsArray.length > 0) {
+                    // Correctly cast array to Prisma.JsonValue
+                    waypointsToSave = waypointsArray as Prisma.JsonValue; 
+                    console.log("Generated waypoints:", waypointsToSave);
+                } else {
+                    waypointsToSave = null; // Ensure it's null if generation returns empty
+                    console.log("Waypoint generation returned empty array.");
+                }
+            } catch (waypointError) {
+                 console.error("Error generating waypoints:", waypointError);
+                 waypointsToSave = null; // Ensure null on error
             }
-            console.log("Generated waypoints:", waypointsToSave);
         } else {
+             console.log("Skipping waypoint generation: Missing city/country name or invalid duration.");
              waypointsToSave = null; // Ensure it's null if conditions not met
+        }
+    } else if (data.mapWaypoints !== undefined) {
+        // If waypoints were explicitly provided (even null or empty array), use that value
+        console.log("Using manually provided mapWaypoints (or null/empty array).");
+        // Basic validation for manually provided waypoints (assuming WaypointStop structure: {name, lat, lng})
+        if (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length > 0) {
+             const isValidManual = data.mapWaypoints.every(
+                 (wp: any) => typeof wp === 'object' && wp !== null && 
+                              typeof wp.name === 'string' && 
+                              typeof wp.lat === 'number' && 
+                              typeof wp.lng === 'number'
+             );
+             if (!isValidManual) {
+                 console.warn("Manual mapWaypoints provided but format is invalid (expected {name, lat, lng}). Setting to null.");
+                 waypointsToSave = null; 
+             }
+             // If valid, waypointsToSave already holds data.mapWaypoints
+        } else {
+             // If null or empty array was provided, waypointsToSave is already correctly set
+             waypointsToSave = data.mapWaypoints; 
         }
     }
     // --- End waypoint generation ---
@@ -300,7 +330,8 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
       isCityToCity: data.isCityToCity ?? true, // Consider refining default based on other flags
       isPrivateDriver: data.isPrivateDriver ?? false, 
       isSightseeingShuttle: data.isSightseeingShuttle ?? false, 
-      mapWaypoints: waypointsToSave, // Save generated or provided waypoints
+      // Use Prisma.DbNull for null, and cast to InputJsonValue otherwise
+      mapWaypoints: waypointsToSave === null ? Prisma.DbNull : (waypointsToSave as Prisma.InputJsonValue), 
       amenities: {
         set: amenityIdsToSet, // Ensure amenities are updated based on new description
       },
@@ -309,7 +340,7 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
 
     const updatedRoute = await prisma.route.update({
       where: { id: routeId },
-      data: updateData, // Removed 'as any' - should work now with correct types
+      data: updateData, // Type should be correct now
       select: { // Ensure amenities are selected in the response
         ...routeSelect, // Includes mapWaypoints now
         amenities: { select: { id: true, name: true } }, // Select amenity details

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import ContentEditorControls from '@/components/ContentEditorControls';
+import { WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint type
 
 interface City {
   id: string;
@@ -36,6 +37,7 @@ interface RouteData {
     isCityToCity: boolean; 
     isPrivateDriver: boolean; // Added new flag
     isSightseeingShuttle: boolean; // Added new flag
+    mapWaypoints?: WaypointStop[] | null; // Add mapWaypoints field
     // Note: hotelsServed is a relation, not fetched directly here usually
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
@@ -68,6 +70,7 @@ const EditRoutePage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestedAmenityIds, setSuggestedAmenityIds] = useState<string[]>([]); // State for suggested amenities
   const [allAmenities, setAllAmenities] = useState<{id: string, name: string}[]>([]); // State to hold all amenities for display lookup
+  const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
 
   // State for city selection
   const [availableCities, setAvailableCities] = useState<City[]>([]);
@@ -161,10 +164,12 @@ const EditRoutePage = () => {
         setMetaDescription(routeData.metaDescription ?? '');
         setMetaKeywords(routeData.metaKeywords ?? '');
         setSeoDescription(routeData.seoDescription ?? '');
-        setTravelTime(routeData.travelTime ?? ''); 
-        setOtherStops(routeData.otherStops ?? ''); 
+        setTravelTime(routeData.travelTime ?? '');
+        setOtherStops(routeData.otherStops ?? '');
         setAdditionalInstructions(routeData.additionalInstructions ?? '');
-        
+        // Initialize mapWaypoints state - ensure it's an array
+        setMapWaypoints(Array.isArray(routeData.mapWaypoints) ? routeData.mapWaypoints : []);
+
         // Set initial routeType based on fetched flags
         if (routeData.isAirportPickup) {
           setRouteType('airportPickup');
@@ -204,7 +209,8 @@ const EditRoutePage = () => {
     return 'cityToCity'; // Default if somehow none are true (shouldn't happen with API logic)
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  // Mark handleSubmit as async
+  const handleSubmit = async (event: React.FormEvent) => { 
     event.preventDefault();
 
     if (!departureCityId || !destinationCityId || !viatorWidgetCode || !routeSlug || !displayName) {
@@ -217,7 +223,7 @@ const EditRoutePage = () => {
       return;
     }
 
-    // Prepare potentially null values
+    // Prepare potentially null values - MOVED INSIDE handleSubmit
     const currentMetaTitle = metaTitle.trim() === '' ? null : metaTitle.trim();
     const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
     const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
@@ -227,8 +233,8 @@ const EditRoutePage = () => {
     const currentIsAirportPickup = routeType === 'airportPickup';
     const currentIsAirportDropoff = routeType === 'airportDropoff';
     const currentIsCityToCity = routeType === 'cityToCity';
-    const currentIsPrivateDriver = routeType === 'privateDriver'; // Get current state
-    const currentIsSightseeingShuttle = routeType === 'sightseeingShuttle'; // Get current state
+    const currentIsPrivateDriver = routeType === 'privateDriver'; 
+    const currentIsSightseeingShuttle = routeType === 'sightseeingShuttle'; 
 
     if (!originalData) {
       setSubmitStatus({ success: false, message: 'Original route data not found.' });
@@ -237,7 +243,15 @@ const EditRoutePage = () => {
 
     // Check if any data actually changed
     const originalRouteType = getOriginalRouteType();
-    if (departureCityId === originalData.departureCityId &&
+    const originalWaypointsForCompare = Array.isArray(originalData.mapWaypoints) ? originalData.mapWaypoints : [];
+    const currentWaypointsForCompare = mapWaypoints; 
+
+    // Determine if only the waypoints were cleared (or are empty now when they weren't originally)
+    const waypointsCleared = (originalWaypointsForCompare.length > 0 && currentWaypointsForCompare.length === 0);
+    
+    // Check if other fields changed OR if waypoints were specifically cleared
+    const otherFieldsChanged = !(
+        departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
         routeSlug === originalData.routeSlug &&
         displayName === originalData.displayName &&
@@ -246,17 +260,25 @@ const EditRoutePage = () => {
         currentMetaDesc === originalData.metaDescription &&
         currentMetaKeywords === originalData.metaKeywords &&
         currentSeoDesc === originalData.seoDescription &&
-        currentTravelTime === originalData.travelTime && 
+        currentTravelTime === originalData.travelTime &&
         currentOtherStops === originalData.otherStops &&
         (additionalInstructions.trim() || null) === originalData.additionalInstructions &&
-        routeType === originalRouteType // Compare route type state based on the derived original type
-        ) { 
+        routeType === originalRouteType
+    );
+
+    // Compare waypoint arrays using stringify ONLY if other fields haven't changed
+    const waypointsChanged = otherFieldsChanged ? true : (JSON.stringify(currentWaypointsForCompare) !== JSON.stringify(originalWaypointsForCompare));
+
+    if (!otherFieldsChanged && !waypointsChanged) {
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
     }
+    
+    // If we reach here, either other fields changed, or the waypoints array content changed.
+    // The backend PUT handler will now correctly regenerate if waypoints are empty.
 
-    setIsSubmitting(true);
-    setSubmitStatus(null);
+    setIsSubmitting(true); // Set submitting state *before* the try block
+    setSubmitStatus(null); // Clear previous status
 
     try {
       const response = await fetch(`/api/admin/routes/${routeId}`, {
@@ -281,6 +303,7 @@ const EditRoutePage = () => {
             isCityToCity: currentIsCityToCity,
             isPrivateDriver: currentIsPrivateDriver, // Send new flag state
             isSightseeingShuttle: currentIsSightseeingShuttle, // Send new flag state
+            mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, // Send current waypoints or null if empty
          }),
       });
 
@@ -309,6 +332,7 @@ const EditRoutePage = () => {
         isCityToCity: currentIsCityToCity,
         isPrivateDriver: currentIsPrivateDriver, // Update original data state
         isSightseeingShuttle: currentIsSightseeingShuttle, // Update original data state
+        mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, // Update original data state
       });
     } catch (error: unknown) {
       console.error("Failed to update route:", error);
@@ -320,7 +344,7 @@ const EditRoutePage = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
+   }; // <--- Correct closing brace for handleSubmit
 
   // Generate content with OpenAI
   const handleGenerateContent = async () => {
@@ -396,6 +420,35 @@ const EditRoutePage = () => {
       setIsGenerating(false);
     }
   };
+
+  // --- Waypoint Handlers ---
+  const handleWaypointChange = useCallback((index: number, field: 'name', value: string) => {
+    // Only allow changing the name for now via this simple form
+    // Lat/Lng changes would ideally need a map interface
+    const updated = [...mapWaypoints];
+    if (updated[index]) {
+      // Create a new object with updated name, preserving lat/lng
+      updated[index] = {
+        ...updated[index], // Spread existing properties (lat, lng)
+        name: value        // Update the name
+      };
+      setMapWaypoints(updated);
+    }
+  }, [mapWaypoints]); // Dependency array includes mapWaypoints
+
+  const handleAddWaypoint = useCallback(() => {
+    // Add a new waypoint object with default lat/lng (e.g., 0 or fetch current location?)
+    // Using 0,0 as placeholder - admin should ideally verify/update these if needed elsewhere or via map tool
+    setMapWaypoints([...mapWaypoints, { name: '', lat: 0, lng: 0 }]);
+  }, [mapWaypoints]); // Dependency array includes mapWaypoints
+
+  const handleRemoveWaypoint = useCallback((index: number) => {
+    // Filter out the waypoint at the specified index
+    const updated = mapWaypoints.filter((_, i) => i !== index);
+    setMapWaypoints(updated);
+  }, [mapWaypoints]); // Dependency array includes mapWaypoints
+  // --- End Waypoint Handlers ---
+
 
   if (isLoadingRoute) {
     return <div className="text-center p-4">Loading route data...</div>;
@@ -633,6 +686,57 @@ const EditRoutePage = () => {
           />
            <p className="text-xs text-gray-500 mt-1">AI generated, can be edited.</p>
         </div>
+
+        {/* --- Waypoints Section --- */}
+        {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (
+          <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">Waypoints / Stops</h3>
+            {mapWaypoints && mapWaypoints.length > 0 ? (
+              <div className="space-y-4">
+                {mapWaypoints.map((wp, index) => (
+                  <div key={index} className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group">
+                     <div className="flex justify-between items-start">
+                       <span className="text-xs font-medium text-gray-500">Stop {index + 1}</span>
+                       <button
+                         type="button" // Important: prevent form submission
+                         onClick={() => handleRemoveWaypoint(index)}
+                         className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
+                         aria-label={`Remove waypoint ${index + 1}`}
+                       >
+                         &#x2715; {/* Cross symbol */}
+                       </button>
+                     </div>
+                    <input
+                      type="text"
+                      value={wp.name || ''} // Ensure value is controlled
+                      onChange={(e) => handleWaypointChange(index, 'name', e.target.value)}
+                      placeholder="Waypoint name (e.g., La Fortuna Waterfall)"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    {/* Display Lat/Lng (read-only in this basic form) */}
+                    <div className="text-xs text-gray-500">
+                      Lat: {wp.lat?.toFixed(6) ?? 'N/A'}, Lng: {wp.lng?.toFixed(6) ?? 'N/A'}
+                    </div>
+                    {/* Removed description textarea */}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mt-2">No waypoints defined. Add stops relevant to this route.</p>
+            )}
+
+            <button
+              type="button" // Important: prevent form submission
+              onClick={handleAddWaypoint}
+              className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium py-1 px-3 border border-blue-300 rounded hover:bg-blue-50"
+            >
+              + Add Waypoint
+            </button>
+             <p className="text-xs text-gray-500 mt-2">Waypoints are shown on the route page for Private Driving and Sightseeing Shuttle types.</p>
+          </div>
+        )}
+        {/* --- End Waypoints Section --- */}
+
 
         {/* Meta Title */}
         <div>
