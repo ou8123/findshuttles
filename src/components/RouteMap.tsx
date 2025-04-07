@@ -1,5 +1,6 @@
 "use client";
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   GoogleMap,
@@ -149,30 +150,45 @@ const RouteMap: React.FC<RouteMapProps> = ({
      }
    }, [isLoaded, fetchDirections, departureLat, departureLng, destinationLat, destinationLng]); // Rerun if fetchDirections or coords change
 
+  // Simplified onMapLoad just to store the map instance
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     console.log("Map instance stored.");
-    // Fit bounds manually when path is decoded or if only markers are shown
+  }, []);
+
+  // useEffect to adjust map view when decodedPath changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !window.google || !window.google.maps) {
+      console.log("Map or Google Maps API not ready for bounds adjustment.");
+      return;
+    }
+
+    // Fit bounds manually when path is decoded
     if (decodedPath.length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
       decodedPath.forEach(point => bounds.extend(point));
       // Add waypoints to bounds if they exist
       waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
+
+      // Use fitBounds without padding to zoom as close as possible while showing everything
       map.fitBounds(bounds);
-      console.log("Fitted map bounds to decoded path and waypoints");
-    } else if (!directionsResult && !error) { // Initial load before fetch
+      console.log("Effect: Fitted map bounds to path and waypoints (no padding)");
+
+    } else if (!directionsResult && !error) { // Initial load before fetch or if reset
        map.setCenter(center);
        map.setZoom(8);
-       console.log("Set initial map center and zoom");
+       console.log("Effect: Set initial map center and zoom");
     } else if (error || (directionsResult && decodedPath.length === 0)) { // On error or if fetch succeeded but no path, fit to start/end/waypoints
        const bounds = new window.google.maps.LatLngBounds();
        bounds.extend(new window.google.maps.LatLng(departureLat, departureLng));
        bounds.extend(new window.google.maps.LatLng(destinationLat, destinationLng));
        waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
-       map.fitBounds(bounds);
-       console.log("Fitted map bounds to start/end/waypoints due to error or missing path");
+       map.fitBounds(bounds); // Use fitBounds here as a fallback for errors
+       console.log("Effect: Fitted map bounds to start/end/waypoints due to error or missing path");
     }
-  }, [center, directionsResult, decodedPath, error, departureLat, departureLng, destinationLat, destinationLng, waypoints]);
+  }, [decodedPath, mapRef, center, directionsResult, error, departureLat, departureLng, destinationLat, destinationLng, waypoints]); // Dependencies for the effect
+
 
   if (loadError) {
     console.error("Map load error:", loadError);
@@ -204,7 +220,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
-        zoom={8}
+        zoom={8} // Initial zoom, will be overridden by fitBounds
         onLoad={onMapLoad}
         options={{
             mapTypeControl: false,

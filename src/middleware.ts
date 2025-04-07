@@ -168,7 +168,8 @@ if (pathname.startsWith('/api/auth/') ||
 }
 
 // Skip middleware for API routes that need direct access
-if (pathname.startsWith('/api/locations') ||
+if (pathname.startsWith('/api/admin/') || // Add bypass for all admin APIs
+    pathname.startsWith('/api/locations') ||
     pathname.startsWith('/api/routes') ||
     pathname.startsWith('/api/valid-destinations')) {
   console.log(`Middleware bypassed for API route: ${pathname}`);
