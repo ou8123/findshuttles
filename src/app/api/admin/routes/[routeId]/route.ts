@@ -247,11 +247,11 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
         const departureCountryNameForGen = departureCity?.country?.name; // Get country name from fetched city data
 
         if (departureCityNameForGen && departureCountryNameForGen && estimatedDurationMinutes > 0) { // Check country name too
-            console.log(`Attempting to generate waypoints for ${departureCityNameForGen}, ${departureCountryNameForGen}, duration: ${estimatedDurationMinutes} mins (Update)`);
+            console.log(`[Waypoint Gen Call Debug] Calling getSuggestedWaypoints with: city=${departureCityNameForGen}, country=${departureCountryNameForGen}, duration=${estimatedDurationMinutes}`); // Log parameters
             try {
                 const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
                     city: departureCityNameForGen, 
-                    country: departureCountryNameForGen, // Pass country name
+                    country: departureCountryNameForGen, 
                     durationMinutes: estimatedDurationMinutes,
                 });
                 if (waypointsArray.length > 0) {
