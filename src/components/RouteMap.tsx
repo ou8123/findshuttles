@@ -5,40 +5,45 @@ import {
   GoogleMap,
   useJsApiLoader,
   MarkerF as Marker,
-  Polyline,
+  Polyline, // Need Polyline for manual drawing
+  // DirectionsRenderer, // No longer using this
 } from '@react-google-maps/api';
+import { WaypointStop } from '@/lib/aiWaypoints';
+
+// Use the actual google.maps type for the final state
+type ClientDirectionsResult = google.maps.DirectionsResult;
 
 interface RouteMapProps {
   departureLat: number;
   departureLng: number;
   destinationLat: number;
   destinationLng: number;
+  waypoints?: WaypointStop[] | null; // Array of { lat: number, lng: number } or null/undefined
 }
 
-const libraries: ("places" | "geometry")[] = ['places', 'geometry']; 
-
-interface DirectionsData {
-  overview_polyline?: string;
-  bounds?: google.maps.LatLngBoundsLiteral; 
-}
+const libraries: ("places" | "geometry")[] = ['places', 'geometry'];
 
 const RouteMap: React.FC<RouteMapProps> = ({
   departureLat,
   departureLng,
   destinationLat,
   destinationLng,
+  waypoints,
 }) => {
-  // --- Hooks called unconditionally at the top level ---
-  const [path, setPath] = useState<google.maps.LatLng[] | null>(null); 
-  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBoundsLiteral | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // State to hold the raw directions result from the API
+  const [directionsResult, setDirectionsResult] = useState<any | null>(null); // Use 'any' for now, or a more specific raw type
+  // State to hold the decoded polyline path
+  const [decodedPath, setDecodedPath] = useState<google.maps.LatLng[]>([]);
   const requestMadeRef = useRef(false);
-  const mapRef = useRef<google.maps.Map | null>(null); 
+  const mapRef = useRef<google.maps.Map | null>(null);
+  // Use the FRONTEND key ONLY for loading the JS API (map display)
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
-    libraries: libraries,
+    libraries,
+    version: "weekly",
   });
 
   const center = useMemo(() => ({
@@ -52,108 +57,128 @@ const RouteMap: React.FC<RouteMapProps> = ({
     borderRadius: '8px',
   }), []);
 
-  const fetchDirectionsData = useCallback(async () => {
-    if (!isLoaded || !window.google?.maps?.geometry?.encoding) { 
-        console.warn("Google Maps API or geometry library not loaded yet.");
-        setError("Map components not fully loaded yet."); 
-        return; 
+  // --- Fetch Directions using SERVER-SIDE API endpoint ---
+  const fetchDirections = useCallback(async () => {
+    // Only need isLoaded to ensure map container is ready
+    if (!isLoaded) {
+      console.warn("Google Maps API not loaded yet for fetch trigger.");
+      return;
     }
-
-    const apiUrl = `/api/routes/directions?origin=${departureLat},${departureLng}&destination=${destinationLat},${destinationLng}`;
+    // Prevent duplicate requests
+    if (requestMadeRef.current) {
+      console.log("Directions request already attempted via API.");
+      return;
+    }
+    requestMadeRef.current = true; // Mark request as attempted
 
     try {
-      console.log(`Fetching directions data from backend: ${apiUrl}`);
+      const origin = `${departureLat},${departureLng}`;
+      const destination = `${destinationLat},${destinationLng}`;
+      const params = new URLSearchParams({ origin, destination });
+
+      // Add waypoints if they exist
+      if (waypoints && waypoints.length > 0) {
+        // Server expects JSON string of {lat, lng} array
+        const waypointsString = JSON.stringify(waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })));
+        params.append('waypoints', waypointsString);
+      }
+
+      const apiUrl = `/api/routes/get-directions?${params.toString()}`;
+      console.log(`Attempting server-side directions fetch: ${apiUrl}`);
+
       const response = await fetch(apiUrl);
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to fetch directions: ${response.status}`);
-      }
-      
-      const data: DirectionsData = await response.json();
-      console.log("Received data from backend:", data); 
-      
-      if (data.overview_polyline) {
-        const decodedPath = window.google.maps.geometry.encoding.decodePath(data.overview_polyline);
-        setPath(decodedPath);
-        console.log("Successfully decoded polyline.");
+        console.error(`Server-side Directions fetch failed. Status: ${response.status}`, data);
+        setError(data.error || `Failed to fetch directions: ${response.statusText}`);
+        setDirectionsResult(null); // Corrected state setter
+        setDecodedPath([]);      // Clear path on error
       } else {
-         console.warn("No overview_polyline found in response.");
-         setError("Route path could not be determined.");
-         setPath(null);
-      }
+        console.log("Server-side Directions fetch successful (raw):", data);
 
-      if (data.bounds) {
-         setMapBounds(data.bounds);
-         console.log("Using bounds from directions response.");
-      } else {
-         const fallbackBounds = new window.google.maps.LatLngBounds();
-         fallbackBounds.extend(new window.google.maps.LatLng(departureLat, departureLng));
-         fallbackBounds.extend(new window.google.maps.LatLng(destinationLat, destinationLng));
-         setMapBounds(fallbackBounds.toJSON()); 
-         console.log("Using calculated fallback bounds.");
+        // Basic check for essential data
+        if (data && data.routes && data.routes.length > 0) {
+           // Store the raw result
+           setDirectionsResult(data);
+           setError(null);
+
+           // Decode the polyline
+           if (data.routes[0]?.overview_polyline?.points) {
+             if (window.google?.maps?.geometry?.encoding) {
+               try {
+                 const path = window.google.maps.geometry.encoding.decodePath(data.routes[0].overview_polyline.points);
+                 setDecodedPath(path);
+                 console.log("Decoded polyline path:", path);
+               } catch (decodeError: any) {
+                 console.error("Error decoding polyline:", decodeError);
+                 setError("Failed to decode route path.");
+                 setDecodedPath([]);
+               }
+             } else {
+               console.error("Google Maps geometry library not loaded for polyline decoding.");
+               setError("Failed to decode route path.");
+               setDecodedPath([]);
+             }
+           } else {
+             console.error("Overview polyline missing in directions response.");
+             setError("Could not find route path in response.");
+             setDecodedPath([]);
+           }
+        } else {
+          console.error("Server-side Directions response missing routes:", data);
+          setError("Received invalid directions data from server.");
+          setDirectionsResult(null); // Corrected state setter
+          setDecodedPath([]);      // Clear path on error
+        }
       }
-      setError(null); 
-    } catch (err) {
-      console.error('Error fetching or processing directions data:', err);
-      let message = "Unable to fetch route details. Displaying markers only.";
-      if (err instanceof Error) {
-          message = err.message; 
-      }
-      setError(message);
-      setPath(null); 
-      setMapBounds(null); 
+    } catch (err: any) {
+      console.error('Error fetching directions from API:', { error: err, message: err.message });
+      setError(err.message || "Failed to fetch directions from server.");
+      setDirectionsResult(null); // Corrected state setter
+      setDecodedPath([]);
     }
-  }, [isLoaded, departureLat, departureLng, destinationLat, destinationLng]);
+  }, [isLoaded, departureLat, departureLng, destinationLat, destinationLng, waypoints]);
 
-  useEffect(() => {
-    if (isLoaded && window.google?.maps?.geometry?.encoding && !requestMadeRef.current) { 
-      requestMadeRef.current = true;
-      fetchDirectionsData();
-    }
-    return () => {
-      requestMadeRef.current = false; 
-    };
-  }, [isLoaded, fetchDirectionsData]); 
+   // --- Effect to trigger directions fetch ---
+   useEffect(() => {
+     // Trigger fetch once the map API is loaded and coordinates are valid
+     if (isLoaded && !requestMadeRef.current && departureLat && departureLng && destinationLat && destinationLng) {
+       console.log("Map loaded, triggering fetchDirections via API.");
+       fetchDirections();
+     }
+   }, [isLoaded, fetchDirections, departureLat, departureLng, destinationLat, destinationLng]); // Rerun if fetchDirections or coords change
 
-  // Simplified onLoad - just store the map instance
-  const onMapLoad = (map: google.maps.Map) => {
+  const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     console.log("Map instance stored.");
-  };
+    // Fit bounds manually when path is decoded or if only markers are shown
+    if (decodedPath.length > 0) {
+      const bounds = new window.google.maps.LatLngBounds();
+      decodedPath.forEach(point => bounds.extend(point));
+      // Add waypoints to bounds if they exist
+      waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
+      map.fitBounds(bounds);
+      console.log("Fitted map bounds to decoded path and waypoints");
+    } else if (!directionsResult && !error) { // Initial load before fetch
+       map.setCenter(center);
+       map.setZoom(8);
+       console.log("Set initial map center and zoom");
+    } else if (error || (directionsResult && decodedPath.length === 0)) { // On error or if fetch succeeded but no path, fit to start/end/waypoints
+       const bounds = new window.google.maps.LatLngBounds();
+       bounds.extend(new window.google.maps.LatLng(departureLat, departureLng));
+       bounds.extend(new window.google.maps.LatLng(destinationLat, destinationLng));
+       waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
+       map.fitBounds(bounds);
+       console.log("Fitted map bounds to start/end/waypoints due to error or missing path");
+    }
+  }, [center, directionsResult, decodedPath, error, departureLat, departureLng, destinationLat, destinationLng, waypoints]);
 
-  // Effect to fit bounds - runs only when mapRef or mapBounds changes
-  useEffect(() => {
-    // Ensure map instance and bounds are available
-    if (mapRef.current && mapBounds) { 
-      console.log("Attempting to fit bounds:", mapBounds);
-      try {
-        // Check if mapBounds is a valid LatLngBoundsLiteral
-        if (mapBounds.north !== undefined && mapBounds.south !== undefined && mapBounds.east !== undefined && mapBounds.west !== undefined) {
-          const bounds = new window.google.maps.LatLngBounds(mapBounds); 
-          mapRef.current.fitBounds(bounds);
-          console.log("Map bounds fitted via useEffect.");
-        } else {
-           console.warn("mapBounds state is not a valid LatLngBoundsLiteral:", mapBounds);
-           // Fallback if bounds are invalid
-           mapRef.current.setCenter(center);
-           mapRef.current.setZoom(8);
-        }
-      } catch (e) {
-         console.error("Error fitting bounds:", e);
-         mapRef.current.setCenter(center);
-         mapRef.current.setZoom(8);
-      }
-    } 
-    // Removed the else block that centered map if bounds were null, 
-    // as initial center/zoom on GoogleMap component should handle this.
-  }, [mapBounds, center]); // Depend on mapBounds and center
-
-  // --- Conditional returns MUST come AFTER all hook calls ---
   if (loadError) {
     console.error("Map load error:", loadError);
     return (
       <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
-        Error loading map. Please check your API key and internet connection.
+        Error loading map components. Please check API key and internet connection.
       </div>
     );
   }
@@ -166,7 +191,9 @@ const RouteMap: React.FC<RouteMapProps> = ({
     );
   }
 
-  // --- Render logic ---
+  // Log state
+  console.log("Rendering RouteMap. Decoded path length:", decodedPath.length, " Error:", error);
+
   return (
     <>
       {error && (
@@ -176,33 +203,35 @@ const RouteMap: React.FC<RouteMapProps> = ({
       )}
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={center} // Initial center
-        zoom={8}      // Initial zoom
-        onLoad={onMapLoad} // Store map instance
-        // Let the useEffect handle fitting bounds
+        center={center}
+        zoom={8}
+        onLoad={onMapLoad}
+        options={{
+            mapTypeControl: false,
+            streetViewControl: false
+        }}
       >
-        {/* Always show markers */}
-        <Marker
-          position={{ lat: departureLat, lng: departureLng }}
-          label="A"
-        />
-        <Marker
-          position={{ lat: destinationLat, lng: destinationLng }}
-          label="B"
-        />
-        
-        {/* Render Polyline if path is available */}
-        {path && (
+        {/* Manual Polyline */}
+        {decodedPath.length > 0 && (
           <Polyline
-            path={path}
+            path={decodedPath}
             options={{
-              strokeColor: '#FF0000', // Red color for the route
-              strokeOpacity: 0.8,
-              strokeWeight: 4,
-              geodesic: true,
+              strokeColor: '#4A90E2',
+              strokeOpacity: 0.9,
+              strokeWeight: 5
             }}
           />
         )}
+
+        {/* Manual Markers */}
+        {/* Start Marker */}
+        <Marker position={{ lat: departureLat, lng: departureLng }} label="A" />
+        {/* End Marker */}
+        <Marker position={{ lat: destinationLat, lng: destinationLng }} label="B" />
+        {/* Waypoint Markers */}
+        {waypoints && waypoints.map((wp, index) => (
+            <Marker key={`wp-${index}`} position={{ lat: wp.lat, lng: wp.lng }} label={`${index + 1}`} />
+        ))}
       </GoogleMap>
     </>
   );
