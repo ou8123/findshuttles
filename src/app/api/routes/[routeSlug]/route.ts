@@ -170,16 +170,9 @@ export async function GET(req: Request, context: any) {
       );
     }
 
-    // Temporarily add debug info to response
-    const debugResponse = {
-      routeData: route,
-      debug: {
-        originalSlug: params.routeSlug, // Show the original slug from context
-        finalSlugUsed: routeSlug // Show the slug used for the successful DB query
-      }
-    };
-    return NextResponse.json(debugResponse);
-    
+    // Return the original route data
+    return NextResponse.json(route);
+
   } catch (error) {
     console.error('Error fetching route:', error);
     return NextResponse.json(

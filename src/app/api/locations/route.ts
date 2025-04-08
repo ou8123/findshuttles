@@ -112,18 +112,9 @@ export async function GET(request: Request) {
       console.log(`[DEBUG] Search for "${searchQuery}" found ${cities.length} matching cities.`); // Added DEBUG prefix
       // Log if Liberia was specifically found or not during search
       const foundLiberia = cities.some(city => city.name.toLowerCase() === 'liberia');
-      console.log(`[DEBUG] Liberia found in search results: ${foundLiberia}`);
+      console.log(`[DEBUG] Liberia found in search results: ${foundLiberia}`); // [DEBUG] logging can be removed later if desired
       
-      // Temporarily add debug info to response
-      const debugResponse = {
-        results: searchResults,
-        debug: {
-          searchQuery: searchQuery,
-          foundCount: cities.length,
-          foundLiberia: foundLiberia
-        }
-      };
-      return addCorsHeaders(NextResponse.json(debugResponse));
+      return addCorsHeaders(NextResponse.json(searchResults));
     }
     
     // For empty searches or very short queries, return popular/featured cities
@@ -181,17 +172,9 @@ export async function GET(request: Request) {
       console.log(`[DEBUG] Returning ${popularDepartures.length} popular departure cities`); // Added DEBUG prefix
       // Log if Liberia was specifically found or not in popular
       const foundLiberiaPopular = popularDepartures.some(city => city.name.toLowerCase() === 'liberia');
-      console.log(`[DEBUG] Liberia found in popular departures: ${foundLiberiaPopular}`);
+      console.log(`[DEBUG] Liberia found in popular departures: ${foundLiberiaPopular}`); // [DEBUG] logging can be removed later if desired
       
-      // Temporarily add debug info to response
-      const debugFeaturedResponse = {
-          results: featuredResults,
-          debug: {
-              foundCount: popularDepartures.length,
-              foundLiberiaPopular: foundLiberiaPopular
-          }
-      };
-      return addCorsHeaders(NextResponse.json(debugFeaturedResponse));
+      return addCorsHeaders(NextResponse.json(featuredResults));
     }
     
     // If not searching and want all cities (unlikely use case, but still supported)
