@@ -9,6 +9,13 @@ import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Impo
 
 export const runtime = 'nodejs';
 
+// Define context type for route handlers
+interface RouteContext {
+  params: {
+    routeId: string;
+  };
+}
+
 // Common route selection fields for consistent data shape including new flags
 const routeSelect = {
   id: true,
@@ -112,14 +119,14 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
     return 240; // Default if parsing fails
 }
  
- export async function PUT(request: Request, { params }: { params: { routeId: string } }) { // Destructure params directly
+ export async function PUT(request: Request, context: RouteContext) {
   const session = await getServerSession(authOptions);
   // Ensure user is admin - corrected role check (case-insensitive)
   if (session?.user?.role?.toLowerCase() !== 'admin') { 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { routeId } = params; // Now this is fine
+  const { routeId } = context.params; // Extract from context
   let data: UpdateRouteData;
 
   try {
@@ -384,14 +391,14 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
   }
 }
 
-export async function GET(request: Request, { params }: { params: { routeId: string } }) { // Destructure params
+export async function GET(request: Request, context: RouteContext) {
   const session = await getServerSession(authOptions);
   // Corrected role check (case-insensitive)
   if (session?.user?.role?.toLowerCase() !== 'admin') { 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { routeId } = params; // Now this is fine
+  const { routeId } = context.params; // Extract from context
 
   try {
     const route = await prisma.route.findUnique({
@@ -418,14 +425,14 @@ export async function GET(request: Request, { params }: { params: { routeId: str
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { routeId: string } }) { // Destructure params
+export async function DELETE(request: Request, context: RouteContext) {
   const session = await getServerSession(authOptions);
    // Corrected role check (case-insensitive)
    if (session?.user?.role?.toLowerCase() !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { routeId } = params; // Now this is fine
+  const { routeId } = context.params; // Extract from context
 
   try {
     // First check if the route exists
