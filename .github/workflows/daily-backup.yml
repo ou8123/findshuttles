@@ -20,10 +20,11 @@ jobs:
           node-version: '20' # Use Node.js v20 or match your project's version
           cache: 'npm' # Cache npm dependencies
 
-      - name: Install PostgreSQL client (for pg_dump)
+      - name: Install PostgreSQL client v17 (for pg_dump)
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          # Install specific major version to match Neon DB
+          sudo apt-get install -y postgresql-client-17
         shell: bash
 
       - name: Install dependencies
