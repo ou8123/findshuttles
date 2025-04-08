@@ -305,8 +305,8 @@ const RouteList = () => {
                             return (
                                 <tr key={route.id} className={isDeleting ? 'opacity-50' : ''}>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-500 w-12">
-                                        {/* Calculate number based on pagination */}
-                                        {(pagination.page - 1) * pageSize + index + 1}
+                                        {/* Calculate reversed number based on total items and pagination */}
+                                        {pagination.totalItems - ((pagination.page - 1) * pageSize + index)}
                                     </td>
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                                         {route.displayName}
