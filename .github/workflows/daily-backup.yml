@@ -1,12 +1,40 @@
-name: Basic Workflow Test
+name: Daily Database Backup to Google Drive
 
 on:
-  push:
-    branches: [ main ] # Trigger on push to main
-  workflow_dispatch: # Allow manual trigger
+  schedule:
+    # Runs daily at 5:00 AM UTC. Adjust the cron schedule as needed.
+    # See: https://crontab.guru/
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
 
 jobs:
-  build:
+  backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # Set a timeout for the job
+
     steps:
-      - run: echo "Hello world from the test workflow!"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use Node.js v20 or match your project's version
+          cache: 'npm' # Cache npm dependencies
+
+      - name: Install PostgreSQL client (for pg_dump)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+        shell: bash
+
+      - name: Install dependencies
+        run: npm ci # Use 'ci' for cleaner installs in CI environments
+
+      - name: Run Backup and Upload Script
+        run: npx ts-node scripts/backup-to-gdrive.ts
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
+          # NODE_ENV: production # Optional: Set if your script behaves differently in prod
