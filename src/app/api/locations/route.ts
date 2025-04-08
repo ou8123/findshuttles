@@ -114,7 +114,16 @@ export async function GET(request: Request) {
       const foundLiberia = cities.some(city => city.name.toLowerCase() === 'liberia');
       console.log(`[DEBUG] Liberia found in search results: ${foundLiberia}`);
       
-      return addCorsHeaders(NextResponse.json(searchResults));
+      // Temporarily add debug info to response
+      const debugResponse = {
+        results: searchResults,
+        debug: {
+          searchQuery: searchQuery,
+          foundCount: cities.length,
+          foundLiberia: foundLiberia
+        }
+      };
+      return addCorsHeaders(NextResponse.json(debugResponse));
     }
     
     // For empty searches or very short queries, return popular/featured cities
@@ -174,7 +183,15 @@ export async function GET(request: Request) {
       const foundLiberiaPopular = popularDepartures.some(city => city.name.toLowerCase() === 'liberia');
       console.log(`[DEBUG] Liberia found in popular departures: ${foundLiberiaPopular}`);
       
-      return addCorsHeaders(NextResponse.json(featuredResults));
+      // Temporarily add debug info to response
+      const debugFeaturedResponse = {
+          results: featuredResults,
+          debug: {
+              foundCount: popularDepartures.length,
+              foundLiberiaPopular: foundLiberiaPopular
+          }
+      };
+      return addCorsHeaders(NextResponse.json(debugFeaturedResponse));
     }
     
     // If not searching and want all cities (unlikely use case, but still supported)
