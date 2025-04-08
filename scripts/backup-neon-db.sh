@@ -32,12 +32,21 @@ mkdir -p "$BACKUP_DIR"
 
 echo "Attempting Neon database backup to $BACKUP_FILE..."
 
-# Run the export using pg_dump
+# Define the explicit path to pg_dump v17
+PG_DUMP_CMD="/usr/lib/postgresql/17/bin/pg_dump"
+
+# Check if the command exists
+if [ ! -x "$PG_DUMP_CMD" ]; then
+  echo "Error: pg_dump command not found at $PG_DUMP_CMD. Trying default pg_dump..."
+  PG_DUMP_CMD="pg_dump" # Fallback to default if specific version not found
+fi
+
+# Run the export using the determined pg_dump command
 # Use quotes around the URL to handle special characters
 # Add --no-password to prevent prompts if password is in the URL (common for Neon)
-pg_dump "$NEON_DATABASE_URL" --no-password > "$BACKUP_FILE"
+"$PG_DUMP_CMD" "$NEON_DATABASE_URL" --no-password > "$BACKUP_FILE"
 
-# Check the exit status of pg_dump
+# Check the exit status of the pg_dump command
 if [ $? -eq 0 ]; then
   echo "✅ Database backup successful: $BACKUP_FILE"
   exit 0 # Exit successfully
