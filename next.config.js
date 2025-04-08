@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Explicitly tell Next.js to bundle bcrypt for serverless environments
-  serverExternalPackages: ['bcrypt'],
   // Configure experimental features
   experimental: {
     serverActions: {
