@@ -1,6 +1,10 @@
 name: Daily Database Backup to Google Drive
 
 on:
+  schedule:
+    # Runs daily at 5:00 AM UTC. Adjust the cron schedule as needed.
+    # See: https://crontab.guru/
+    - cron: '0 5 * * *'
   push:
     branches: [ main ] # Trigger on push to main
   workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
@@ -22,15 +26,21 @@ jobs:
 
       - name: Install PostgreSQL client v17 (for pg_dump)
         run: |
-          # Add PostgreSQL Apt Repository
+          # Add PostgreSQL Apt Repository (using modern gpg method)
           sudo apt-get update
           sudo apt-get install -y lsb-release wget ca-certificates gnupg
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           # Update package list again after adding repo
           sudo apt-get update
-          # Install specific major version to match Neon DB
+          # Ensure common files are present and install specific major version
+          sudo apt-get install -y --reinstall postgresql-client-common
           sudo apt-get install -y postgresql-client-17
+          # Verify installation path and version (for debugging)
+          echo "Listing /usr/lib/postgresql/17/bin/ ..."
+          ls -l /usr/lib/postgresql/17/bin/
+          echo "Checking pg_dump version..."
+          /usr/lib/postgresql/17/bin/pg_dump --version
         shell: bash
 
       - name: Install dependencies
