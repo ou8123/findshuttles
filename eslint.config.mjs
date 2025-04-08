@@ -1,7 +1,55 @@
 import nextPlugin from '@next/eslint-plugin-next';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
-import globals from 'globals'; // Import globals
+import globals from 'globals';
+
+// Define the Next.js plugin configuration object
+const nextConfig = {
+  files: ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx'],
+  plugins: {
+    '@next': nextPlugin
+  },
+  rules: {
+    ...nextPlugin.configs.recommended.rules,
+    ...nextPlugin.configs['core-web-vitals'].rules,
+  }
+};
+
+// Define the base TypeScript configuration object
+const tsBaseConfig = {
+  files: ['**/*.ts', '**/*.tsx'],
+  plugins: {
+    '@typescript-eslint': tsPlugin,
+  },
+  languageOptions: {
+    parser: tsParser,
+    parserOptions: {
+      project: './tsconfig.json',
+    },
+    globals: {
+      ...globals.browser,
+      ...globals.node,
+    }
+  },
+  rules: {
+    // General JS/React rules (apply to TS/TSX too)
+    'no-console': ['warn', { allow: ['warn', 'error', 'log'] }],
+    'prefer-const': 'error',
+    'no-var': 'error',
+    'no-unused-expressions': 'off',
+    'react/prop-types': 'off',
+    'react/react-in-jsx-scope': 'off',
+
+    // TypeScript specific rules
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-empty-interface': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/no-unused-expressions': 'off',
+  }
+};
 
 export default [
   {
@@ -10,59 +58,11 @@ export default [
       'node_modules/**/*',
       'netlify-build.js',
       'seed-production.js',
-      'db_backups/**/*', // Ignore backup directory
+      'db_backups/**/*',
     ]
   },
-  // Base configuration for JS/TS files
-  {
-    files: ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx'],
-    languageOptions: {
-      globals: {
-        ...globals.browser, // Add browser globals
-        ...globals.node,   // Add Node.js globals
-      }
-    },
-    plugins: {
-      '@typescript-eslint': tsPlugin,
-      '@next': nextPlugin, // Explicitly declare plugin here too
-    },
-    rules: {
-      // Apply Next.js recommended rules
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs['core-web-vitals'].rules,
-
-      // General rules (can override plugin rules if needed)
-      'no-console': ['warn', { allow: ['warn', 'error', 'log'] }], // Allow log for debugging
-      'prefer-const': 'error',
-      'no-var': 'error',
-      'no-unused-expressions': 'off', // Allow unused expressions
-
-      // React specific rules (often handled by Next.js plugin)
-      'react/prop-types': 'off',
-      'react/react-in-jsx-scope': 'off',
-    }
-  },
-  // TypeScript specific configuration
-  {
-    files: ['**/*.ts', '**/*.tsx'],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: './tsconfig.json',
-      },
-    },
-    rules: {
-      // TypeScript specific rules (can override base rules)
-      '@typescript-eslint/no-unused-vars': ['warn', { // Changed to warn for dev flexibility
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_'
-      }],
-      '@typescript-eslint/no-explicit-any': 'warn', // Changed to warn
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-empty-interface': 'warn', // Changed to warn
-      '@typescript-eslint/no-non-null-assertion': 'warn', // Changed to warn
-      '@typescript-eslint/no-unused-expressions': 'off', // Allow unused expressions
-    }
-  }
+  // Apply the configurations
+  nextConfig,
+  tsBaseConfig,
+  // You can add more specific overrides here if needed
 ];
