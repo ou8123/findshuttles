@@ -1,10 +1,8 @@
 name: Daily Database Backup to Google Drive
 
 on:
-  schedule:
-    # Runs daily at 5:00 AM UTC. Adjust the cron schedule as needed.
-    # See: https://crontab.guru/
-    - cron: '0 5 * * *'
+  push:
+    branches: [ main ] # Trigger on push to main
   workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
 
 jobs:
