@@ -30,7 +30,9 @@ jobs:
         run: npm ci # Use 'ci' for cleaner installs in CI environments
 
       - name: Run Backup and Upload Script
-        run: npx ts-node scripts/backup-to-gdrive.ts
+        # Add compiler options to ensure ts-node handles modules correctly
+        run: |
+          npx ts-node --compiler-options '{"module": "CommonJS"}' scripts/backup-to-gdrive.ts
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
