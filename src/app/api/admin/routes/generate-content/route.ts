@@ -147,8 +147,8 @@ export async function POST(request: Request) {
       isSightseeingShuttle = false, // New flag
       additionalInstructions = ''
       // Extract travelTime and otherStops from requestData if needed for prompt context
-      // travelTime, 
-      // otherStops 
+      // travelTime,
+      // otherStops
     } = requestData;
 
     // Validate required fields
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
 
     // Retrieve travelTime and otherStops from the request body if available, otherwise use defaults or null
     // These might have been passed in the initial request or generated previously
-    const travelTime = requestData.travelTime || null; 
+    const travelTime = requestData.travelTime || null;
     const otherStops = requestData.otherStops || []; // Default to empty array if not provided
 
     // Construct the messages array for OpenAI - ** NEW VERSION from User **
@@ -239,7 +239,9 @@ Instructions:
 - If the route is an **airport pickup**, open with a welcoming tone: e.g., “Welcome to ${destinationCountryName}” or “Adventure starts in ${destinationCountryName}…”
 - If the route is an **airport dropoff**, start with dropoff info, then offer ideas for what to do in the area if travelers have time — no farewells unless appropriate.
 - If departure and destination are the same (e.g., sightseeing route), DO NOT describe it as a transfer — highlight interesting stops or themes for the loop.
-- For **private driving service**, describe it as flexible transport: “ideal for point-to-point transfers between smaller towns or for a full-day custom itinerary.”
+- For **private driving service**:
+  - Mention that the service can be used for either flexible city-to-city transfers (especially between popular or off-the-beaten-path destinations) OR for custom tours/sightseeing trips based on traveler preferences.
+  - If \`mapWaypoints\` data is provided in the input, treat these as **sample suggestions** of possible stops, not a fixed route. You may optionally mention one or two waypoint names as examples of destinations the driver *can* include, but clarify these are just possibilities.
 - Always include **2–3 named attractions** in or near the destination: beaches, volcanoes, parks, waterfalls, cloud forests, adventure zones, etc.
 - Tie **activities to attractions** (e.g., “surfing at Playa Tamarindo,” “hiking to La Fortuna Waterfall,” “ziplining in Monteverde”).
 - Mention 1–2 relevant activities that match the attractions and local vibe.
