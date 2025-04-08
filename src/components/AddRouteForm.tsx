@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react'; // Added useCallback
 import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ContentEditorControls from './ContentEditorControls';
+import { WaypointStop } from '@/lib/aiWaypoints'; // Import WaypointStop type
 
 // Define the expected structure of the location data from the API (for lookup)
 interface CityLookup {
@@ -49,8 +50,7 @@ const AddRouteForm = () => {
   const [metaKeywords, setMetaKeywords] = useState<string>('');
   const [seoDescription, setSeoDescription] = useState<string>('');
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags, default to cityToCity
-  // Note: We don't need separate state for each boolean flag, 
-  // the single 'routeType' state handles which one is active.
+  const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
 
   // State for ChatGPT generation
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -98,17 +98,15 @@ const AddRouteForm = () => {
 
   // --- Autocomplete Helper ---
   const findMatchingCity = (placeName: string): CityLookup | null => {
-    // Normalize the input place name to match normalized DB names
     const normalizedPlaceName = placeName
       .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
 
-    if (!normalizedPlaceName) return null; // Avoid matching empty strings
+    if (!normalizedPlaceName) return null; 
 
     for (const country of locationsLookup) {
-      // Compare against the normalized name from the DB (assuming city.name is already normalized)
       const cityMatch = country.cities.find(city => city.name.trim().toLowerCase() === normalizedPlaceName);
       if (cityMatch) {
         return cityMatch;
@@ -131,11 +129,9 @@ const AddRouteForm = () => {
       return null;
     }
 
-    // Extract city and country from address components
     let cityName = '';
     let countryName = '';
     
-    // Log each component for debugging
     place.address_components.forEach(component => {
       console.log("Component:", {
         long_name: component.long_name,
@@ -144,39 +140,31 @@ const AddRouteForm = () => {
       });
     });
 
-    // --- Improved City/Country Extraction ---
-    // 1. Prioritize place.name if available and seems reasonable
     if (place.name && place.name.length > 1) {
         cityName = place.name;
         console.log("Using place.name as initial cityName:", cityName);
     }
 
-    // 2. Look for country first
     const countryComponent = place.address_components.find(c => c.types.includes('country'));
     if (countryComponent) {
         countryName = countryComponent.long_name;
     }
 
-    // 3. Look for locality (preferred city type)
     const localityComponent = place.address_components.find(c => c.types.includes('locality'));
     if (localityComponent) {
-        // If we already got a cityName from place.name, only overwrite if locality is different and more specific
         if (!cityName || (cityName !== localityComponent.long_name && localityComponent.long_name.length > 1)) {
              console.log("Overwriting/Setting cityName with locality:", localityComponent.long_name);
              cityName = localityComponent.long_name;
         }
     }
-    // 4. Fallback to administrative_area_level_1 if locality wasn't found
-    else if (!cityName) { // Only if we don't have a name from place.name or locality
+    else if (!cityName) { 
         const adminArea1Component = place.address_components.find(c => c.types.includes('administrative_area_level_1'));
         if (adminArea1Component) {
             console.log("Using administrative_area_level_1 as cityName:", adminArea1Component.long_name);
             cityName = adminArea1Component.long_name;
         }
     }
-    // --- End Improved Extraction ---
 
-    // Extract coordinates if available
     const latitude = place.geometry?.location?.lat();
     const longitude = place.geometry?.location?.lng();
 
@@ -197,7 +185,6 @@ const AddRouteForm = () => {
     setCreateLocationError(null);
     setSubmitStatus(null);
 
-    // Prepare payload including coordinates
     const payload = {
       cityName,
       countryName,
@@ -289,7 +276,6 @@ const AddRouteForm = () => {
           console.log("Matched Destination City:", matchedCity);
         } else {
           console.warn(`Selected destination "${selectedName}" not found in internal data. Attempting to find or create...`);
-          // Add log before calling
           console.log(`Calling handleFindOrCreateLocation for destination: ${selectedName}`);
           await handleFindOrCreateLocation(place, setSelectedDestinationCity);
         }
@@ -331,7 +317,6 @@ const AddRouteForm = () => {
     event.preventDefault(); // Prevent default form submission behavior that would cause a page refresh
     await submitRouteData(true);
     
-    // Do NOT call router.push() here - that would cause a redirect
     return false; // Extra safety to prevent form submission
   };
 
@@ -340,20 +325,18 @@ const AddRouteForm = () => {
     setIsSubmitting(true);
     setSubmitStatus(null);
 
-    // Log state right before validation
     console.log('submitRouteData called. States:', {
       selectedDepartureCity: selectedDepartureCity,
       selectedDestinationCity: selectedDestinationCity,
-      routeType: routeType, // Log the selected route type
+      routeType: routeType, 
+      mapWaypoints: mapWaypoints, 
     });
 
-    // Validate that cities were selected AND matched in our DB
     if (!selectedDepartureCity || !selectedDestinationCity) {
       setSubmitStatus({ success: false, message: 'Please select valid departure and destination cities from the suggestions that match cities in our system.' });
       setIsSubmitting(false);
       return;
     }
-    // Allow same departure/destination only for specific types
     if (selectedDepartureCity.id === selectedDestinationCity.id && routeType !== 'privateDriver' && routeType !== 'sightseeingShuttle') {
       setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same for this route type.' });
       setIsSubmitting(false);
@@ -363,6 +346,15 @@ const AddRouteForm = () => {
       setSubmitStatus({ success: false, message: 'Viator Widget Code is required.' });
       setIsSubmitting(false);
       return;
+    }
+
+    if (mapWaypoints.length > 0) {
+        const invalidWaypoint = mapWaypoints.some(wp => typeof wp.lat !== 'number' || typeof wp.lng !== 'number');
+        if (invalidWaypoint) {
+            setSubmitStatus({ success: false, message: 'One or more waypoints have invalid latitude or longitude values.' });
+            setIsSubmitting(false);
+            return;
+        }
     }
 
     try {
@@ -377,12 +369,12 @@ const AddRouteForm = () => {
           metaDescription: metaDescription || undefined,
           metaKeywords: metaKeywords || undefined,
           seoDescription: seoDescription || undefined,
-          // Set flags based on routeType state
           isAirportPickup: routeType === 'airportPickup',
           isAirportDropoff: routeType === 'airportDropoff',
           isCityToCity: routeType === 'cityToCity',
-          isPrivateDriver: routeType === 'privateDriver', // Pass new flag
-          isSightseeingShuttle: routeType === 'sightseeingShuttle', // Pass new flag
+          isPrivateDriver: routeType === 'privateDriver', 
+          isSightseeingShuttle: routeType === 'sightseeingShuttle', 
+          mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, 
         }),
       });
 
@@ -391,19 +383,16 @@ const AddRouteForm = () => {
 
       console.log("Route created successfully:", result);
       
-      // Store the created route info - IMPORTANT: This must happen regardless of clearForm
       setCreatedRoute({
         id: result.id,
         routeSlug: result.routeSlug
       });
 
-      // Success
       setSubmitStatus({ 
         success: true, 
         message: `Route ${clearForm ? 'created' : 'saved'} successfully! Slug: ${result.routeSlug}` 
       });
       
-      // Clear form if requested (Add Route button)
       if (clearForm) {
         setDepartureName('');
         setDestinationName('');
@@ -414,13 +403,10 @@ const AddRouteForm = () => {
         setMetaDescription('');
         setMetaKeywords('');
         setSeoDescription('');
-        setRouteType('cityToCity'); // Reset route type
+        setRouteType('cityToCity'); 
+        setMapWaypoints([]); // Clear waypoints
         if (departureInputRef.current) departureInputRef.current.value = '';
         if (destinationInputRef.current) destinationInputRef.current.value = '';
-        
-        // Do NOT reset createdRoute when clearing the form
-        // This allows users to still view the last created route
-        // setCreatedRoute(null);
       }
 
     } catch (error: unknown) {
@@ -434,6 +420,34 @@ const AddRouteForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  // --- Waypoint Handlers (Copied from Edit Form) ---
+  const handleWaypointChange = useCallback((index: number, field: 'name' | 'lat' | 'lng', value: string) => {
+    const updated = [...mapWaypoints];
+    if (updated[index]) {
+      let newValue: string | number = value;
+      if (field === 'lat' || field === 'lng') {
+        const parsed = parseFloat(value);
+        newValue = isNaN(parsed) ? value : parsed; 
+      }
+      
+      updated[index] = {
+        ...updated[index],
+        [field]: newValue 
+      };
+      setMapWaypoints(updated);
+    }
+  }, [mapWaypoints]); 
+
+  const handleAddWaypoint = useCallback(() => {
+    setMapWaypoints([...mapWaypoints, { name: '', lat: 0, lng: 0 }]);
+  }, [mapWaypoints]); 
+
+  const handleRemoveWaypoint = useCallback((index: number) => {
+    const updated = mapWaypoints.filter((_, i) => i !== index);
+    setMapWaypoints(updated);
+  }, [mapWaypoints]); 
+  // --- End Waypoint Handlers ---
 
   // --- Render Logic ---
   if (loadError) {
@@ -497,11 +511,8 @@ const AddRouteForm = () => {
         {destinationName && !selectedDestinationCity && <p className="text-xs text-orange-600 mt-1">Warning: Selected city "{destinationName}" not found in our system.</p>}
       </div>
 
-      {/* Loading/Error state for internal location data */}
       {isLoadingLocationsLookup && <p className="text-sm text-gray-500 mt-1">Loading existing location data...</p>}
       {locationLookupError && <p className="text-sm text-red-500 mt-1">{locationLookupError}</p>}
-
-      {/* Loading/Error state for find-or-create process */}
       {isCreatingLocation && <p className="text-sm text-blue-600 mt-1">Adding selected location to database...</p>}
       {createLocationError && <p className="text-sm text-red-600 mt-1">{createLocationError}</p>}
 
@@ -528,9 +539,9 @@ const AddRouteForm = () => {
           <div className="flex items-center">
             <input
               id="isAirportPickup"
-              name="routeType" // Use radio buttons for mutual exclusivity
+              name="routeType" 
               type="radio"
-              value="airportPickup" // Assign value
+              value="airportPickup" 
               checked={routeType === 'airportPickup'}
               onChange={(e) => setRouteType(e.target.value as RouteType)}
               className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -544,7 +555,7 @@ const AddRouteForm = () => {
               id="isAirportDropoff"
               name="routeType"
               type="radio"
-              value="airportDropoff" // Assign value
+              value="airportDropoff" 
               checked={routeType === 'airportDropoff'}
               onChange={(e) => setRouteType(e.target.value as RouteType)}
               className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -558,7 +569,7 @@ const AddRouteForm = () => {
               id="isCityToCity"
               name="routeType"
               type="radio"
-              value="cityToCity" // Assign value
+              value="cityToCity" 
               checked={routeType === 'cityToCity'}
               onChange={(e) => setRouteType(e.target.value as RouteType)}
               className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -567,7 +578,6 @@ const AddRouteForm = () => {
               City-to-City
             </label>
           </div>
-          {/* New Radio Buttons */}
           <div className="flex items-center">
             <input
               id="isPrivateDriver"
@@ -706,12 +716,11 @@ const AddRouteForm = () => {
                     departureCityId: selectedDepartureCity.id,
                     destinationCityId: selectedDestinationCity.id,
                     additionalInstructions: additionalInstructions.trim(),
-                    // Pass the current route type flags to the API
                     isAirportPickup: routeType === 'airportPickup',
                     isAirportDropoff: routeType === 'airportDropoff',
                     isCityToCity: routeType === 'cityToCity',
-                    isPrivateDriver: routeType === 'privateDriver', // Pass new flag
-                    isSightseeingShuttle: routeType === 'sightseeingShuttle', // Pass new flag
+                    isPrivateDriver: routeType === 'privateDriver', 
+                    isSightseeingShuttle: routeType === 'sightseeingShuttle', 
                   }),
                 });
 
@@ -725,7 +734,6 @@ const AddRouteForm = () => {
                 setMetaDescription(data.metaDescription || '');
                 setMetaKeywords(data.metaKeywords || '');
                 setSeoDescription(data.seoDescription || '');
-                // Note: travelTime and otherStops are not set by this button currently
                 setSubmitStatus({
                   success: true,
                   message: 'Content generated successfully!'
@@ -755,6 +763,71 @@ const AddRouteForm = () => {
           placeholder="Enter a detailed description for search engines..."
         />
       </div>
+
+      {/* --- Waypoints Section (Moved to bottom) --- */}
+      {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (
+        <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+          <h3 className="text-lg font-semibold mb-3 text-gray-800">Waypoints / Stops</h3>
+          {mapWaypoints && mapWaypoints.length > 0 ? (
+            <div className="space-y-4">
+              {mapWaypoints.map((wp, index) => (
+                <div key={index} className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group">
+                   <div className="flex justify-between items-start">
+                     <span className="text-xs font-medium text-gray-500">Stop {index + 1}</span>
+                     <button
+                       type="button" // Important: prevent form submission
+                       onClick={() => handleRemoveWaypoint(index)}
+                       className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
+                       aria-label={`Remove waypoint ${index + 1}`}
+                     >
+                       &#x2715; {/* Cross symbol */}
+                    </button>
+                  </div>
+                  {/* Waypoint Name Input */}
+                  <input
+                    type="text"
+                    value={wp.name || ''}
+                    onChange={(e) => handleWaypointChange(index, 'name', e.target.value)}
+                    placeholder="Waypoint name (e.g., La Fortuna Waterfall)"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
+                  />
+                  {/* Lat/Lng Inputs */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      step="any" // Allow decimals
+                      value={wp.lat ?? ''} // Handle potential undefined/null
+                      onChange={(e) => handleWaypointChange(index, 'lat', e.target.value)}
+                      placeholder="Latitude"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <input
+                      type="number"
+                      step="any" // Allow decimals
+                      value={wp.lng ?? ''} // Handle potential undefined/null
+                      onChange={(e) => handleWaypointChange(index, 'lng', e.target.value)}
+                      placeholder="Longitude"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 mt-2">No waypoints defined. Add stops relevant to this route.</p>
+          )}
+
+          <button
+            type="button" // Important: prevent form submission
+            onClick={handleAddWaypoint}
+            className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium py-1 px-3 border border-blue-300 rounded hover:bg-blue-50"
+          >
+            + Add Waypoint
+          </button>
+           <p className="text-xs text-gray-500 mt-2">Waypoints are shown on the route page for Private Driving and Sightseeing Shuttle types.</p>
+        </div>
+      )}
+      {/* --- End Waypoints Section --- */}
 
       {/* Action Buttons & Status Message */}
       <div className="pt-2">

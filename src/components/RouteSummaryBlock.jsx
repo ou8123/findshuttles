@@ -27,9 +27,21 @@ import {
   CheckCircleIcon, // Default icon
   HeartIcon, // Example for Accessibility
   AdjustmentsHorizontalIcon // Example for Customization
-} from '@heroicons/react/24/outline'; 
+} from '@heroicons/react/24/outline';
 
-// Define amenity categories and their corresponding keys (using DB names)
+// Define route type labels based on boolean flags
+const getRouteTypeLabel = (route) => {
+  if (route.isPrivateDriver) return "Private Driving Service";
+  if (route.isSightseeingShuttle) return "Sightseeing Shuttle";
+  // Combine airport checks
+  if (route.isAirportPickup || route.isAirportDropoff) return "Airport Transfer"; 
+  // Check for standard city-to-city last, as it might overlap with airport flags
+  if (route.isCityToCity) return "Shared Shuttle"; 
+  return null; // No specific type identified or default needed
+};
+
+// Define amenity categories and their corresponding keys (using DB names) - To be removed
+/*
 const amenityCategories = {
   Logistics: {
     keys: ['Hotel Pickup', 'Airport Pickup', 'Flight Delay Friendly', 'Round Trip'],
@@ -46,11 +58,11 @@ const amenityCategories = {
   Customization: {
     keys: ['Optional Stops', 'Private Shuttle', 'Photo Stops', 'Flexible Timing', 'Scenic Route', 'Guided Tour', 'Entrance Fees Included'], // Removed Bilingual Driver from here
     icon: AdjustmentsHorizontalIcon
-  }
 };
+*/
 
-// Mapping from DB amenity name to Heroicon component
-// Note: Ensure these names EXACTLY match the names stored in your Amenity table
+// Mapping from DB amenity name to Heroicon component - To be removed
+/*
 const amenityIconMap = {
   'Private Shuttle': TruckIcon,
   'A/C': SparklesIcon, // Using SparklesIcon as CheckBadgeIcon is not available in outline
@@ -70,9 +82,8 @@ const amenityIconMap = {
   'Round Trip': ArrowPathRoundedSquareIcon,
   'Guided Tour': UserGroupIcon, // Reusing UserGroupIcon
   'Flexible Timing': CalendarDaysIcon,
-  'Entrance Fees Included': TicketIcon,
 };
-
+*/
 
 /**
  * Displays the top summary block for a route page.
@@ -91,12 +102,21 @@ export default function RouteSummaryBlock({ route }) {
   const { 
     departureCity, 
     departureCountry, 
-    destinationCity, 
-    destinationCountry, 
-    otherStops, 
+    destinationCity,
+    destinationCountry,
+    otherStops,
     travelTime,
-    amenities // Expecting amenities array from the route object
+    amenities, // Keep amenities for now, might be needed elsewhere or removed later
+    // Destructure boolean flags for route type determination
+    isPrivateDriver,
+    isSightseeingShuttle,
+    isCityToCity,
+    isAirportPickup,
+    isAirportDropoff
   } = route;
+
+  // Determine route type label
+  const routeTypeLabel = getRouteTypeLabel(route);
 
   // Determine country display logic
   let countryDisplay = '';
@@ -131,25 +151,25 @@ export default function RouteSummaryBlock({ route }) {
     return formattedTime;
   };
 
-  // Filter amenities into categories
-  const categorizedAmenities = {};
-  if (amenities && Array.isArray(amenities)) {
-    for (const category in amenityCategories) {
-      categorizedAmenities[category] = amenities.filter(a => 
-        amenityCategories[category].keys.includes(a.name)
-      );
-    }
-  }
+  // Removed the logic that filtered amenities into categories as it's no longer used here.
 
   return (
     <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 shadow-sm">
-      {/* Display Name as the main heading */}
-      <h1 className="text-2xl md:text-3xl font-bold mb-3 text-gray-900 dark:text-white">
-        {route.displayName || `Shuttles from ${departureCity?.name || 'Unknown'} to ${destinationCity?.name || 'Unknown'}`}
-      </h1>
-      
+      {/* Display Name and Route Type Badge */}
+      <div className="flex items-center gap-x-3 mb-3"> {/* Flex container for title and badge */}
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+          {route.displayName || `Shuttles from ${departureCity?.name || 'Unknown'} to ${destinationCity?.name || 'Unknown'}`}
+        </h1>
+        {/* Route Type Badge */}
+        {routeTypeLabel && (
+          <span className="px-3 py-1 rounded-xl text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 whitespace-nowrap"> {/* Use bg-muted equivalent */}
+            {routeTypeLabel}
+          </span>
+        )}
+      </div>
+
       {/* Route Details */}
-      <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300 mb-4"> {/* Added mb-4 */}
+      <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
         {countryDisplay && (
           <div className="flex items-center">
             <GlobeAltIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
@@ -190,34 +210,7 @@ export default function RouteSummaryBlock({ route }) {
          )}
        </div>
 
-      {/* Categorized Highlights Grid */}
-      <div className="highlights-section mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 space-y-4">
-        {Object.entries(categorizedAmenities).map(([category, items]) => {
-          if (items.length === 0) return null; // Don't render empty categories
-
-          const CategoryIcon = amenityCategories[category].icon || CheckCircleIcon; // Fallback icon
-
-          return (
-            <div key={category}>
-              <h4 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center">
-                 <CategoryIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" /> {/* Category Icon */}
-                 {category}
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-700 dark:text-gray-300 pl-7"> {/* Indent grid items */}
-                {items.map((amenity) => {
-                  const IconComponent = amenityIconMap[amenity.name] || CheckCircleIcon; // Fallback icon per amenity
-                  return (
-                    <div key={amenity.id} className="flex items-center">
-                      <IconComponent className="h-5 w-5 mr-2 text-blue-500" /> {/* Use consistent icon size */}
-                      <span>{amenity.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* REMOVED Categorized Highlights Grid - This logic should move to a separate component or be handled differently */}
  
       {/* Link to Country Page */}
       {canLinkToCountry && (

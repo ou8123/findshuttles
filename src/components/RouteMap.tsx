@@ -20,9 +20,11 @@ interface RouteMapProps {
   destinationLat: number;
   destinationLng: number;
   waypoints?: WaypointStop[] | null; // Array of { lat: number, lng: number } or null/undefined
+  isTourRoute?: boolean; // Add prop to indicate tour type
 }
 
-const libraries: ("places" | "geometry")[] = ['places', 'geometry'];
+// Define the required libraries - ensure 'maps' is included
+const libraries: ("places" | "geometry" | "maps")[] = ['places', 'geometry', 'maps'];
 
 const RouteMap: React.FC<RouteMapProps> = ({
   departureLat,
@@ -30,7 +32,11 @@ const RouteMap: React.FC<RouteMapProps> = ({
   destinationLat,
   destinationLng,
   waypoints,
+  isTourRoute = false, // Default to false if not provided
 }) => {
+  // Log received props at the beginning
+  console.log('[RouteMap Props Received]', { departureLat, departureLng, destinationLat, destinationLng, waypoints, isTourRoute });
+
   const [error, setError] = useState<string | null>(null);
   // State to hold the raw directions result from the API
   const [directionsResult, setDirectionsResult] = useState<any | null>(null); // Use 'any' for now, or a more specific raw type
@@ -77,11 +83,23 @@ const RouteMap: React.FC<RouteMapProps> = ({
       const destination = `${destinationLat},${destinationLng}`;
       const params = new URLSearchParams({ origin, destination });
 
-      // Add waypoints if they exist
+      // Log waypoints just before the check
+      console.log('[RouteMap fetchDirections] Waypoints before check:', waypoints);
+
+      // Always add waypoints if they exist, regardless of isTourRoute
+      // The backend API will decide how to use them based on the isTour flag
       if (waypoints && waypoints.length > 0) {
         // Server expects JSON string of {lat, lng} array
         const waypointsString = JSON.stringify(waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })));
         params.append('waypoints', waypointsString);
+        console.log('[RouteMap] Appending waypoints parameter:', waypointsString); // Log added
+      } else {
+        console.log('[RouteMap] No waypoints provided or waypoints array is empty.'); // Updated log
+      }
+
+      // Add isTour parameter if applicable
+      if (isTourRoute) {
+        params.append('isTour', 'true');
       }
 
       const apiUrl = `/api/routes/get-directions?${params.toString()}`;
@@ -139,7 +157,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
       setDirectionsResult(null); // Corrected state setter
       setDecodedPath([]);
     }
-  }, [isLoaded, departureLat, departureLng, destinationLat, destinationLng, waypoints]);
+  }, [isLoaded, departureLat, departureLng, destinationLat, destinationLng, waypoints, isTourRoute]); // Add isTourRoute dependency
 
    // --- Effect to trigger directions fetch ---
    useEffect(() => {
@@ -242,8 +260,10 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {/* Manual Markers */}
         {/* Start Marker */}
         <Marker position={{ lat: departureLat, lng: departureLng }} label="A" />
-        {/* End Marker */}
-        <Marker position={{ lat: destinationLat, lng: destinationLng }} label="B" />
+        {/* End Marker (only show if NOT a tour route) */}
+        {!isTourRoute && (
+          <Marker position={{ lat: destinationLat, lng: destinationLng }} label="B" />
+        )}
         {/* Waypoint Markers */}
         {waypoints && waypoints.map((wp, index) => (
             <Marker key={`wp-${index}`} position={{ lat: wp.lat, lng: wp.lng }} label={`${index + 1}`} />

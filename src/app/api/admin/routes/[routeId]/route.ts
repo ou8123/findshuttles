@@ -112,15 +112,14 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
     return 240; // Default if parsing fails
 }
  
- export async function PUT(request: Request, context: any) {
-  const params = context.params as { routeId: string };
+ export async function PUT(request: Request, { params }: { params: { routeId: string } }) { // Destructure params directly
   const session = await getServerSession(authOptions);
   // Ensure user is admin - corrected role check (case-insensitive)
   if (session?.user?.role?.toLowerCase() !== 'admin') { 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { routeId } = params;
+  const { routeId } = params; // Now this is fine
   let data: UpdateRouteData;
 
   try {
@@ -232,35 +231,61 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
       );
     }
 
-    // --- Generate waypoints if applicable ---
-    let waypointsToSave: Prisma.JsonValue | null = data.mapWaypoints ?? null; // Default to provided or null
+    // --- Generate/Handle waypoints if applicable ---
+    let waypointsToSave: Prisma.JsonValue | null = null; // Initialize to null
 
-    // Check if we need to *generate* waypoints
-    // Regenerate if it's a tour type AND the user didn't explicitly provide waypoints in this request
-    const shouldGenerateWaypoints = (isPrivate || isSightseeing) && 
-                                    (data.mapWaypoints === undefined || data.mapWaypoints === null || (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length === 0));
-                                    // Removed the check against currentRoute.mapWaypoints - we want to regenerate if the user clears the field
+    // Determine if manual waypoints were provided and are valid
+    let manualWaypointsProvided = false;
+    let validManualWaypoints: Prisma.JsonValue | null = null;
+    if (data.mapWaypoints !== undefined && data.mapWaypoints !== null) {
+        if (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length > 0) {
+            const isValidManual = data.mapWaypoints.every(
+                (wp: any) => typeof wp === 'object' && wp !== null &&
+                             typeof wp.name === 'string' &&
+                             typeof wp.lat === 'number' &&
+                             typeof wp.lng === 'number'
+            );
+            if (isValidManual) {
+                manualWaypointsProvided = true;
+                validManualWaypoints = data.mapWaypoints as Prisma.JsonValue;
+                console.log("Valid manual mapWaypoints provided:", validManualWaypoints);
+            } else {
+                console.warn("Manual mapWaypoints provided but format is invalid (expected {name, lat, lng}). Ignoring.");
+                // Keep waypointsToSave as null
+            }
+        } else if (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length === 0) {
+             // Explicitly empty array provided - treat as manual instruction to have no waypoints
+             manualWaypointsProvided = true;
+             validManualWaypoints = null; // Represent empty/null with standard null
+             console.log("Manual empty mapWaypoints array provided.");
+        }
+        // If data.mapWaypoints was null, manualWaypointsProvided remains false
+    }
+
+
+    // Generate waypoints ONLY if it's a tour type AND valid manual waypoints were NOT provided
+    const shouldGenerateWaypoints = (isPrivate || isSightseeing) && !manualWaypointsProvided;
 
     if (shouldGenerateWaypoints) {
-        const estimatedDurationMinutes = parseDurationMinutes(data.travelTime || currentRoute.travelTime); 
-        const departureCityNameForGen = departureCity?.name; // Use the newly fetched departure city name
-        const departureCountryNameForGen = departureCity?.country?.name; // Get country name from fetched city data
+        console.log("Attempting to generate waypoints because route is tour type and no valid manual waypoints were provided.");
+        const estimatedDurationMinutes = parseDurationMinutes(data.travelTime || currentRoute.travelTime);
+        const departureCityNameForGen = departureCity?.name;
+        const departureCountryNameForGen = departureCity?.country?.name;
 
-        if (departureCityNameForGen && departureCountryNameForGen && estimatedDurationMinutes > 0) { // Check country name too
-            console.log(`[Waypoint Gen Call Debug] Calling getSuggestedWaypoints with: city=${departureCityNameForGen}, country=${departureCountryNameForGen}, duration=${estimatedDurationMinutes}`); // Log parameters
+        if (departureCityNameForGen && departureCountryNameForGen && estimatedDurationMinutes > 0) {
+            console.log(`[Waypoint Gen Call Debug] Calling getSuggestedWaypoints with: city=${departureCityNameForGen}, country=${departureCountryNameForGen}, duration=${estimatedDurationMinutes}`);
             try {
-                const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({ 
-                    city: departureCityNameForGen, 
-                    country: departureCountryNameForGen, 
+                const waypointsArray: WaypointStop[] = await getSuggestedWaypoints({
+                    city: departureCityNameForGen,
+                    country: departureCountryNameForGen,
                     durationMinutes: estimatedDurationMinutes,
                 });
                 if (waypointsArray.length > 0) {
-                    // Correctly cast array to Prisma.JsonValue
-                    waypointsToSave = waypointsArray as Prisma.JsonValue; 
+                    waypointsToSave = waypointsArray as Prisma.JsonValue;
                     console.log("Generated waypoints:", waypointsToSave);
                 } else {
-                    waypointsToSave = null; // Ensure it's null if generation returns empty
-                    console.log("Waypoint generation returned empty array.");
+                    waypointsToSave = null; // Use standard null if generation returns empty
+                    console.log("Waypoint generation returned empty array, setting to null.");
                 }
             } catch (waypointError) {
                  console.error("Error generating waypoints:", waypointError);
@@ -268,30 +293,18 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
             }
         } else {
              console.log("Skipping waypoint generation: Missing city/country name or invalid duration.");
-             waypointsToSave = null; // Ensure it's null if conditions not met
+             waypointsToSave = null; // Ensure null if conditions not met
         }
-    } else if (data.mapWaypoints !== undefined) {
-        // If waypoints were explicitly provided (even null or empty array), use that value
-        console.log("Using manually provided mapWaypoints (or null/empty array).");
-        // Basic validation for manually provided waypoints (assuming WaypointStop structure: {name, lat, lng})
-        if (Array.isArray(data.mapWaypoints) && data.mapWaypoints.length > 0) {
-             const isValidManual = data.mapWaypoints.every(
-                 (wp: any) => typeof wp === 'object' && wp !== null && 
-                              typeof wp.name === 'string' && 
-                              typeof wp.lat === 'number' && 
-                              typeof wp.lng === 'number'
-             );
-             if (!isValidManual) {
-                 console.warn("Manual mapWaypoints provided but format is invalid (expected {name, lat, lng}). Setting to null.");
-                 waypointsToSave = null; 
-             }
-             // If valid, waypointsToSave already holds data.mapWaypoints
-        } else {
-             // If null or empty array was provided, waypointsToSave is already correctly set
-             waypointsToSave = data.mapWaypoints; 
-        }
+    } else if (manualWaypointsProvided) {
+        // Use the validated manual waypoints (could be data or null for empty array)
+        console.log("Using manually provided waypoints (or explicit empty array/null).");
+        waypointsToSave = validManualWaypoints;
+    } else {
+        // Not a tour type and no manual waypoints provided, ensure it's null
+        console.log("Not a tour type and no manual waypoints provided. Setting waypoints to null.");
+        waypointsToSave = null; // Explicitly null for non-tour types without manual input
     }
-    // --- End waypoint generation ---
+    // --- End waypoint handling ---
 
 
     // Get matched amenity names and find/create amenities
@@ -331,6 +344,7 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
       isPrivateDriver: data.isPrivateDriver ?? false, 
       isSightseeingShuttle: data.isSightseeingShuttle ?? false, 
       // Use Prisma.DbNull for null, and cast to InputJsonValue otherwise
+      // Corrected: Use Prisma.DbNull only when saving null to the DB
       mapWaypoints: waypointsToSave === null ? Prisma.DbNull : (waypointsToSave as Prisma.InputJsonValue), 
       amenities: {
         set: amenityIdsToSet, // Ensure amenities are updated based on new description
@@ -370,15 +384,14 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
   }
 }
 
-export async function GET(request: Request, context: any) {
-  const params = context.params as { routeId: string };
+export async function GET(request: Request, { params }: { params: { routeId: string } }) { // Destructure params
   const session = await getServerSession(authOptions);
   // Corrected role check (case-insensitive)
   if (session?.user?.role?.toLowerCase() !== 'admin') { 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { routeId } = params;
+  const { routeId } = params; // Now this is fine
 
   try {
     const route = await prisma.route.findUnique({
@@ -405,15 +418,14 @@ export async function GET(request: Request, context: any) {
   }
 }
 
-export async function DELETE(request: Request, context: any) {
-  const params = context.params as { routeId: string };
+export async function DELETE(request: Request, { params }: { params: { routeId: string } }) { // Destructure params
   const session = await getServerSession(authOptions);
    // Corrected role check (case-insensitive)
    if (session?.user?.role?.toLowerCase() !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { routeId } = params;
+  const { routeId } = params; // Now this is fine
 
   try {
     // First check if the route exists

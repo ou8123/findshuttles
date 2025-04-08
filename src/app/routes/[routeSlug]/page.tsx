@@ -9,11 +9,13 @@ import AutoScroller from '@/components/AutoScroller';
 import FormattedDescription from '@/components/FormattedDescription';
 import RouteSummaryBlock from '@/components/RouteSummaryBlock'; // Added
 import HotelsGrid from '@/components/HotelsGrid'; // Added
-// import AmenitiesTable from '@/components/AmenitiesTable'; // Removed - Replaced by Highlights Grid
+import ItinerarySection from '@/components/ItinerarySection'; // Import the new component
+import AmenitiesTable from '@/components/AmenitiesTable'; // Import AmenitiesTable
 import Link from 'next/link'; // Ensure Link is imported if not already
 // Import necessary Heroicons for the Highlights Grid helper
 import * as HIcons from '@heroicons/react/24/outline';
 import { Prisma } from '@prisma/client'; // Import Prisma for JsonValue type
+import { Waypoint } from '@/types/common'; // Import the Waypoint type
 
 // Define the structure for a waypoint stop (matching aiWaypoints.ts)
 interface WaypointStop {
@@ -264,16 +266,44 @@ export default async function RoutePage({ params }) {
   // Safely check and filter mapWaypoints, then assert the type of the resulting array
   const filteredWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
   const validWaypoints = filteredWaypoints as unknown as WaypointStop[]; // Assert type here
-  const hasValidWaypoints = validWaypoints.length >= 2;
+  // Corrected condition: require at least 1 valid waypoint for tour map
+  const hasValidWaypoints = validWaypoints.length >= 1; 
   
-  // Determine which map type to show
+  // Determine which map type to show (Corrected Logic)
   let mapType = 'standard'; // Default to standard A-to-B
-  if (isTourType && isSameCityRoute && hasValidWaypoints) {
-    mapType = 'waypoints'; // Show custom waypoint route
-  } else if (isTourType && isSameCityRoute && !hasValidWaypoints) {
-    mapType = 'none'; // Hide map for same-city tours without waypoints
+  if (isTourType && hasValidWaypoints) { // If it's a tour AND has waypoints, show waypoint map
+    mapType = 'waypoints'; 
+  } else if (isTourType && isSameCityRoute && !hasValidWaypoints) { // If it's a same-city tour WITHOUT waypoints, show nothing
+    mapType = 'none'; 
   }
+  // Otherwise, it remains 'standard' (for non-tour routes, or tours without enough valid waypoints)
   // --- End map display logic ---
+
+  // --- Logic for Itinerary Section ---
+  const showItinerary = (route.isPrivateDriver || route.isSightseeingShuttle) && validWaypoints.length > 0;
+  let itineraryTitle = '';
+  if (showItinerary) {
+    if (route.isPrivateDriver) {
+      // Use the new title for Private Driver
+      itineraryTitle = "Sample Day Trip Itinerary with Private Driver"; 
+    } else if (route.isSightseeingShuttle) {
+      // Use the new title for Sightseeing Shuttle
+      itineraryTitle = "Sightseeing Route Overview"; 
+    }
+  }
+  // --- End Itinerary Section Logic ---
+
+  // Add logging before return
+  console.log('[RoutePage Debug]', {
+    routeSlug,
+    isTourType,
+    isSameCityRoute,
+    mapWaypointsFromDB: route.mapWaypoints, // Log raw DB data
+    filteredWaypoints, // Log after filtering
+    validWaypoints, // Log after type assertion
+    hasValidWaypoints,
+    mapType // Log the final mapType
+  });
 
   return (
     <AutoScroller scrollToSelector="#route-content">
@@ -285,8 +315,7 @@ export default async function RoutePage({ params }) {
           width: '100vw', 
           marginLeft: 'calc(-50vw + 50%)',
           marginRight: 'calc(-50vw + 50%)',
-          // Removed marginTop: '-12px' to prevent overlap with header
-          position: 'relative', // Ensure proper stacking context
+          position: 'relative', 
         }}>
           <div className="py-10 px-4">
             <SearchForm 
@@ -317,8 +346,11 @@ export default async function RoutePage({ params }) {
 
           {/* === Layout Order === */}
 
-          {/* 1. Top Route Summary Block */}
+          {/* 1. Top Route Summary Block (Now includes Route Type Badge) */}
           <RouteSummaryBlock route={route} />
+
+          {/* NEW: Amenities Highlights Grid */}
+          <AmenitiesTable amenities={route.amenities} /> 
 
           {/* 4. Hotels Served (Optional) */}
           <HotelsGrid hotels={route.hotelsServed} />
@@ -330,13 +362,11 @@ export default async function RoutePage({ params }) {
                 Route Description
                </h2>
               <div className="p-4 bg-white dark:bg-gray-900 rounded shadow-sm">
-                {/* Standard disclaimer - Moved inside div, above description */}
                 <p className="text-sm italic font-bold text-red-600 dark:text-red-400 mb-3"> 
                   Route descriptions often refer only to the first listing shown.<br />
                   Amenities and services vary by provider.<br />
                   Please review individual listings before booking.
                 </p>
-                {/* Render the seoDescription from DB (should NOT contain summary line now) */}
                 <FormattedDescription 
                   text={route.seoDescription} 
                   className="text-current dark:text-gray-200"
@@ -348,7 +378,6 @@ export default async function RoutePage({ params }) {
            {/* 5. Widgets / Listings Section */}
            <div className="booking-section mb-8">
              <h2 className="text-xl font-semibold mb-3">Book Your Shuttle</h2> 
-               {/* Widget with simple implementation that works reliably */}
                {route.viatorWidgetCode ? (
                 <ViatorSimpleWidget 
                   key={`viator-${route.routeSlug}`} 
@@ -359,13 +388,27 @@ export default async function RoutePage({ params }) {
               ) : (
                 <div className="flex items-center justify-center h-64 bg-gray-50 border border-gray-200 rounded">
                   <p className="text-gray-500">Booking widget not available for this route.</p>
-                </div>
-              )}
+                 </div>
+               )}
             </div>
+
+            {/* MOVED: Conditional Itinerary Section (Now after booking widget) */}
+            {showItinerary && (
+              <ItinerarySection 
+                title={itineraryTitle} 
+                waypoints={validWaypoints as Waypoint[]} // Pass validated waypoints, assert type
+                // Pass necessary props for directions fetching
+                departureCity={route.departureCity}
+                destinationCity={route.destinationCity}
+                isTourRoute={isTourType} 
+              />
+            )}
             
-             {/* 6. Map Section (Bottom of Page) - Conditional Rendering */}
-            <div className="map-section my-8">
-              {mapType === 'standard' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
+             {/* 6. Map Section (Bottom of Page) - Conditionally Render based on route type */}
+             {/* Show this original map ONLY if it's NOT a Private Driver or Sightseeing Shuttle route */}
+             { !showItinerary && (
+               <div className="map-section my-8">
+                 {mapType === 'standard' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
                 <>
                   <h2 className="text-xl font-semibold mb-3">Estimated Route</h2> 
                   <RouteMap
@@ -373,19 +416,20 @@ export default async function RoutePage({ params }) {
                     departureLng={route.departureCity.longitude}
                     destinationLat={route.destinationCity.latitude}
                     destinationLng={route.destinationCity.longitude}
+                    isTourRoute={isTourType} // Pass the tour flag
                   />
                 </>
               )}
               {mapType === 'waypoints' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
                  <>
                    <h2 className="text-xl font-semibold mb-3">Suggested Route with Stops</h2>
-                   {/* Render RouteMap with waypoints */}
                    <RouteMap
                      departureLat={route.departureCity.latitude}
                      departureLng={route.departureCity.longitude}
-                     destinationLat={route.destinationCity.latitude}
-                     destinationLng={route.destinationCity.longitude}
-                     waypoints={(validWaypoints as unknown) as WaypointStop[]}
+                     destinationLat={route.destinationCity.latitude} // Still pass destination for potential centering/fallback
+                     destinationLng={route.destinationCity.longitude} // Still pass destination for potential centering/fallback
+                     waypoints={validWaypoints} // Pass the validated waypoints
+                     isTourRoute={isTourType} // Pass the tour flag
                     />
                     <p className="text-xs text-gray-500 mt-1 text-center">This is a suggested route based on popular stops. Actual route may vary.</p>
 
@@ -394,12 +438,9 @@ export default async function RoutePage({ params }) {
                       <div className="mt-6">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Stops Along the Way</h3>
                         <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1 text-sm">
-                          {/* Assert the type via unknown first */}
-                          {(validWaypoints as unknown as WaypointStop[]).map((waypoint, index) => ( 
+                          {validWaypoints.map((waypoint, index) => ( 
                             <li key={index}>
                               {waypoint.name || `Stop ${index + 1}`} 
-                              {/* Optionally display coordinates if needed, but name is usually sufficient here */}
-                              {/* {wp.lat && wp.lng ? ` (Lat: ${wp.lat.toFixed(4)}, Lng: ${wp.lng.toFixed(4)})` : ''} */}
                             </li>
                           ))}
                         </ul>
@@ -410,12 +451,13 @@ export default async function RoutePage({ params }) {
                )}
                 {mapType === 'none' && (
                  <div className="flex items-center justify-center h-32 bg-gray-50 border border-dashed border-gray-300 rounded">
-                   <p className="text-gray-500 italic">Map directions not applicable for this same-city tour/service.</p>
-                 </div>
-               )}
-             </div>
+                    <p className="text-gray-500 italic">Map directions not applicable for this same-city tour/service.</p>
+                  </div>
+                )}
+               </div>
+             )}
   
-             {/* 7. Cities Served List - Skipped as requested */}
+              {/* 7. Cities Served List - Skipped as requested */}
   
              {/* 8. Link to Destination Country Page */}
              {route.destinationCountry?.slug && route.destinationCountry?.name && (
@@ -442,7 +484,6 @@ export default async function RoutePage({ params }) {
                "@type": "ListItem",
                "position": index + 1,
                "name": item.name,
-               // Use NEXT_PUBLIC_SITE_URL from env, fallback needed
                ...(item.current ? {} : { "item": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'}${item.href}` }) 
              }))
            }) }}

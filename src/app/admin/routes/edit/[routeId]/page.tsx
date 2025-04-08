@@ -61,11 +61,7 @@ const EditRoutePage = () => {
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [travelTime, setTravelTime] = useState(''); 
   const [otherStops, setOtherStops] = useState(''); 
-  // Removed suggestedHotelsList state
-  // const [suggestedHotelsList, setSuggestedHotelsList] = useState<string[]>([]); 
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags
-  // Note: We don't need separate state for each boolean flag, 
-  // the single 'routeType' state handles which one is active.
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestedAmenityIds, setSuggestedAmenityIds] = useState<string[]>([]); // State for suggested amenities
@@ -87,19 +83,16 @@ const EditRoutePage = () => {
   useEffect(() => {
     const fetchAllAmenities = async () => {
       try {
-        // Assuming an API endpoint exists to fetch all amenities
-        // TODO: Create /api/admin/amenities if it doesn't exist
         const response = await fetch('/api/admin/amenities'); 
         if (!response.ok) throw new Error('Failed to fetch amenities');
         const data = await response.json();
-        setAllAmenities(data.amenities || []); // Assuming response is { amenities: [...] }
+        setAllAmenities(data.amenities || []); 
       } catch (err) {
         console.error("Failed to fetch all amenities:", err);
-        // Handle error appropriately, maybe show a message
       }
     };
     fetchAllAmenities();
-  }, []); // Runs once on component mount
+  }, []); 
 
   // Fetch all available cities
   useEffect(() => {
@@ -151,10 +144,8 @@ const EditRoutePage = () => {
           throw new Error('Invalid route data received from API.');
         }
         
-        // Store original data
         setOriginalData(routeData);
         
-        // Populate form state including new fields
         setDepartureCityId(routeData.departureCityId);
         setDestinationCityId(routeData.destinationCityId);
         setRouteSlug(routeData.routeSlug);
@@ -167,20 +158,17 @@ const EditRoutePage = () => {
         setTravelTime(routeData.travelTime ?? '');
         setOtherStops(routeData.otherStops ?? '');
         setAdditionalInstructions(routeData.additionalInstructions ?? '');
-        // Initialize mapWaypoints state - ensure it's an array
         setMapWaypoints(Array.isArray(routeData.mapWaypoints) ? routeData.mapWaypoints : []);
 
-        // Set initial routeType based on fetched flags
         if (routeData.isAirportPickup) {
           setRouteType('airportPickup');
         } else if (routeData.isAirportDropoff) {
           setRouteType('airportDropoff');
-        } else if (routeData.isPrivateDriver) { // Check new flag
+        } else if (routeData.isPrivateDriver) { 
           setRouteType('privateDriver');
-        } else if (routeData.isSightseeingShuttle) { // Check new flag
+        } else if (routeData.isSightseeingShuttle) { 
           setRouteType('sightseeingShuttle');
         } else { 
-          // Default to cityToCity if none of the specific flags are true
           setRouteType('cityToCity'); 
         }
       } catch (err: unknown) {
@@ -199,14 +187,14 @@ const EditRoutePage = () => {
   }, [routeId]);
 
   // Helper to determine original route type for comparison
-  const getOriginalRouteType = (): RouteType | null => { // Can return null if no data
+  const getOriginalRouteType = (): RouteType | null => { 
     if (!originalData) return null; 
     if (originalData.isAirportPickup) return 'airportPickup';
     if (originalData.isAirportDropoff) return 'airportDropoff';
-    if (originalData.isPrivateDriver) return 'privateDriver'; // Check new flag
-    if (originalData.isSightseeingShuttle) return 'sightseeingShuttle'; // Check new flag
+    if (originalData.isPrivateDriver) return 'privateDriver'; 
+    if (originalData.isSightseeingShuttle) return 'sightseeingShuttle'; 
     if (originalData.isCityToCity) return 'cityToCity'; 
-    return 'cityToCity'; // Default if somehow none are true (shouldn't happen with API logic)
+    return 'cityToCity'; 
   };
 
   // Mark handleSubmit as async
@@ -217,19 +205,18 @@ const EditRoutePage = () => {
       setSubmitStatus({ success: false, message: 'All required fields must be filled out.' });
       return;
     }
-    // Corrected Frontend Validation: Allow same departure/destination only for specific types
     if (departureCityId === destinationCityId && routeType !== 'privateDriver' && routeType !== 'sightseeingShuttle') {
       setSubmitStatus({ success: false, message: 'Departure and destination cities cannot be the same for this route type.' });
       return;
     }
 
-    // Prepare potentially null values - MOVED INSIDE handleSubmit
     const currentMetaTitle = metaTitle.trim() === '' ? null : metaTitle.trim();
     const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
     const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
     const currentTravelTime = travelTime.trim() === '' ? null : travelTime.trim(); 
-    const currentOtherStops = otherStops.trim() === '' ? null : otherStops.trim(); 
+    const otherStopsAsString = Array.isArray(otherStops) ? otherStops.join(', ') : (otherStops || '');
+    const currentOtherStops = otherStopsAsString.trim() === '' ? null : otherStopsAsString.trim();
     const currentIsAirportPickup = routeType === 'airportPickup';
     const currentIsAirportDropoff = routeType === 'airportDropoff';
     const currentIsCityToCity = routeType === 'cityToCity';
@@ -241,15 +228,12 @@ const EditRoutePage = () => {
       return;
     }
 
-    // Check if any data actually changed
     const originalRouteType = getOriginalRouteType();
     const originalWaypointsForCompare = Array.isArray(originalData.mapWaypoints) ? originalData.mapWaypoints : [];
     const currentWaypointsForCompare = mapWaypoints; 
 
-    // Determine if only the waypoints were cleared (or are empty now when they weren't originally)
     const waypointsCleared = (originalWaypointsForCompare.length > 0 && currentWaypointsForCompare.length === 0);
     
-    // Check if other fields changed OR if waypoints were specifically cleared
     const otherFieldsChanged = !(
         departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
@@ -261,12 +245,11 @@ const EditRoutePage = () => {
         currentMetaKeywords === originalData.metaKeywords &&
         currentSeoDesc === originalData.seoDescription &&
         currentTravelTime === originalData.travelTime &&
-        currentOtherStops === originalData.otherStops &&
+        currentOtherStops === originalData.otherStops && 
         (additionalInstructions.trim() || null) === originalData.additionalInstructions &&
         routeType === originalRouteType
     );
 
-    // Compare waypoint arrays using stringify ONLY if other fields haven't changed
     const waypointsChanged = otherFieldsChanged ? true : (JSON.stringify(currentWaypointsForCompare) !== JSON.stringify(originalWaypointsForCompare));
 
     if (!otherFieldsChanged && !waypointsChanged) {
@@ -274,11 +257,8 @@ const EditRoutePage = () => {
         return;
     }
     
-    // If we reach here, either other fields changed, or the waypoints array content changed.
-    // The backend PUT handler will now correctly regenerate if waypoints are empty.
-
-    setIsSubmitting(true); // Set submitting state *before* the try block
-    setSubmitStatus(null); // Clear previous status
+    setIsSubmitting(true); 
+    setSubmitStatus(null); 
 
     try {
       const response = await fetch(`/api/admin/routes/${routeId}`, {
@@ -295,15 +275,14 @@ const EditRoutePage = () => {
             metaKeywords: currentMetaKeywords,
             seoDescription: currentSeoDesc,
             travelTime: currentTravelTime, 
-            otherStops: currentOtherStops,
+            otherStops: currentOtherStops, 
             additionalInstructions: additionalInstructions.trim() || null,
-            // Send updated flags based on routeType state
             isAirportPickup: currentIsAirportPickup,
             isAirportDropoff: currentIsAirportDropoff,
             isCityToCity: currentIsCityToCity,
-            isPrivateDriver: currentIsPrivateDriver, // Send new flag state
-            isSightseeingShuttle: currentIsSightseeingShuttle, // Send new flag state
-            mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, // Send current waypoints or null if empty
+            isPrivateDriver: currentIsPrivateDriver, 
+            isSightseeingShuttle: currentIsSightseeingShuttle, 
+            mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, 
          }),
       });
 
@@ -312,7 +291,6 @@ const EditRoutePage = () => {
 
       setSubmitStatus({ success: true, message: `Route updated successfully!` });
       
-      // Update original data to reflect changes
       setOriginalData({
         ...originalData,
         departureCityId,
@@ -325,14 +303,14 @@ const EditRoutePage = () => {
         metaKeywords: currentMetaKeywords,
         seoDescription: currentSeoDesc,
         travelTime: currentTravelTime, 
-        otherStops: currentOtherStops,
+        otherStops: currentOtherStops, 
         additionalInstructions: additionalInstructions.trim() || null,
         isAirportPickup: currentIsAirportPickup,
         isAirportDropoff: currentIsAirportDropoff,
         isCityToCity: currentIsCityToCity,
-        isPrivateDriver: currentIsPrivateDriver, // Update original data state
-        isSightseeingShuttle: currentIsSightseeingShuttle, // Update original data state
-        mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, // Update original data state
+        isPrivateDriver: currentIsPrivateDriver, 
+        isSightseeingShuttle: currentIsSightseeingShuttle, 
+        mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, 
       });
     } catch (error: unknown) {
       console.error("Failed to update route:", error);
@@ -344,11 +322,10 @@ const EditRoutePage = () => {
     } finally {
       setIsSubmitting(false);
     }
-   }; // <--- Correct closing brace for handleSubmit
+   }; 
 
   // Generate content with OpenAI
   const handleGenerateContent = async () => {
-    // Use current form state for departure/destination IDs
     if (!departureCityId || !destinationCityId) {
        setSubmitStatus({ success: false, message: 'Please select departure and destination cities first.' });
        return;
@@ -356,8 +333,6 @@ const EditRoutePage = () => {
     
     setIsGenerating(true);
     setSubmitStatus(null);
-    // Removed clearing suggestedHotelsList
-    // setSuggestedHotelsList([]); 
     
     try {
       const response = await fetch('/api/admin/routes/generate-content', {
@@ -367,14 +342,13 @@ const EditRoutePage = () => {
           departureCityId,
           destinationCityId,
           additionalInstructions: additionalInstructions.trim(),
-          // Pass the current route type flags to the API
-                    isAirportPickup: routeType === 'airportPickup',
-                    isAirportDropoff: routeType === 'airportDropoff',
-                    isCityToCity: routeType === 'cityToCity',
-                    isPrivateDriver: routeType === 'privateDriver', // Pass new flag
-                    isSightseeingShuttle: routeType === 'sightseeingShuttle', // Pass new flag
-                  }),
-                });
+          isAirportPickup: routeType === 'airportPickup',
+          isAirportDropoff: routeType === 'airportDropoff',
+          isCityToCity: routeType === 'cityToCity',
+          isPrivateDriver: routeType === 'privateDriver', 
+          isSightseeingShuttle: routeType === 'sightseeingShuttle', 
+        }),
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -382,39 +356,29 @@ const EditRoutePage = () => {
       }
 
       const data = await response.json();
-
-      // --- BEGIN Log successful response data ---
       console.log("Content Generation API Response:", data);
-      // --- END Log successful response data ---
 
-      // Update all relevant fields from AI response
       setMetaTitle(data.metaTitle || '');
       setMetaDescription(data.metaDescription || '');
       setMetaKeywords(data.metaKeywords || '');
       setSeoDescription(data.seoDescription || '');
-      setTravelTime(data.travelTime || ''); // Update travel time from AI
-      setOtherStops(data.otherStops || ''); // Update other stops from AI
-      // Removed setting suggestedHotelsList
-      // setSuggestedHotelsList(data.suggestedHotels || []);
-      setSuggestedAmenityIds(data.matchedAmenityIds || []); // Store suggested amenity IDs
+      setTravelTime(data.travelTime || ''); 
+      setOtherStops(Array.isArray(data.otherStops) ? data.otherStops.join(', ') : (data.otherStops || '')); 
+      setSuggestedAmenityIds(data.matchedAmenityIds || []); 
 
       setSubmitStatus({
         success: true,
         message: 'Content generated successfully! Review and save changes.' 
       });
     } catch (error) {
-      // --- BEGIN Enhanced Error Logging ---
       let detailedErrorMessage = 'Failed to generate content. Please try again.';
       if (error instanceof Error) {
-        detailedErrorMessage = error.message; // Use the error message from the caught error
+        detailedErrorMessage = error.message; 
       }
-      console.error('Error generating content:', detailedErrorMessage, error); // Log the detailed message and the original error object
-      // --- END Enhanced Error Logging ---
+      console.error('Error generating content:', detailedErrorMessage, error); 
       setSubmitStatus({
         success: false,
-        // Use the detailed error message for the user status
         message: detailedErrorMessage
-        // Removed duplicate message line that caused the syntax error
       });
     } finally {
       setIsGenerating(false);
@@ -422,31 +386,31 @@ const EditRoutePage = () => {
   };
 
   // --- Waypoint Handlers ---
-  const handleWaypointChange = useCallback((index: number, field: 'name', value: string) => {
-    // Only allow changing the name for now via this simple form
-    // Lat/Lng changes would ideally need a map interface
+  const handleWaypointChange = useCallback((index: number, field: 'name' | 'lat' | 'lng', value: string) => {
     const updated = [...mapWaypoints];
     if (updated[index]) {
-      // Create a new object with updated name, preserving lat/lng
+      let newValue: string | number = value;
+      if (field === 'lat' || field === 'lng') {
+        const parsed = parseFloat(value);
+        newValue = isNaN(parsed) ? value : parsed; 
+      }
+      
       updated[index] = {
-        ...updated[index], // Spread existing properties (lat, lng)
-        name: value        // Update the name
+        ...updated[index],
+        [field]: newValue 
       };
       setMapWaypoints(updated);
     }
-  }, [mapWaypoints]); // Dependency array includes mapWaypoints
+  }, [mapWaypoints]); 
 
   const handleAddWaypoint = useCallback(() => {
-    // Add a new waypoint object with default lat/lng (e.g., 0 or fetch current location?)
-    // Using 0,0 as placeholder - admin should ideally verify/update these if needed elsewhere or via map tool
     setMapWaypoints([...mapWaypoints, { name: '', lat: 0, lng: 0 }]);
-  }, [mapWaypoints]); // Dependency array includes mapWaypoints
+  }, [mapWaypoints]); 
 
   const handleRemoveWaypoint = useCallback((index: number) => {
-    // Filter out the waypoint at the specified index
     const updated = mapWaypoints.filter((_, i) => i !== index);
     setMapWaypoints(updated);
-  }, [mapWaypoints]); // Dependency array includes mapWaypoints
+  }, [mapWaypoints]); 
   // --- End Waypoint Handlers ---
 
 
@@ -584,9 +548,9 @@ const EditRoutePage = () => {
             <div className="flex items-center">
               <input
                 id="isAirportPickup"
-                name="routeType" // Use radio buttons for mutual exclusivity
+                name="routeType" 
                 type="radio"
-                value="airportPickup" // Assign value
+                value="airportPickup" 
                 checked={routeType === 'airportPickup'}
                 onChange={(e) => setRouteType(e.target.value as RouteType)}
                 className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -600,7 +564,7 @@ const EditRoutePage = () => {
                 id="isAirportDropoff"
                 name="routeType"
                 type="radio"
-                value="airportDropoff" // Assign value
+                value="airportDropoff" 
                 checked={routeType === 'airportDropoff'}
                 onChange={(e) => setRouteType(e.target.value as RouteType)}
                 className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -614,7 +578,7 @@ const EditRoutePage = () => {
                 id="isCityToCity"
                 name="routeType"
                 type="radio"
-                value="cityToCity" // Assign value
+                value="cityToCity" 
                 checked={routeType === 'cityToCity'}
                 onChange={(e) => setRouteType(e.target.value as RouteType)}
                 className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -623,7 +587,6 @@ const EditRoutePage = () => {
               City-to-City
             </label>
           </div>
-           {/* New Radio Buttons */}
            <div className="flex items-center">
             <input
               id="isPrivateDriver"
@@ -686,57 +649,6 @@ const EditRoutePage = () => {
           />
            <p className="text-xs text-gray-500 mt-1">AI generated, can be edited.</p>
         </div>
-
-        {/* --- Waypoints Section --- */}
-        {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (
-          <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Waypoints / Stops</h3>
-            {mapWaypoints && mapWaypoints.length > 0 ? (
-              <div className="space-y-4">
-                {mapWaypoints.map((wp, index) => (
-                  <div key={index} className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group">
-                     <div className="flex justify-between items-start">
-                       <span className="text-xs font-medium text-gray-500">Stop {index + 1}</span>
-                       <button
-                         type="button" // Important: prevent form submission
-                         onClick={() => handleRemoveWaypoint(index)}
-                         className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
-                         aria-label={`Remove waypoint ${index + 1}`}
-                       >
-                         &#x2715; {/* Cross symbol */}
-                       </button>
-                     </div>
-                    <input
-                      type="text"
-                      value={wp.name || ''} // Ensure value is controlled
-                      onChange={(e) => handleWaypointChange(index, 'name', e.target.value)}
-                      placeholder="Waypoint name (e.g., La Fortuna Waterfall)"
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    {/* Display Lat/Lng (read-only in this basic form) */}
-                    <div className="text-xs text-gray-500">
-                      Lat: {wp.lat?.toFixed(6) ?? 'N/A'}, Lng: {wp.lng?.toFixed(6) ?? 'N/A'}
-                    </div>
-                    {/* Removed description textarea */}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 mt-2">No waypoints defined. Add stops relevant to this route.</p>
-            )}
-
-            <button
-              type="button" // Important: prevent form submission
-              onClick={handleAddWaypoint}
-              className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium py-1 px-3 border border-blue-300 rounded hover:bg-blue-50"
-            >
-              + Add Waypoint
-            </button>
-             <p className="text-xs text-gray-500 mt-2">Waypoints are shown on the route page for Private Driving and Sightseeing Shuttle types.</p>
-          </div>
-        )}
-        {/* --- End Waypoints Section --- */}
-
 
         {/* Meta Title */}
         <div>
@@ -854,8 +766,70 @@ const EditRoutePage = () => {
           </div>
         )}
 
-        {/* Removed Suggested Hotels Display */}
-        {/* {suggestedHotelsList.length > 0 && ( ... )} */}
+        {/* --- Waypoints Section (Moved to bottom) --- */}
+        {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (
+          <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">Waypoints / Stops</h3>
+            {mapWaypoints && mapWaypoints.length > 0 ? (
+              <div className="space-y-4">
+                {mapWaypoints.map((wp, index) => (
+                  <div key={index} className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group">
+                     <div className="flex justify-between items-start">
+                       <span className="text-xs font-medium text-gray-500">Stop {index + 1}</span>
+                       <button
+                         type="button" // Important: prevent form submission
+                         onClick={() => handleRemoveWaypoint(index)}
+                         className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
+                         aria-label={`Remove waypoint ${index + 1}`}
+                       >
+                         &#x2715; {/* Cross symbol */}
+                      </button>
+                    </div>
+                    {/* Waypoint Name Input */}
+                    <input
+                      type="text"
+                      value={wp.name || ''}
+                      onChange={(e) => handleWaypointChange(index, 'name', e.target.value)}
+                      placeholder="Waypoint name (e.g., La Fortuna Waterfall)"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
+                    />
+                    {/* Lat/Lng Inputs */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        step="any" // Allow decimals
+                        value={wp.lat ?? ''} // Handle potential undefined/null
+                        onChange={(e) => handleWaypointChange(index, 'lat', e.target.value)}
+                        placeholder="Latitude"
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <input
+                        type="number"
+                        step="any" // Allow decimals
+                        value={wp.lng ?? ''} // Handle potential undefined/null
+                        onChange={(e) => handleWaypointChange(index, 'lng', e.target.value)}
+                        placeholder="Longitude"
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mt-2">No waypoints defined. Add stops relevant to this route.</p>
+            )}
+
+            <button
+              type="button" // Important: prevent form submission
+              onClick={handleAddWaypoint}
+              className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium py-1 px-3 border border-blue-300 rounded hover:bg-blue-50"
+            >
+              + Add Waypoint
+            </button>
+             <p className="text-xs text-gray-500 mt-2">Waypoints are shown on the route page for Private Driving and Sightseeing Shuttle types.</p>
+          </div>
+        )}
+        {/* --- End Waypoints Section --- */}
 
       {/* Submit Button & Status Message */}
       <div className="pt-2">

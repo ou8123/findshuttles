@@ -36,6 +36,7 @@ model City {
   slug       String
   latitude   Float?
   longitude  Float?
+  isPlaceholder Boolean @default(false) // Flag for placeholder cities
   countryId  String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -253,7 +253,8 @@ Instructions:
   "metaDescription": "1-sentence summary including transport and 1 destination highlight",
   "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
   "otherStops": ["List", "real", "intermediate", "places", "if", "any"],
-  "travelTime": "e.g. 3.5 hours"
+  "travelTime": "e.g. 3.5 hours",
+  "mapWaypoints": [ { "name": "Example Stop Name", "lat": 10.123, "lng": -84.567 } ] // Add this line, only include if routeType requires it
 }
 `.trim()
       }

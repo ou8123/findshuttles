@@ -12,6 +12,7 @@ export async function GET(req: Request) {
     const origin = searchParams.get('origin');
     const destination = searchParams.get('destination');
     const waypointsParam = searchParams.get('waypoints');
+    const isTourParam = searchParams.get('isTour'); // Read the new parameter
 
     const apiKey = process.env.GOOGLE_MAPS_SERVER_API_KEY;
 
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
           return { lat, lng };
         });
       } catch (e) {
+        console.error('[Directions API] Error parsing waypoints:', e); // Log parsing error
         return NextResponse.json({ error: 'Invalid waypoints format' }, { status: 400 });
       }
     }
@@ -56,22 +58,53 @@ export async function GET(req: Request) {
     };
 
     const originCoords = parseCoords(origin);
-    const destinationCoords = parseCoords(destination);
+    let finalDestinationCoords = parseCoords(destination); // Parse original destination
+
+    // Determine if this is a tour route needing special handling
+    const isTour = isTourParam === 'true';
+
+    // Adjust destination and prepare waypoints based on route type
+    let waypointsForRequest: LatLng[] | undefined = undefined;
+    if (isTour && waypointCoords && waypointCoords.length > 0) {
+      console.log('[Directions API] Handling as tour route with waypoints. Setting destination to origin.');
+      finalDestinationCoords = originCoords; // Loop back to origin for tours
+      waypointsForRequest = waypointCoords;
+    } else if (waypointCoords && waypointCoords.length > 0) {
+       console.log('[Directions API] Handling as standard route with waypoints.');
+       // Use original destination, include waypoints
+       waypointsForRequest = waypointCoords;
+       // finalDestinationCoords remains the parsed destination
+    } else {
+       console.log('[Directions API] Handling as standard route without waypoints.');
+       // Use original destination, no waypoints
+       // finalDestinationCoords remains the parsed destination
+    }
+
+    // Add detailed logging before creating the request object
+    console.log('[Directions API Pre-Request Debug]', {
+        isTour,
+        hasWaypoints: !!waypointCoords && waypointCoords.length > 0,
+        originCoords, // Log origin being used
+        finalDestinationCoords, // Log the destination being used
+        waypointsForRequest: waypointsForRequest ? `${waypointsForRequest.length} waypoints` : 'none' // Log if waypoints are included
+    });
 
     const directionsRequest: DirectionsRequest = {
       params: {
         origin: originCoords,
-        destination: destinationCoords,
+        destination: finalDestinationCoords, // Use potentially adjusted destination
         key: apiKey,
         mode: TravelMode.driving,
-        region: 'CR' // Explicitly bias to Costa Rica
-        // Temporarily removing waypoints from the request to isolate the issue
-        // ...(waypointCoords && waypointCoords.length > 0 && {
-        //   waypoints: waypointCoords, 
-        //   optimize: false
-        // })
+        region: 'CR', // Explicitly bias to Costa Rica
+        // Add waypoints if they are prepared for the request
+        ...(waypointsForRequest && {
+          waypoints: waypointsForRequest,
+          optimize: false // Keep optimize false for explicit waypoint order
+        })
       }
     };
+
+    console.log('[Directions API] Request Params Sent to Google:', JSON.stringify(directionsRequest.params, null, 2)); // Log the final request params
 
     const response = await client.directions(directionsRequest);
 
