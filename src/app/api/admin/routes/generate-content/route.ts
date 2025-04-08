@@ -212,7 +212,7 @@ export async function POST(request: Request) {
     const travelTime = requestData.travelTime || null;
     const otherStops = requestData.otherStops || []; // Default to empty array if not provided
 
-    // Construct the messages array for OpenAI - ** NEW VERSION from User **
+    // Construct the messages array for OpenAI - ** UPDATED PROMPT **
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
@@ -235,28 +235,54 @@ Other stops (if any): ${otherStops?.join(', ') || 'None'}
 Additional comments: ${processedInstructions || 'None'}
 
 Instructions:
-- All content must be human-like, SEO-optimized, and in natural language.
-- If the route is an **airport pickup**, open with a welcoming tone: e.g., “Welcome to ${destinationCountryName}” or “Adventure starts in ${destinationCountryName}…”
-- If the route is an **airport dropoff**, start with dropoff info, then offer ideas for what to do in the area if travelers have time — no farewells unless appropriate.
-- If departure and destination are the same (e.g., sightseeing route), DO NOT describe it as a transfer — highlight interesting stops or themes for the loop.
-- For **private driving service**:
-  - Mention that the service can be used for either flexible city-to-city transfers (especially between popular or off-the-beaten-path destinations) OR for custom tours/sightseeing trips based on traveler preferences.
-  - If \`mapWaypoints\` data is provided in the input, treat these as **sample suggestions** of possible stops, not a fixed route. You may optionally mention one or two waypoint names as examples of destinations the driver *can* include, but clarify these are just possibilities.
-- Always include **2–3 named attractions** in or near the destination: beaches, volcanoes, parks, waterfalls, cloud forests, adventure zones, etc.
-- Tie **activities to attractions** (e.g., “surfing at Playa Tamarindo,” “hiking to La Fortuna Waterfall,” “ziplining in Monteverde”).
-- Mention 1–2 relevant activities that match the attractions and local vibe.
-- Do not mention vehicle type or driver unless details are explicitly provided.
-- Do not name the operator or use vague marketing phrases like “premier service.”
-- Output valid JSON with the exact structure below — do NOT include extra fields or explanations:
+- Write in natural, human-like language. Prioritize SEO clarity and helpfulness for travelers.
+- Structure output in up to 3 paragraphs:
+  1. First paragraph = transport/service overview (tone and content vary by route type).
+  2. Second paragraph = highlight the destination with **2–3 named places** (parks, beaches, volcanoes, towns, etc.).
+  3. Third paragraph (optional) = mention **1–2 relevant activities** (e.g., hiking, hot springs, birdwatching).
+
+Route-type specific logic:
+- **AIRPORT_PICKUP**:
+  - Use welcoming tone: e.g., “Welcome to ${destinationCountryName}” or “Your adventure in ${destinationCountryName} begins here.”
+  - Mention 2–3 nearby attractions and 1–2 activities that travelers might explore after pickup.
+
+- **AIRPORT_DROPOFF**:
+  - Start by confirming drop-off at the airport.
+  - Then suggest ideas for what travelers can do **if they have a layover, spare time, or are staying nearby**.
+  - Include 2–3 local attractions and 1–2 activities near the airport city.
+
+- **CITY_TO_CITY**:
+  - Describe the journey as a comfortable transfer to your next destination.
+  - Mention 2–3 destination highlights (attractions, parks, historic spots, etc.).
+  - Include 1–2 activities such as surfing, kayaking, hiking, or tours.
+
+- **PRIVATE_DRIVER**:
+  - Emphasize **flexibility**: service can be used for custom sightseeing **or** city-to-city transfers, including remote or off-the-beaten-path places.
+  - Do not assume or describe a fixed itinerary.
+  - If \`mapWaypoints\` are provided, treat them as **example destinations**. You may optionally name one or two (e.g., “You might stop at Monteverde or La Fortuna”) but clarify they are suggestions only.
+  - Do not describe waypoints as guaranteed stops or imply a fixed route.
+
+- **SIGHTSEEING_SHUTTLE**:
+  - This is a pre-planned loop-style route with multiple sightseeing stops.
+  - Do not describe it as a “transfer” or one-way shuttle.
+  - Mention 3–5 key stops along the route, if provided in mapWaypoints or otherStops.
+  - Highlight any unique themes (e.g., waterfalls, volcanoes, local culture).
+
+Global rules for all route types:
+- Mention 2–3 named places (cities, parks, beaches, volcanoes) in the destination area.
+- Mention 1–2 relevant activities tied to those places.
+- Do NOT mention driver, vehicle details, or operator names unless given in the Additional Comments.
+- Avoid generic marketing phrases like “premier provider” or “top-rated service.”
+- Output valid JSON exactly in this format:
 
 {
-  "seoDescription": "Up to 3 paragraphs. First part focuses on the transport. Then introduce the destination with named places and activities.",
+  "seoDescription": "Up to 3 paragraphs. First = service/route summary. Second = destination highlights. Third (optional) = activities.",
   "metaTitle": "Concise title like '[Departure] to [Destination] Shuttle'",
   "metaDescription": "1-sentence summary including transport and 1 destination highlight",
   "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
   "otherStops": ["List", "real", "intermediate", "places", "if", "any"],
   "travelTime": "e.g. 3.5 hours",
-  "mapWaypoints": [ { "name": "Example Stop Name", "lat": 10.123, "lng": -84.567 } ] // Add this line, only include if routeType requires it
+  "mapWaypoints": [ { "name": "Example Stop", "lat": 10.123, "lng": -84.567 } ] // Include only if routeType requires it
 }
 `.trim()
       }
