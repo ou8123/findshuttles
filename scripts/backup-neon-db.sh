@@ -22,10 +22,13 @@ if [ -z "$NEON_DATABASE_URL" ]; then
   exit 1 # Exit with error status
 fi
 
-# Create a timestamped backup file name
+# Get Git SHA from the first argument, default to 'unknown' if not provided
+GIT_SHA=${1:-unknown}
+
+# Create a timestamped backup file name including the Git SHA
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_DIR="$PROJECT_ROOT/db_backups"
-BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.sql"
+BACKUP_FILE="$BACKUP_DIR/backup_${TIMESTAMP}_${GIT_SHA}.sql"
 
 # Ensure the backup directory exists
 mkdir -p "$BACKUP_DIR"

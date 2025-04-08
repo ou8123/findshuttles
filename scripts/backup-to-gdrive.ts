@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const SERVICE_ACCOUNT_KEY_JSON = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_JSON;
 const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 const NEON_DATABASE_URL = process.env.NEON_DATABASE_URL; // Needed by backup-neon-db.sh
+const GIT_SHA = process.env.GIT_SHA || 'unknown'; // Get SHA from workflow env
 const BACKUP_SCRIPT_PATH = path.resolve(__dirname, 'backup-neon-db.sh');
 const LOCAL_BACKUP_DIR = path.resolve(__dirname, '../db_backups'); // Matches the dir in backup-neon-db.sh
 
@@ -29,13 +30,16 @@ if (!NEON_DATABASE_URL) {
 }
 
 // --- Helper Functions ---
-async function runBackupScript(): Promise<string> {
+async function runBackupScript(commitSha: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    console.log(`Running backup script: ${BACKUP_SCRIPT_PATH}...`);
+    console.log(`Running backup script: ${BACKUP_SCRIPT_PATH} with SHA: ${commitSha}...`);
     // Ensure the script is executable (important for some environments like GitHub Actions)
     fs.chmodSync(BACKUP_SCRIPT_PATH, '755');
 
-    const backupProcess = exec(`bash ${BACKUP_SCRIPT_PATH}`, { env: process.env });
+    // Pass the commit SHA as an argument to the shell script
+    const command = `bash ${BACKUP_SCRIPT_PATH} ${commitSha}`;
+    console.log(`Executing command: ${command}`);
+    const backupProcess = exec(command, { env: process.env });
 
     let stdout = '';
     let stderr = '';
@@ -53,7 +57,8 @@ async function runBackupScript(): Promise<string> {
     backupProcess.on('close', (code) => {
       if (code === 0) {
         // Extract the backup file path from the script's success message
-        const match = stdout.match(/Database backup successful: (.*\.sql)/);
+        // Updated regex to potentially include SHA in the filename
+        const match = stdout.match(/Database backup successful: (.*\.(sql|dump))/);
         if (match && match[1]) {
           console.log('Backup script finished successfully.');
           resolve(match[1]);
@@ -125,8 +130,8 @@ function cleanupLocalBackup(filePath: string) {
 async function main() {
   let backupFilePath: string | null = null;
   try {
-    // 1. Run the database backup script
-    backupFilePath = await runBackupScript();
+    // 1. Run the database backup script, passing the Git SHA
+    backupFilePath = await runBackupScript(GIT_SHA);
 
     // Ensure the file exists before attempting upload
     if (!fs.existsSync(backupFilePath)) {

@@ -46,6 +46,10 @@ jobs:
       - name: Install dependencies
         run: npm ci # Use 'ci' for cleaner installs in CI environments
 
+      - name: Get short Git SHA
+        id: git_sha
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Run Backup and Upload Script
         # Add compiler options to ensure ts-node handles modules correctly
         run: |
@@ -53,5 +57,6 @@ jobs:
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GIT_SHA: ${{ steps.git_sha.outputs.sha }} # Pass the SHA to the script
           GOOGLE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_JSON }}
           # NODE_ENV: production # Optional: Set if your script behaves differently in prod
