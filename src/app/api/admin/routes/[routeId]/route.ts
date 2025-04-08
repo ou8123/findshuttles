@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // Import NextRequest
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
@@ -112,7 +112,7 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
     return 240; // Default if parsing fails
 }
  
- export async function PUT(request: Request, { params }: { params: { routeId: string } }) { // Destructure params directly
+ export async function PUT(request: NextRequest, { params }: { params: { routeId: string } }) { // Use NextRequest
   const session = await getServerSession(authOptions);
   // Ensure user is admin - corrected role check (case-insensitive)
   if (session?.user?.role?.toLowerCase() !== 'admin') { 
@@ -384,7 +384,7 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
   }
 }
 
-export async function GET(request: Request, { params }: { params: { routeId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { routeId: string } }) { // Use NextRequest
   const session = await getServerSession(authOptions);
   // Corrected role check (case-insensitive)
   if (session?.user?.role?.toLowerCase() !== 'admin') { 
@@ -418,7 +418,7 @@ export async function GET(request: Request, { params }: { params: { routeId: str
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { routeId: string } }) { // Destructure params
+export async function DELETE(request: NextRequest, { params }: { params: { routeId: string } }) { // Use NextRequest
   const session = await getServerSession(authOptions);
    // Corrected role check (case-insensitive)
    if (session?.user?.role?.toLowerCase() !== 'admin') {

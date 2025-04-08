@@ -24,7 +24,7 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
-      '@next': nextPlugin,
+      '@next': nextPlugin, // Explicitly declare plugin here too
     },
     rules: {
       // Apply Next.js recommended rules
