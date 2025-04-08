@@ -156,8 +156,8 @@ export async function GET(req: Request, context: any) {
         },
         amenities: {
           select: {
-            name: true,
-            icon: true
+            name: true
+            // icon: true // Removed as 'icon' does not exist on Amenity model
           }
         },
       },
