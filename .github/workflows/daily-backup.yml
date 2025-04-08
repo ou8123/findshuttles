@@ -22,6 +22,12 @@ jobs:
 
       - name: Install PostgreSQL client v17 (for pg_dump)
         run: |
+          # Add PostgreSQL Apt Repository
+          sudo apt-get update
+          sudo apt-get install -y lsb-release wget ca-certificates gnupg
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          # Update package list again after adding repo
           sudo apt-get update
           # Install specific major version to match Neon DB
           sudo apt-get install -y postgresql-client-17
