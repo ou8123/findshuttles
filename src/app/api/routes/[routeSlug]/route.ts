@@ -120,7 +120,7 @@ export async function GET(req: Request, context: any) {
       }
     }
     
-    console.log(`Final route slug for database lookup: ${routeSlug}`);
+    console.log(`[DEBUG] Final route slug for database lookup: ${routeSlug}`); // Added DEBUG prefix
 
     const route = await prisma.route.findUnique({
       where: { routeSlug },

@@ -109,7 +109,10 @@ export async function GET(request: Request) {
       const searchResults = Array.from(countryMap.values());
       
       // Log results
-      console.log(`Search found ${cities.length} matching cities`);
+      console.log(`[DEBUG] Search for "${searchQuery}" found ${cities.length} matching cities.`); // Added DEBUG prefix
+      // Log if Liberia was specifically found or not during search
+      const foundLiberia = cities.some(city => city.name.toLowerCase() === 'liberia');
+      console.log(`[DEBUG] Liberia found in search results: ${foundLiberia}`);
       
       return addCorsHeaders(NextResponse.json(searchResults));
     }
@@ -166,7 +169,10 @@ export async function GET(request: Request) {
       });
       
       const featuredResults = Array.from(countryMap.values());
-      console.log(`Returning ${popularDepartures.length} popular departure cities`);
+      console.log(`[DEBUG] Returning ${popularDepartures.length} popular departure cities`); // Added DEBUG prefix
+      // Log if Liberia was specifically found or not in popular
+      const foundLiberiaPopular = popularDepartures.some(city => city.name.toLowerCase() === 'liberia');
+      console.log(`[DEBUG] Liberia found in popular departures: ${foundLiberiaPopular}`);
       
       return addCorsHeaders(NextResponse.json(featuredResults));
     }
