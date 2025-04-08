@@ -257,10 +257,14 @@ Route-type specific logic:
   - Include 1–2 activities such as surfing, kayaking, hiking, or tours.
 
 - **PRIVATE_DRIVER**:
-  - Emphasize **flexibility**: service can be used for custom sightseeing **or** city-to-city transfers, including remote or off-the-beaten-path places.
-  - Do not assume or describe a fixed itinerary.
-  - If \`mapWaypoints\` are provided, treat them as **example destinations**. You may optionally name one or two (e.g., “You might stop at Monteverde or La Fortuna”) but clarify they are suggestions only.
-  - Do not describe waypoints as guaranteed stops or imply a fixed route.
+  - Emphasize that this flexible service is ideal for either:
+    - city-to-city transfers (especially to/from popular or off-the-beaten-path locations), or
+    - custom sightseeing tours based on the traveler’s preferences.
+  - Mention that the private driver is available for up to the specified number of hours, allowing full-day or half-day trips.
+  - If \`mapWaypoints\` are provided, treat them as **sample suggestions** — these are not a fixed route. You may mention 1–2 waypoint names as examples of possible stops, but clarify they are **just examples** the driver *can* include.
+  - Keep the description to **2–3 paragraphs total**, unless additional info is explicitly required.
+  - Avoid repeating generic terms like “freedom” or “flexibility” more than once.
+  - Focus on **destination highlights and specific activities**, such as “hiking in Monteverde Cloud Forest,” “soaking in Arenal hot springs,” or “relaxing at Manuel Antonio Beach.”
 
 - **SIGHTSEEING_SHUTTLE**:
   - This is a pre-planned loop-style route with multiple sightseeing stops.
