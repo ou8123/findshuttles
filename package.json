@@ -48,6 +48,9 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@netlify/plugin-nextjs": "^5.10.1",
+    "@next/eslint-plugin-next": "^15.2.4",
+    "@typescript-eslint/eslint-plugin": "^8.29.1",
+    "@typescript-eslint/parser": "^8.29.1",
     "prisma": "^6.5.0",
     "tailwindcss": "^4"
   }
