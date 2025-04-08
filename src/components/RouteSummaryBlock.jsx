@@ -33,10 +33,10 @@ import {
 const getRouteTypeLabel = (route) => {
   if (route.isPrivateDriver) return "Private Driving Service";
   if (route.isSightseeingShuttle) return "Sightseeing Shuttle";
-  // Combine airport checks
-  if (route.isAirportPickup || route.isAirportDropoff) return "Airport Transfer"; 
-  // Check for standard city-to-city last, as it might overlap with airport flags
-  if (route.isCityToCity) return "Shared Shuttle"; 
+  // Combine airport checks - Updated Label
+  if (route.isAirportPickup || route.isAirportDropoff) return "Airport or Hotel Transfer"; 
+  // Check for standard city-to-city last - Updated Label
+  if (route.isCityToCity) return "City-to-City Transfer"; 
   return null; // No specific type identified or default needed
 };
 
