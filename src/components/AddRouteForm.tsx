@@ -79,7 +79,7 @@ const AddRouteForm = () => {
     libraries: libraries,
   });
 
-  // Fetch internal locations data on mount
+  // Fetch internal locations data and amenities on mount
   useEffect(() => {
     const fetchLocationsLookup = async () => {
       setIsLoadingLocationsLookup(true);
@@ -110,7 +110,7 @@ const AddRouteForm = () => {
         const response = await fetch('/api/admin/amenities');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: Amenity[] = await response.json();
-        setAllAmenities(data);
+        setAllAmenities(data || []); // Assuming API returns array directly
       } catch (err: unknown) {
         console.error("Failed to fetch amenities:", err);
         let message = "Could not load amenities.";
@@ -125,6 +125,12 @@ const AddRouteForm = () => {
     fetchAmenities();
 
   }, []);
+
+  // --- Debug useEffect for selectedAmenityIds ---
+  useEffect(() => {
+    console.log("[DEBUG useEffect] selectedAmenityIds changed:", selectedAmenityIds);
+  }, [selectedAmenityIds]);
+  // --- End Debug useEffect ---
 
   // --- Autocomplete Helper ---
   const findMatchingCity = (placeName: string): CityLookup | null => {
@@ -368,6 +374,7 @@ const AddRouteForm = () => {
       selectedDestinationCity: selectedDestinationCity,
       routeType: routeType, 
       mapWaypoints: mapWaypoints, 
+      selectedAmenityIds: selectedAmenityIds, // Log selected amenities
     });
 
     if (!selectedDepartureCity || !selectedDestinationCity) {
@@ -396,6 +403,7 @@ const AddRouteForm = () => {
     }
 
     try {
+      // Use the POST route handler which now expects selectedAmenityIds
       const response = await fetch('/api/admin/routes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -412,7 +420,8 @@ const AddRouteForm = () => {
           isCityToCity: routeType === 'cityToCity',
           isPrivateDriver: routeType === 'privateDriver', 
           isSightseeingShuttle: routeType === 'sightseeingShuttle', 
-          mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, 
+          mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
+          selectedAmenityIds: selectedAmenityIds // Send selected amenity IDs
         }),
       });
 
@@ -769,13 +778,19 @@ const AddRouteForm = () => {
                 }
 
                 const data = await response.json();
+                console.log("Received data from generate-content:", data); // DEBUG LOG 1
                 setMetaTitle(data.metaTitle || '');
                 setMetaDescription(data.metaDescription || '');
                 setMetaKeywords(data.metaKeywords || '');
                 setSeoDescription(data.seoDescription || '');
+                // Update selected amenities based on the response
+                const newAmenityIds = data.matchedAmenityIds || []; // DEBUG LOG 2 - Capture IDs
+                console.log("Updating selectedAmenityIds with:", newAmenityIds); // DEBUG LOG 3 - Log IDs being set
+                setSelectedAmenityIds(newAmenityIds); 
+                // Removed misleading log here (DEBUG LOG 4)
                 setSubmitStatus({
                   success: true,
-                  message: 'Content generated successfully!'
+                  message: 'Content generated successfully! Review amenities below.' // Updated message
                 });
               } catch (error) {
                 console.error('Error generating content:', error);

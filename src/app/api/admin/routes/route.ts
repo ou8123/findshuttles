@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth"; // Using shared authOptions
 import slugify from 'slugify';
 import { Prisma } from '@prisma/client'; // Import Prisma
-import { matchAmenities } from '@/lib/amenity-matcher'; // Import the amenity matcher utility
+// Remove unused import: import { matchAmenities } from '@/lib/amenity-matcher';
 import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint generator and type
 
 // Helper function to generate a unique slug
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       isPrivateDriver, // New flag
       isSightseeingShuttle, // New flag
       mapWaypoints: manualMapWaypoints, // Check for manually provided waypoints
-      selectedAmenityIds // Add selectedAmenityIds here
+      selectedAmenityIds // Expect selectedAmenityIds from the form
     } = body;
 
     // Basic validation
@@ -218,7 +218,7 @@ export async function POST(request: Request) {
         mapWaypoints: finalMapWaypoints, // Use the final waypoints (manual or generated)
         // Connect amenities based on the selected IDs from the form
         amenities: {
-          connect: selectedAmenityIds && selectedAmenityIds.length > 0 
+          connect: selectedAmenityIds && Array.isArray(selectedAmenityIds) && selectedAmenityIds.length > 0 
                    ? selectedAmenityIds.map((id: string) => ({ id })) 
                    : [], // Connect empty array if none selected
         },
@@ -242,6 +242,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[API POST /api/admin/routes] Failed to create route:", error);
      // Check for specific Prisma errors if needed
+     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+         // Handle unique constraint violation, e.g., for routeSlug if generation logic fails somehow
+         return NextResponse.json({ error: 'An operation failed because it depends on one or more records that were required but not found. Expected records to be connected, found only 0.' }, { status: 409 });
+     }
      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
          // Handle unique constraint violation, e.g., for routeSlug if generation logic fails somehow
          return NextResponse.json({ error: 'A route with this slug might already exist.' }, { status: 409 });

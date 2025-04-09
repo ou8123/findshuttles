@@ -6,6 +6,7 @@ import slugify from 'slugify';
 import { Prisma } from '@prisma/client'; // Import Prisma
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Import type
+import { matchAmenities } from '@/lib/amenity-matcher'; // Import matchAmenities
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -23,7 +24,7 @@ function preprocessAdditionalInstructions(input: string): string {
   // Normalize line endings
   let processed = input.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // Remove external URLs
+  // Remove external URLs and common promotional phrases
   processed = processed.replace(/https?:\/\/\S+/g, '');
   processed = processed.replace(/Read more about.*$/gim, '');
   processed = processed.replace(/visit (the )?official page.*$/gim, '');
@@ -594,6 +595,17 @@ You are a professional travel content writer generating SEO content for shuttle 
         if ('suggestedHotels' in finalResponse) {
             delete finalResponse.suggestedHotels;
         }
+
+        // --- Match Amenities based on generated content ---
+        const matchedAmenityNames = await matchAmenities(finalResponse.seoDescription || '', processedInstructions);
+        const allDbAmenities = await prisma.amenity.findMany({ select: { id: true, name: true } });
+        const matchedAmenityIds = allDbAmenities
+          .filter(amenity => matchedAmenityNames.includes(amenity.name))
+          .map(amenity => amenity.id);
+        
+        // Add matchedAmenityIds to the response
+        finalResponse.matchedAmenityIds = matchedAmenityIds;
+        // --- End Match Amenities ---
 
         console.log("Content generation successful");
         return finalResponse; // Return the casted variable

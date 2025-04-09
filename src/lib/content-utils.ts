@@ -7,7 +7,7 @@
  * - Removes external URLs and promotional language
  * - Converts first-person to third-person where possible
  * - Extracts and formats city/hotel lists
- * - Preserves accessibility info
+ * - Preserves accessibility info (except "Not wheelchair accessible")
  * - Formats section spacing for readability
  *
  * @param rawInput The raw editor notes from the textarea
@@ -68,7 +68,7 @@ export function cleanEditorNotes(rawInput: string): string {
     'Service animals allowed',
     'Near public transportation',
     'Most travelers can participate',
-    'Not wheelchair accessible' // Keep this for the safety check below
+    // 'Not wheelchair accessible' // Removed from this list as it's handled separately
   ];
   for (const item of listItems) {
     // Use a negative lookbehind to avoid adding a newline if one already exists
@@ -76,9 +76,9 @@ export function cleanEditorNotes(rawInput: string): string {
     cleaned = cleaned.replace(pattern, `\n${item}`);
   }
 
-  // Ensure accessibility and policy items have their own lines
+  // Ensure other accessibility and policy items have their own lines
   const miscNotes = [
-    'Not wheelchair accessible', // Included again to ensure spacing if it wasn't in listItems
+    // 'Not wheelchair accessible', // Removed as it will be stripped out
     'Wheelchair accessible',
     'Service animals allowed',
     'Near public transportation',
@@ -135,11 +135,10 @@ export function cleanEditorNotes(rawInput: string): string {
     cleaned += '\n\nHotels Served:\n' + extractedHotels.map(hotel => `- ${hotel}`).join('\n');
   }
 
-  // Safety check: ensure "Not wheelchair accessible" is not misread as positive amenity
-  // Append a tag that can be checked later in the pipeline if needed
-  cleaned = cleaned.replace(/Not\s*wheelchair\s*accessible(?!\w)/i, 'Not wheelchair accessible\n[NO_WHEELCHAIR_ACCESS]');
+  // Remove "Not wheelchair accessible" to avoid misleading OpenAI
+  cleaned = cleaned.replace(/Not\s*wheelchair\s*accessible[\.\n]*/gi, '');
 
-  // Clean up extra line breaks
+  // Clean up extra line breaks potentially left by removals or added by formatting
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
 
   return cleaned;

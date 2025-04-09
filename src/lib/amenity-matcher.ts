@@ -2,18 +2,14 @@ import prisma from '@/lib/prisma';
 
 // Map of phrases to amenity names
 const AMENITY_TRIGGERS = {
-  'certified driver': 'Bilingual Driver',
-  'experienced driver': 'Bilingual Driver',
-  'friendly driver': 'Bilingual Driver',
+  // Ensuring only specific bilingual triggers remain
+  // Removed: 'certified driver', 'experienced driver', 'friendly driver'
   'bilingual driver': 'Bilingual Driver',
   'english speaking driver': 'Bilingual Driver',
   'spanish speaking driver': 'Bilingual Driver',
   'english and spanish': 'Bilingual Driver',
   'speaks english': 'Bilingual Driver',
   'speaks spanish': 'Bilingual Driver',
-  'experienced and friendly drivers': 'Bilingual Driver',
-  'experienced and friendly': 'Bilingual Driver',
-
   'hotel': 'Hotel Pickup',
   'resort': 'Hotel Pickup',
   'pickup from hotel': 'Hotel Pickup',
@@ -108,23 +104,22 @@ const AMENITY_TRIGGERS = {
   'only the group will participate': 'Private Shuttle',
 
   'wheelchair': 'Wheelchair Accessible',
-  'accessible': 'Wheelchair Accessible',
+  // Removed: 'accessible': 'Wheelchair Accessible', // Too broad
   'handicap': 'Wheelchair Accessible',
   'disability': 'Wheelchair Accessible',
   'wheelchair accessible': 'Wheelchair Accessible',
   'transportation is wheelchair accessible': 'Wheelchair Accessible',
   'surfaces are wheelchair accessible': 'Wheelchair Accessible',
-  'most travelers can participate': 'Wheelchair Accessible',
-  'stroller accessible': 'Wheelchair Accessible',
 
-  'infant seat': 'Car Seats',
-  'child seat': 'Car Seats',
-  'car seat': 'Car Seats',
-  'stroller': 'Car Seats',
-  'baby seat': 'Car Seats',
-  'booster seat': 'Car Seats',
-  'infant seats available': 'Car Seats',
-  'travelling with children': 'Car Seats',
+  'infant seat': 'Child Seats Available',
+  'child seat': 'Child Seats Available',
+  'car seat': 'Child Seats Available',
+  'stroller': 'Child Seats Available',
+  'stroller accessible': 'Child Seats Available', // Added explicit trigger
+  'baby seat': 'Child Seats Available',
+  'booster seat': 'Child Seats Available',
+  'infant seats available': 'Child Seats Available',
+  'travelling with children': 'Child Seats Available', // Renamed target
 
   'service animal': 'Service Animals Allowed',
   'service animals allowed': 'Service Animals Allowed',
@@ -166,6 +161,14 @@ export async function matchAmenities(description: string, additionalInstructions
     // Check each trigger phrase
     for (const [trigger, amenityName] of Object.entries(AMENITY_TRIGGERS)) {
       const normalizedTrigger = normalizeText(trigger);
+      // --- Add specific debug log for 'infant seats available' ---
+      if (trigger === 'infant seats available') {
+        console.log(`[DEBUG] Comparing for '${trigger}':`);
+        console.log(`  Normalized Text Snippet: "...${normalizedText.substring(Math.max(0, normalizedText.indexOf('infant') - 10), Math.min(normalizedText.length, normalizedText.indexOf('infant') + 30))}..."`);
+        console.log(`  Normalized Trigger: "${normalizedTrigger}"`);
+        console.log(`  Includes Check Result: ${normalizedText.includes(normalizedTrigger)}`);
+      }
+      // --- End specific debug log ---
       if (normalizedText.includes(normalizedTrigger)) {
         matchedAmenityNames.add(amenityName);
         console.log(`✓ Found match in ${source}: "${trigger}" -> "${amenityName}" (at position ${normalizedText.indexOf(normalizedTrigger)})`);

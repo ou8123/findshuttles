@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import slugify from 'slugify'; // Import slugify
-import { matchAmenities } from '@/lib/amenity-matcher'; // Import the amenity matcher utility
+// Remove unused import: import { matchAmenities } from '@/lib/amenity-matcher'; 
 import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint generator and type
 
 export const runtime = 'nodejs';
@@ -32,6 +32,7 @@ const routeSelect = {
   isPrivateDriver: true, 
   isSightseeingShuttle: true, 
   mapWaypoints: true, // Corrected: Select the new field
+  amenities: { select: { id: true, name: true } }, // Include amenities here
   departureCity: {
     select: {
       id: true,
@@ -97,6 +98,7 @@ interface UpdateRouteData {
   isPrivateDriver?: boolean; 
   isSightseeingShuttle?: boolean; 
   mapWaypoints?: Prisma.JsonValue | null; // Add mapWaypoints to allow manual override/clearing
+  selectedAmenityIds?: string[]; // Add selectedAmenityIds
 }
 
 // Helper function to parse duration from travelTime string
@@ -306,22 +308,6 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
     }
     // --- End waypoint handling ---
 
-
-    // Get matched amenity names and find/create amenities
-    const matchedAmenityNames = await matchAmenities(data.seoDescription || '', data.additionalInstructions || '');
-    
-    // Find or create each amenity and get their IDs
-    const amenityIdsToSet = await Promise.all(
-      matchedAmenityNames.map(async (name) => {
-        const amenity = await prisma.amenity.upsert({
-          where: { name },
-          create: { name },
-          update: {} // Don't update if exists
-        });
-        return { id: amenity.id };
-      })
-    );
-
     // Prepare data for update, including new flags and potentially generated waypoints
     const updateData: Prisma.RouteUpdateInput = {
       departureCity: { connect: { id: data.departureCityId } },
@@ -347,7 +333,8 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
       // Corrected: Use Prisma.DbNull only when saving null to the DB
       mapWaypoints: waypointsToSave === null ? Prisma.DbNull : (waypointsToSave as Prisma.InputJsonValue), 
       amenities: {
-        set: amenityIdsToSet, // Ensure amenities are updated based on new description
+        // Use 'set' to replace existing amenities with the new selection from the form
+        set: data.selectedAmenityIds ? data.selectedAmenityIds.map((id: string) => ({ id })) : [],
       },
     };
 

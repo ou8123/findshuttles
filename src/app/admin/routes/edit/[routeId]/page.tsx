@@ -65,7 +65,6 @@ const EditRoutePage = () => {
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  // const [suggestedAmenityIds, setSuggestedAmenityIds] = useState<string[]>([]); // No longer suggesting amenities this way
   const [allAmenities, setAllAmenities] = useState<Amenity[]>([]); // State to hold all amenities
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]); // State for selected amenity IDs
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
@@ -242,9 +241,14 @@ const EditRoutePage = () => {
     const originalRouteType = getOriginalRouteType();
     const originalWaypointsForCompare = Array.isArray(originalData.mapWaypoints) ? originalData.mapWaypoints : [];
     const currentWaypointsForCompare = mapWaypoints; 
+    const originalAmenityIds = originalData.amenities?.map(a => a.id).sort() || [];
+    const currentAmenityIds = [...selectedAmenityIds].sort();
 
     const waypointsCleared = (originalWaypointsForCompare.length > 0 && currentWaypointsForCompare.length === 0);
     
+    // Check if amenities have changed
+    const amenitiesChanged = JSON.stringify(originalAmenityIds) !== JSON.stringify(currentAmenityIds);
+
     const otherFieldsChanged = !(
         departureCityId === originalData.departureCityId &&
         destinationCityId === originalData.destinationCityId &&
@@ -263,7 +267,8 @@ const EditRoutePage = () => {
 
     const waypointsChanged = otherFieldsChanged ? true : (JSON.stringify(currentWaypointsForCompare) !== JSON.stringify(originalWaypointsForCompare));
 
-    if (!otherFieldsChanged && !waypointsChanged) {
+    // Include amenity changes in the check
+    if (!otherFieldsChanged && !waypointsChanged && !amenitiesChanged) {
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
     }
@@ -272,6 +277,7 @@ const EditRoutePage = () => {
     setSubmitStatus(null); 
 
     try {
+      // Use the PUT route handler which expects selectedAmenityIds
       const response = await fetch(`/api/admin/routes/${routeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -293,7 +299,8 @@ const EditRoutePage = () => {
             isCityToCity: currentIsCityToCity,
             isPrivateDriver: currentIsPrivateDriver, 
             isSightseeingShuttle: currentIsSightseeingShuttle, 
-            mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, 
+            mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
+            selectedAmenityIds: selectedAmenityIds // Send selected amenity IDs
          }),
       });
 
@@ -302,6 +309,7 @@ const EditRoutePage = () => {
 
       setSubmitStatus({ success: true, message: `Route updated successfully!` });
       
+      // Update original data state to reflect saved changes, including amenities
       setOriginalData({
         ...originalData,
         departureCityId,
@@ -321,7 +329,8 @@ const EditRoutePage = () => {
         isCityToCity: currentIsCityToCity,
         isPrivateDriver: currentIsPrivateDriver, 
         isSightseeingShuttle: currentIsSightseeingShuttle, 
-        mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null, 
+        mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
+        amenities: selectedAmenityIds.map(id => ({ id })), // Update original data state
       });
     } catch (error: unknown) {
       console.error("Failed to update route:", error);
@@ -375,20 +384,22 @@ const EditRoutePage = () => {
       }
 
       const data = await response.json();
-      console.log("Content Generation API Response:", data);
-
+      console.log("Received data from generate-content:", data); // DEBUG LOG 1
       setMetaTitle(data.metaTitle || '');
       setMetaDescription(data.metaDescription || '');
       setMetaKeywords(data.metaKeywords || '');
       setSeoDescription(data.seoDescription || '');
       setTravelTime(data.travelTime || '');
       setOtherStops(Array.isArray(data.otherStops) ? data.otherStops.join(', ') : (data.otherStops || ''));
-      // We no longer set suggested amenities, user manages them directly
-      // setSuggestedAmenityIds(data.matchedAmenityIds || []);
+      // Update selected amenities based on the response
+      const newAmenityIds = data.matchedAmenityIds || []; // DEBUG LOG 2 - Capture IDs
+      console.log("Updating selectedAmenityIds with:", newAmenityIds); // DEBUG LOG 3 - Log IDs being set
+      setSelectedAmenityIds(newAmenityIds); 
+      console.log("State *after* calling setSelectedAmenityIds:", selectedAmenityIds); // DEBUG LOG 4 - Check state immediately after setting
 
       setSubmitStatus({
         success: true,
-        message: 'Content generated successfully! Review and save changes.' 
+        message: 'Content generated successfully! Review amenities below.' // Updated message
       });
     } catch (error) {
       let detailedErrorMessage = 'Failed to generate content. Please try again.';
@@ -897,3 +908,201 @@ const EditRoutePage = () => {
 };
 
 export default EditRoutePage;
+
+</final_file_content>
+
+IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+
+<environment_details>
+# VSCode Visible Files
+src/app/admin/routes/edit/[routeId]/page.tsx
+
+# VSCode Open Tabs
+../my-shuttle-app/prisma/schema.prisma
+../my-shuttle-app/.env
+../my-shuttle-app/src/app/layout.tsx
+../my-shuttle-app/src/components/theme-provider.tsx
+../my-shuttle-app/src/app/page.tsx
+../my-shuttle-app/src/lib/prisma.ts
+src/app/admin/api/admin/countries/route.ts
+src/app/admin/api/admin/countries/[countryId]/route.ts
+my-shuttle-admin-app/src/lib/prisma.ts
+my-shuttle-admin-app/src/app/admin/cities/page.tsx
+my-shuttle-admin-app/src/app/admin/countries/page.tsx
+my-shuttle-admin-app/src/app/api/admin/cities/route.ts
+my-shuttle-admin-app/src/app/api/admin/cities/[cityId]/route.ts
+my-shuttle-admin-app/src/app/api/admin/countries/[countryId]/route.ts
+my-shuttle-admin-app/src/app/api/admin/countries/route.ts
+my-shuttle-admin-app/src/app/layout.tsx
+my-shuttle-admin-app/src/components/SearchFormWrapper.tsx
+next.config.ts
+my-shuttle-admin-app/next.config.ts
+my-shuttle-admin-app/src/app/page.tsx
+src/app/not-found.tsx
+my-shuttle-admin-app/src/app/not-found.tsx
+seed-production.js
+scripts/add-test-route.ts
+src/app/api/search-redirect/route.ts
+src/app/api/sitemap/route.ts
+src/lib/api-auth.ts
+src/types/next-auth.d.ts
+SECURITY.md
+tsconfig.json
+scripts/reset-password.ts
+netlify-reset-password.js
+src/lib/netlify-auth-debug.ts
+NETLIFY_IDENTITY_SETUP.md
+src/lib/netlify-auth-context.tsx
+src/app/api/admin/bypass-auth/route.ts
+src/app/admin-bypass/page.tsx
+AUTHENTICATION_FIX.md
+src/app/system-access/page.tsx
+src/lib/system-auth.ts
+src/app/api/system-auth/login/route.ts
+src/app/api/system-auth/verify/route.ts
+SYSTEM_ACCESS_GUIDE.md
+src/app/api/auth/[...auth0]/route.ts
+auth0-config.js
+AUTH0_SETUP_GUIDE.md
+package.json
+IMPLEMENTATION_SUMMARY.md
+.env.auth0.example
+src/app/api/auth0/[...auth0]/route.ts
+src/app/api/auth0/login/route.ts
+src/components/Auth0LoginButton.tsx
+src/app/api/auth/login/route.ts
+src/app/api/auth/callback/route.ts
+src/app/admin-debug/page.tsx
+AUTH0_EDGE_RUNTIME_FIX.md
+src/app/admin/page.tsx
+src/components/admin/AdminAuthWrapper.tsx
+src/components/AuthProvider.tsx
+netlify.js
+src/components/admin/AdminSidebarNav.tsx
+src/app/api/auth/logout/route.ts
+src/app/api/auth/debug/route.ts
+src/components/ErrorLogger.tsx
+src/components/AutoScroller.tsx
+src/components/FixedHeightWidgetContainer.tsx
+src/components/SearchFormWrapper.tsx
+src/components/AdaptiveWidgetContainer.tsx
+src/app/api/admin/routes/duplicate/route.ts
+src/components/ValidationResultsDisplay.tsx
+src/components/ContentEditorControls.tsx
+src/components/FormattedDescription.jsx
+src/app/admin/cities/page.tsx
+src/app/admin/countries/page.tsx
+src/components/ViatorIframeWidget.tsx
+src/components/ViatorWidgetRenderer.tsx
+src/components/ViatorAspectContainer.tsx
+src/components/ViatorAspectWidget.tsx
+src/components/ViatorDirectWidget.tsx
+src/components/ViatorAutoResizeWidget.tsx
+src/components/ViatorSimpleWidget.tsx
+src/components/HomeSearchForm.tsx
+src/components/ViatorResponsiveWidget.tsx
+src/components/ViatorWidgetWrapper.tsx
+src/components/ViatorScriptLoader.tsx
+src/components/ViatorAdaptiveContainer.tsx
+src/components/CountryRouteFilter.jsx
+src/lib/auth.ts
+src/app/sitemap.ts
+public/robots.txt
+tailwind.config.js
+src/app/globals.css
+prisma/seed.ts
+scripts/restore-routes.ts
+scripts/backup-restore-db.ts
+scripts/dump-routes.ts
+scripts/check-data.ts
+src/app/api/locations/route.ts
+src/app/api/routes/[routeSlug]/route.ts
+.env
+src/lib/amenity-matcher.ts
+src/components/AddRouteForm.tsx
+src/app/admin/routes/edit/[routeId]/page.tsx
+eslint.config.mjs
+next.config.js
+src/app/layout.tsx
+scripts/restore-neon-db.sh
+.github/workflows/daily-backup.yml
+prisma/schema.prisma
+src/components/AmenityBadge.tsx
+src/components/AmenitiesTable.jsx
+scripts/rename-amenity.ts
+src/components/RouteSummaryBlock.jsx
+src/components/admin/RouteList.tsx
+src/lib/content-utils.ts
+src/app/api/admin/routes/route.ts
+src/app/api/admin/routes/[routeId]/route.ts
+src/app/api/admin/routes/generate-content/route.ts
+scripts/backup-to-gdrive.ts
+scripts/backup-neon-db.sh
+src/middleware.ts
+src/lib/aiWaypoints.ts
+src/app/api/routes/get-directions/route.ts
+src/types/common.ts
+src/components/RouteMap.tsx
+src/app/routes/[routeSlug]/page.tsx
+src/components/ItinerarySection.tsx
+src/components/WaypointList.tsx
+src/components/MapWithWaypoints.tsx
+scripts/create-neon-snapshot.sh
+.git/hooks/pre-push
+src/app/routes/[routeSlug]/page.jsx
+src/lib/errorLogger.ts
+src/components/ErrorHandlerLoader.tsx
+src/lib/maps-utils.ts
+src/app/api/routes/directions/route.ts
+scripts/fix-san-jose-duplicate.ts
+src/app/api/admin/amenities/route.ts
+prisma/migrations/20250406080000_add_amenities/migration.sql
+scripts/check-amenities.ts
+prisma/migrations/20250406083935_add_additional_instructions/migration.sql
+scripts/add-additional-instructions-column.ts
+scripts/create-admin-user.ts
+.gitignore
+src/components/HeroSection.tsx
+src/app/admin/cities/new/page.tsx
+src/app/admin/cities/edit/[cityId]/page.tsx
+src/app/admin/countries/edit/[countryId]/page.tsx
+src/app/page.tsx
+src/app/api/admin/countries/[countryId]/route.ts
+src/components/SearchForm.tsx
+src/components/HotelsGrid.jsx
+src/app/countries/page.jsx
+src/app/countries/[countrySlug]/page.jsx
+src/app/api/admin/cities/route.ts
+src/components/admin/CityList.tsx
+src/app/api/admin/countries/route.ts
+src/components/admin/CountryList.tsx
+scripts/delete-route-by-slug.ts
+src/app/debug/page.tsx
+src/app/api/valid-destinations/route.ts
+src/app/api/auth/[...nextauth]/route.ts
+src/app/login/page.tsx
+src/app/admin/routes/page.tsx
+src/app/admin/layout.tsx
+src/app/admin/countries/new/page.tsx
+src/components/Header.tsx
+netlify.toml
+src/app/api/admin/cities/[cityId]/route.ts
+src/lib/utils.ts
+src/app/api/admin/locations/find-or-create/route.ts
+scripts/normalize-city-names.ts
+scripts/delete-specific-route.ts
+src/lib/auth0-config.js
+src/app/identity-callback/page.tsx
+src/components/TokenDetector.tsx
+.env.production
+my-shuttle-admin-app/next.config.js
+netlify-build.js
+my-shuttle-admin-app/src/lib/auth.ts
+my-shuttle-admin-app/src/app/login/page.tsx
+
+# Current Time
+4/9/2025, 3:30:20 PM (America/Los_Angeles, UTC-7:00)
+
+# Current Mode
+ACT MODE
+</environment_details>
