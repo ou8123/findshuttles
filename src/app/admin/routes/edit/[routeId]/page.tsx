@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { Amenity } from '@prisma/client'; // Import Amenity type
 import ContentEditorControls from '@/components/ContentEditorControls';
 import { WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint type
 
@@ -38,7 +39,7 @@ interface RouteData {
     isPrivateDriver: boolean; // Added new flag
     isSightseeingShuttle: boolean; // Added new flag
     mapWaypoints?: WaypointStop[] | null; // Add mapWaypoints field
-    // Note: hotelsServed is a relation, not fetched directly here usually
+    amenities: { id: string }[]; // Add amenities relation
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
 }
@@ -64,9 +65,12 @@ const EditRoutePage = () => {
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [suggestedAmenityIds, setSuggestedAmenityIds] = useState<string[]>([]); // State for suggested amenities
-  const [allAmenities, setAllAmenities] = useState<{id: string, name: string}[]>([]); // State to hold all amenities for display lookup
+  // const [suggestedAmenityIds, setSuggestedAmenityIds] = useState<string[]>([]); // No longer suggesting amenities this way
+  const [allAmenities, setAllAmenities] = useState<Amenity[]>([]); // State to hold all amenities
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]); // State for selected amenity IDs
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
+  const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true); // Loading state for amenities
+  const [amenityError, setAmenityError] = useState<string | null>(null); // Error state for amenities
 
   // State for city selection
   const [availableCities, setAvailableCities] = useState<City[]>([]);
@@ -75,24 +79,29 @@ const EditRoutePage = () => {
 
   // Loading/Submitting/Error state
   const [isLoadingRoute, setIsLoadingRoute] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Combined submitting state
   const [error, setError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Fetch all available amenities (for displaying suggestions)
+  // Fetch all available amenities
   useEffect(() => {
     const fetchAllAmenities = async () => {
+      setIsLoadingAmenities(true);
+      setAmenityError(null);
       try {
-        const response = await fetch('/api/admin/amenities'); 
+        const response = await fetch('/api/admin/amenities');
         if (!response.ok) throw new Error('Failed to fetch amenities');
         const data = await response.json();
-        setAllAmenities(data.amenities || []); 
+        setAllAmenities(data || []); // Assuming API returns array directly
       } catch (err) {
         console.error("Failed to fetch all amenities:", err);
+        setAmenityError("Could not load amenities.");
+      } finally {
+        setIsLoadingAmenities(false);
       }
     };
     fetchAllAmenities();
-  }, []); 
+  }, []);
 
   // Fetch all available cities
   useEffect(() => {
@@ -159,6 +168,8 @@ const EditRoutePage = () => {
         setOtherStops(routeData.otherStops ?? '');
         setAdditionalInstructions(routeData.additionalInstructions ?? '');
         setMapWaypoints(Array.isArray(routeData.mapWaypoints) ? routeData.mapWaypoints : []);
+        // Initialize selected amenities based on fetched route data
+        setSelectedAmenityIds(routeData.amenities?.map(a => a.id) || []);
 
         if (routeData.isAirportPickup) {
           setRouteType('airportPickup');
@@ -322,7 +333,15 @@ const EditRoutePage = () => {
     } finally {
       setIsSubmitting(false);
     }
-   }; 
+   };
+
+  // Handler for amenity checkbox changes
+  const handleAmenityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = event.target;
+    setSelectedAmenityIds(prev =>
+      checked ? [...prev, value] : prev.filter(id => id !== value)
+    );
+  };
 
   // Generate content with OpenAI
   const handleGenerateContent = async () => {
@@ -362,9 +381,10 @@ const EditRoutePage = () => {
       setMetaDescription(data.metaDescription || '');
       setMetaKeywords(data.metaKeywords || '');
       setSeoDescription(data.seoDescription || '');
-      setTravelTime(data.travelTime || ''); 
-      setOtherStops(Array.isArray(data.otherStops) ? data.otherStops.join(', ') : (data.otherStops || '')); 
-      setSuggestedAmenityIds(data.matchedAmenityIds || []); 
+      setTravelTime(data.travelTime || '');
+      setOtherStops(Array.isArray(data.otherStops) ? data.otherStops.join(', ') : (data.otherStops || ''));
+      // We no longer set suggested amenities, user manages them directly
+      // setSuggestedAmenityIds(data.matchedAmenityIds || []);
 
       setSubmitStatus({
         success: true,
@@ -748,25 +768,35 @@ const EditRoutePage = () => {
           />
         </div>
 
-        {/* Display Suggested Amenities */}
-        {suggestedAmenityIds.length > 0 && (
-          <div className="mt-4 p-3 border border-green-200 bg-green-50 rounded-md">
-            <h3 className="text-sm font-medium text-green-800 mb-2">Suggested Highlights (based on generated description):</h3>
-            <div className="flex flex-wrap gap-2">
-              {suggestedAmenityIds.map(id => {
-                const amenity = allAmenities.find(a => a.id === id);
-                return amenity ? (
-                  <span key={id} className="inline-flex items-center bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+        {/* Amenities Section */}
+        <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+          <h3 className="text-lg font-semibold mb-3 text-gray-800">Amenities</h3>
+          {isLoadingAmenities && <p className="text-sm text-gray-500">Loading amenities...</p>}
+          {amenityError && <p className="text-sm text-red-500">{amenityError}</p>}
+          {!isLoadingAmenities && !amenityError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
+          {!isLoadingAmenities && !amenityError && allAmenities.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {allAmenities.map((amenity) => (
+                <div key={amenity.id} className="flex items-center">
+                  <input
+                    id={`amenity-${amenity.id}`}
+                    type="checkbox"
+                    value={amenity.id}
+                    checked={selectedAmenityIds.includes(amenity.id)}
+                    onChange={handleAmenityChange}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  <label htmlFor={`amenity-${amenity.id}`} className="ml-2 block text-sm text-gray-900">
                     {amenity.name}
-                  </span>
-                ) : null;
-              })}
+                  </label>
+                </div>
+              ))}
             </div>
-            <p className="text-xs text-green-700 mt-2">These will be saved when you click "Update Route".</p>
-          </div>
-        )}
+          )}
+        </div>
+        {/* End Amenities Section */}
 
-        {/* --- Waypoints Section (Moved to bottom) --- */}
+        {/* --- Waypoints Section --- */}
         {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (
           <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
             <h3 className="text-lg font-semibold mb-3 text-gray-800">Waypoints / Stops</h3>
