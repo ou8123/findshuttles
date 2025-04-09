@@ -66,7 +66,8 @@ export async function POST(request: Request) {
       isCityToCity, // Expect boolean
       isPrivateDriver, // New flag
       isSightseeingShuttle, // New flag
-      mapWaypoints: manualMapWaypoints // Check for manually provided waypoints
+      mapWaypoints: manualMapWaypoints, // Check for manually provided waypoints
+      selectedAmenityIds // Add selectedAmenityIds here
     } = body;
 
     // Basic validation
@@ -215,9 +216,11 @@ export async function POST(request: Request) {
         isPrivateDriver: finalIsPrivateDriver,
         isSightseeingShuttle: finalIsSightseeingShuttle,
         mapWaypoints: finalMapWaypoints, // Use the final waypoints (manual or generated)
-        // Automatically associate amenities based on seoDescription
+        // Connect amenities based on the selected IDs from the form
         amenities: {
-          connect: (await matchAmenities(seoDescription || "")).map(id => ({ id })), // Pass empty string if seoDescription is null
+          connect: selectedAmenityIds && selectedAmenityIds.length > 0 
+                   ? selectedAmenityIds.map((id: string) => ({ id })) 
+                   : [], // Connect empty array if none selected
         },
     };
 

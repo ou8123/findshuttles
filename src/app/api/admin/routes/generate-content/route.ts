@@ -200,29 +200,21 @@ export async function POST(request: Request) {
 
     // --- Prepare prompt for OpenAI (New Prompt Structure) ---
 
-    // Determine routeType string based on boolean flags
-    let routeTypeString = 'cityToCity'; // Default
-    if (isAirportPickup) routeTypeString = 'airportPickup';
-    else if (isAirportDropoff) routeTypeString = 'airportDropoff';
-    else if (isPrivateDriver) routeTypeString = 'privateDrivingService';
-    else if (isSightseeingShuttle) routeTypeString = 'sightseeingShuttle';
+    // Determine routeType string based on boolean flags (matching the prompt exactly)
+    let routeTypeString = 'CITY_TO_CITY'; // Default
+    if (isAirportPickup) routeTypeString = 'AIRPORT_PICKUP';
+    else if (isAirportDropoff) routeTypeString = 'AIRPORT_DROPOFF';
+    else if (isPrivateDriver) routeTypeString = 'PRIVATE_DRIVER';
+    else if (isSightseeingShuttle) routeTypeString = 'SIGHTSEEING_SHUTTLE';
+    // Note: isCityToCity flag isn't strictly needed if it's the default when others are false
 
     // Retrieve travelTime and otherStops from the request body if available, otherwise use defaults or null
     // These might have been passed in the initial request or generated previously
     const travelTime = requestData.travelTime || null;
     const otherStops = requestData.otherStops || []; // Default to empty array if not provided
 
-    // Construct the messages array for OpenAI - ** UPDATED PROMPT **
-    const messages: ChatCompletionMessageParam[] = [
-      {
-        role: "system",
-        content: `
-You are a professional travel content writer generating SEO content for shuttle routes around the world. Assume locations are in the country provided unless stated otherwise. Avoid confusing cities with the same name in different countries (e.g., San Jose in Costa Rica vs. San Jose in California). Do not invent or assume details about a location. Write for a shuttle booking site that connects travelers with third-party transport providers.
-`.trim()
-      },
-      {
-        role: "user",
-        content: `
+    // Define the user prompt content as a separate variable
+    const userPromptContent = `
 Generate SEO content for the following shuttle route:
 
 Route type: ${routeTypeString}
@@ -235,62 +227,83 @@ Other stops (if any): ${otherStops?.join(', ') || 'None'}
 Additional comments: ${processedInstructions || 'None'}
 
 Instructions:
-- Write in natural, human-like language. Prioritize SEO clarity and helpfulness for travelers.
-- Structure output in up to 3 paragraphs:
-  1. First paragraph = transport/service overview (tone and content vary by route type).
-  2. Second paragraph = highlight the destination with **2–3 named places** (parks, beaches, volcanoes, towns, etc.).
-  3. Third paragraph (optional) = mention **1–2 relevant activities** (e.g., hiking, hot springs, birdwatching).
-
-Route-type specific logic:
-- **AIRPORT_PICKUP**:
-  - Use welcoming tone: e.g., “Welcome to ${destinationCountryName}” or “Your adventure in ${destinationCountryName} begins here.”
-  - Mention 2–3 nearby attractions and 1–2 activities that travelers might explore after pickup.
-
-- **AIRPORT_DROPOFF**:
-  - Start by confirming drop-off at the airport.
-  - Then suggest ideas for what travelers can do **if they have a layover, spare time, or are staying nearby**.
-  - Include 2–3 local attractions and 1–2 activities near the airport city.
-
-- **CITY_TO_CITY**:
-  - Describe the journey as a comfortable transfer to your next destination.
-  - Mention 2–3 destination highlights (attractions, parks, historic spots, etc.).
-  - Include 1–2 activities such as surfing, kayaking, hiking, or tours.
-
-- **PRIVATE_DRIVER**:
-  - Emphasize that this flexible service is ideal for either:
-    - city-to-city transfers (especially to/from popular or off-the-beaten-path locations), or
-    - custom sightseeing tours based on the traveler’s preferences.
-  - Mention that the private driver is available for up to the specified number of hours, allowing full-day or half-day trips.
-  - If \`mapWaypoints\` are provided, treat them as **sample suggestions** — these are not a fixed route. You may mention 1–2 waypoint names as examples of possible stops, but clarify they are **just examples** the driver *can* include.
-  - Keep the description to **2–3 paragraphs total**, unless additional info is explicitly required.
-  - Avoid repeating generic terms like “freedom” or “flexibility” more than once.
-  - Focus on **destination highlights and specific activities**, such as “hiking in Monteverde Cloud Forest,” “soaking in Arenal hot springs,” or “relaxing at Manuel Antonio Beach.”
-
-- **SIGHTSEEING_SHUTTLE**:
-  - This is a pre-planned loop-style route with multiple sightseeing stops.
-  - Do not describe it as a “transfer” or one-way shuttle.
-  - Mention 3–5 key stops along the route, if provided in mapWaypoints or otherStops.
-  - Highlight any unique themes (e.g., waterfalls, volcanoes, local culture).
-
-Global rules for all route types:
-- Mention 2–3 named places (cities, parks, beaches, volcanoes) in the destination area.
-- Mention 1–2 relevant activities tied to those places.
-- Do NOT mention driver, vehicle details, or operator names unless given in the Additional Comments.
-- Avoid generic marketing phrases like “premier provider” or “top-rated service.”
-- Output valid JSON exactly in this format:
+- All content must be human-like, SEO-optimized, and written in natural language.
+- Do not use vague marketing language (e.g., "premier service"), and do not mention drivers, vehicle types, or operator names unless explicitly included.
+- Do not mention common amenities such as bottled water, car seats, air conditioning, Wi-Fi, or accessibility unless explicitly provided in the additional comments.
+- If the route does not involve travel between two different countries, include the country name only once in the meta title and description.
+- Tie each mentioned attraction to a relevant activity whenever possible (e.g., “hike to Arenal Volcano,” “birdwatching in Monteverde”).
+- Output must be valid JSON. Do not include explanations or extra fields. Match this structure exactly:
 
 {
-  "seoDescription": "Up to 3 paragraphs. First = service/route summary. Second = destination highlights. Third (optional) = activities.",
+  "seoDescription": "Up to 3 paragraphs. First focuses on the transport, second introduces destination highlights and activities. Optional short third paragraph if needed.",
   "metaTitle": "Concise title like '[Departure] to [Destination] Shuttle'",
   "metaDescription": "1-sentence summary including transport and 1 destination highlight",
   "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
   "otherStops": ["List", "real", "intermediate", "places", "if", "any"],
   "travelTime": "e.g. 3.5 hours",
-  "mapWaypoints": [ { "name": "Example Stop", "lat": 10.123, "lng": -84.567 } ] // Include only if routeType requires it
+  "mapWaypoints": [ { "name": "Example Stop Name", "lat": 10.123, "lng": -84.567 } ] // Include only for relevant route types
 }
+
+GLOBAL RULES:
+- Max total word count: ~250 words.
+- Each paragraph should be ~50–80 words. No more than 3 paragraphs.
+- Use varied, descriptive sentence structure and vocabulary.
+
+ROUTE TYPE LOGIC:
+
+**AIRPORT_PICKUP**
+- Always open with a warm, friendly welcome to the destination country (e.g., “Welcome to ${destinationCountryName}!”).
+- Describe the convenience of the shuttle service.
+- Briefly highlight 2–3 attractions in or near the destination city.
+- Mention 1–2 possible activities (e.g., beach day, cultural tour).
+
+**AIRPORT_DROPOFF**
+- Start with info about drop-off and airport convenience.
+- If the airport city is on the traveler's itinerary or they have time to explore, suggest 2–3 notable attractions and 1–2 activities.
+
+**CITY_TO_CITY**
+- Mention it’s a comfortable, direct transfer between cities.
+- Briefly highlight 2–3 destination attractions (parks, beaches, volcanoes, etc.).
+- Include 1–2 related activities travelers might enjoy.
+- Tie any mentioned landmarks directly to a relevant activity.
+
+**PRIVATE_DRIVER**
+- In the **first paragraph**, clearly state that the private driver service offers both **seamless city-to-city transfers** and **personalized custom tours** tailored to customer preferences.
+- Explain that the service is ideal for:
+  - Flexible city-to-city transfers between popular or off-the-beaten-path destinations.
+  - Custom sightseeing day trips based on customer preferences.
+- If \`mapWaypoints\` are included, treat them as **sample suggestions only**. Optionally mention 1–2 by name as possible stops.
+- Mention at least 2 attraction types (e.g., national parks, beaches, museums, historical sites) and at least 1 outdoor activity (e.g., hiking, ziplining).
+- ✅ Include a short, varied, friendly call to action at the end (e.g., “Plan your perfect day today!”).
+
+**SIGHTSEEING_SHUTTLE**
+- This is a round-trip sightseeing shuttle starting and ending in the same city.
+- Focus on the stops and themes of the route.
+- Highlight 3–5 specific attractions the shuttle includes.
+- Briefly mention a few things travelers will see/do.
+- ✅ Add a soft CTA at the end (e.g., “Reserve your seat and enjoy the adventure.”)
+
+📌 CTA Guidelines:
+- Use a soft, friendly CTA **only** for PRIVATE_DRIVER and SIGHTSEEING_SHUTTLE routes.
+- Do not use a CTA on airport or city-to-city routes unless it feels natural.
+- Keep CTAs short, warm, and varied — avoid repetition across routes.
+
+Follow the logic for each route type closely. Make sure output is polished and well-formatted.
+`.trim();
+
+    // Construct the messages array for OpenAI - ** LATEST REFINED PROMPT **
+    const messages: ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: `
+You are a professional travel content writer generating SEO content for shuttle routes around the world. Assume locations are in the country provided unless stated otherwise. Avoid confusing cities with the same name in different countries (e.g., San Jose in Costa Rica vs. San Jose in California). Do not invent or assume details about a location. Write for a shuttle booking site that connects travelers with third-party transport providers.
 `.trim()
-      }
-    ];
+      },
+      {
+        role: "user",
+        content: userPromptContent // Use the variable here
+      } // End of user message object
+    ]; // End of messages array definition
     // --- End Prompt Preparation ---
 
 
@@ -441,9 +454,9 @@ Global rules for all route types:
         }
 
         // --- NEW: Validate mapWaypoints if present ---
-        // Note: The prompt no longer asks for mapWaypoints here, so this validation might be redundant
-        // but leaving it in case the AI still returns it sometimes.
-        if ((routeTypeString === 'privateDrivingService' || routeTypeString === 'sightseeingShuttle') && parsedResponse.mapWaypoints) {
+        // Note: The prompt asks the AI to only include mapWaypoints for relevant types,
+        // but we validate here as a safeguard.
+        if ((routeTypeString === 'PRIVATE_DRIVER' || routeTypeString === 'SIGHTSEEING_SHUTTLE') && parsedResponse.mapWaypoints) {
           if (
             !Array.isArray(parsedResponse.mapWaypoints) ||
             !parsedResponse.mapWaypoints.every(
@@ -590,6 +603,28 @@ Global rules for all route types:
           console.log(`Retrying due to error: ${error instanceof Error ? error.message : 'Unknown error'}`);
           return generateContent(retryCount + 1, maxRetries);
         }
+        // Log more details about the specific error from OpenAI client
+        console.error("--- OpenAI API Call Error Details ---");
+        if (error instanceof Error) {
+          console.error("Error Name:", error.name);
+          console.error("Error Message:", error.message);
+          // Log additional properties if available (e.g., status code for API errors)
+          if ('status' in error) console.error("Status Code:", (error as any).status);
+          if ('code' in error) console.error("Error Code:", (error as any).code);
+          // console.error("Stack Trace:", error.stack); // Optional: might be too verbose
+        } else {
+          console.error("Caught non-Error object:", error);
+        }
+        console.error("--- End OpenAI API Call Error Details ---");
+
+        // If we have retries left for any error, try again
+        if (retryCount < maxRetries) {
+          console.log(`Retrying due to error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Add a small delay before retrying
+          await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+          return generateContent(retryCount + 1, maxRetries);
+        }
+        // If out of retries, re-throw the error to be caught by the top-level handler
         throw error;
       }
     };

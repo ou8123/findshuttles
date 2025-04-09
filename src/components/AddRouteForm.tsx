@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import Link from 'next/link';
+import { Amenity } from '@prisma/client'; // Import Amenity type
 import { useRouter } from 'next/navigation';
 import ContentEditorControls from './ContentEditorControls';
 import { WaypointStop } from '@/lib/aiWaypoints'; // Import WaypointStop type
@@ -29,6 +30,11 @@ const libraries: ("places")[] = ['places'];
 type RouteType = 'airportPickup' | 'airportDropoff' | 'cityToCity' | 'privateDriver' | 'sightseeingShuttle';
 
 const AddRouteForm = () => {
+  // State for all available amenities
+  const [allAmenities, setAllAmenities] = useState<Amenity[]>([]);
+  const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true);
+  const [amenityError, setAmenityError] = useState<string | null>(null);
+
   // State for internal locations lookup data
   const [locationsLookup, setLocationsLookup] = useState<CountryWithCitiesLookup[]>([]);
   const [isLoadingLocationsLookup, setIsLoadingLocationsLookup] = useState<boolean>(true);
@@ -51,6 +57,7 @@ const AddRouteForm = () => {
   const [seoDescription, setSeoDescription] = useState<string>('');
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags, default to cityToCity
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]); // State for selected amenity IDs
 
   // State for ChatGPT generation
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -94,6 +101,29 @@ const AddRouteForm = () => {
       }
     };
     fetchLocationsLookup();
+
+    // Fetch all amenities
+    const fetchAmenities = async () => {
+      setIsLoadingAmenities(true);
+      setAmenityError(null);
+      try {
+        const response = await fetch('/api/admin/amenities');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data: Amenity[] = await response.json();
+        setAllAmenities(data);
+      } catch (err: unknown) {
+        console.error("Failed to fetch amenities:", err);
+        let message = "Could not load amenities.";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        setAmenityError(message);
+      } finally {
+        setIsLoadingAmenities(false);
+      }
+    };
+    fetchAmenities();
+
   }, []);
 
   // --- Autocomplete Helper ---
@@ -300,6 +330,14 @@ const AddRouteForm = () => {
     }
   };
 
+  // Handler for amenity checkbox changes
+  const handleAmenityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = event.target;
+    setSelectedAmenityIds(prev =>
+      checked ? [...prev, value] : prev.filter(id => id !== value)
+    );
+  };
+
   // For router navigation (disabled in our case to prevent redirects)
   const router = useRouter();
 
@@ -403,8 +441,9 @@ const AddRouteForm = () => {
         setMetaDescription('');
         setMetaKeywords('');
         setSeoDescription('');
-        setRouteType('cityToCity'); 
+        setRouteType('cityToCity');
         setMapWaypoints([]); // Clear waypoints
+        setSelectedAmenityIds([]); // Clear selected amenities
         if (departureInputRef.current) departureInputRef.current.value = '';
         if (destinationInputRef.current) destinationInputRef.current.value = '';
       }
@@ -763,6 +802,35 @@ const AddRouteForm = () => {
           placeholder="Enter a detailed description for search engines..."
         />
       </div>
+
+      {/* Amenities Section */}
+      <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+        <h3 className="text-lg font-semibold mb-3 text-gray-800">Amenities</h3>
+        {isLoadingAmenities && <p className="text-sm text-gray-500">Loading amenities...</p>}
+        {amenityError && <p className="text-sm text-red-500">{amenityError}</p>}
+        {!isLoadingAmenities && !amenityError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
+        {!isLoadingAmenities && !amenityError && allAmenities.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {allAmenities.map((amenity) => (
+              <div key={amenity.id} className="flex items-center">
+                <input
+                  id={`amenity-${amenity.id}`}
+                  type="checkbox"
+                  value={amenity.id}
+                  checked={selectedAmenityIds.includes(amenity.id)}
+                  onChange={handleAmenityChange}
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <label htmlFor={`amenity-${amenity.id}`} className="ml-2 block text-sm text-gray-900">
+                  {amenity.name}
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* End Amenities Section */}
+
 
       {/* --- Waypoints Section (Moved to bottom) --- */}
       {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (

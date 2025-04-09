@@ -7,26 +7,26 @@
  * - Removes external URLs and promotional language
  * - Converts first-person to third-person where possible
  * - Extracts and formats city/hotel lists
- * 
+ * - Preserves accessibility info
+ * - Formats section spacing for readability
+ *
  * @param rawInput The raw editor notes from the textarea
  * @returns Cleaned and formatted content
  */
 export function cleanEditorNotes(rawInput: string): string {
   if (!rawInput || rawInput.trim() === '') return '';
-  
+
   // Normalize line endings
   let cleaned = rawInput.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  
-  // Remove external URLs and "read more" phrases
+
+  // Remove external URLs and common promotional phrases
   cleaned = cleaned.replace(/https?:\/\/\S+/g, '');
   cleaned = cleaned.replace(/read more about.*$/gim, '');
   cleaned = cleaned.replace(/visit (the )?official page.*$/gim, '');
   cleaned = cleaned.replace(/\bviator\.com\b/gi, 'BookShuttles.com');
-  
-  // Remove affiliate/partner language
   cleaned = cleaned.replace(/affiliate (link|service|partner)/gi, 'service');
   cleaned = cleaned.replace(/Viator affiliate/gi, 'shuttle service');
-  
+
   // Convert common first-person phrases to neutral third-person
   const firstPersonReplacements = [
     { pattern: /\b(?:we|our)\s+(?:offer|provide|have)\b/gi, replacement: 'the service offers' },
@@ -40,82 +40,111 @@ export function cleanEditorNotes(rawInput: string): string {
     { pattern: /\bour\b/gi, replacement: 'the' },
     { pattern: /\byou\b/gi, replacement: 'travelers' }
   ];
-  
-  // Apply all first-person replacements
   for (const { pattern, replacement } of firstPersonReplacements) {
     cleaned = cleaned.replace(pattern, replacement);
   }
-  
-  // Remove promotional superlatives
+
+  // Remove over-the-top adjectives
   const promotionalPhrases = [
     /\b(?:best|top|premier|luxury|exclusive|exceptional|outstanding|unparalleled)\b/gi,
     /\b(?:amazing|incredible|extraordinary|spectacular|remarkable)\b/gi
   ];
-  
   for (const pattern of promotionalPhrases) {
     cleaned = cleaned.replace(pattern, '');
   }
-  
-  // Extract cities - try different patterns
+
+  // Format important section headers
+  const sectionHeaders = ['Overview', "What's Included", 'What To Expect', 'Additional Info'];
+  for (const header of sectionHeaders) {
+    const pattern = new RegExp(`\\s*${header}`, 'gi');
+    cleaned = cleaned.replace(pattern, `\n\n${header}`);
+  }
+
+  // Format known list items (these should appear on their own line)
+  const listItems = [
+    'Air-conditioned vehicle',
+    'Private transportation',
+    'WiFi on board',
+    'Service animals allowed',
+    'Near public transportation',
+    'Most travelers can participate',
+    'Not wheelchair accessible' // Keep this for the safety check below
+  ];
+  for (const item of listItems) {
+    // Use a negative lookbehind to avoid adding a newline if one already exists
+    const pattern = new RegExp(`(?<!\\n)${item.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}`, 'g'); // Escape special regex chars
+    cleaned = cleaned.replace(pattern, `\n${item}`);
+  }
+
+  // Ensure accessibility and policy items have their own lines
+  const miscNotes = [
+    'Not wheelchair accessible', // Included again to ensure spacing if it wasn't in listItems
+    'Wheelchair accessible',
+    'Service animals allowed',
+    'Near public transportation',
+    'Most travelers can participate',
+    'This is a private tour/activity. Only your group will participate'
+  ];
+  for (const note of miscNotes) {
+    // Use a negative lookbehind to avoid adding a newline if one already exists
+    const pattern = new RegExp(`(?<!\\n)(${note.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi'); // Escape special regex chars
+    cleaned = cleaned.replace(pattern, '\n$1');
+  }
+
+  // Extract cities
   let extractedCities: string[] = [];
-  
-  // Common city list patterns
   const cityRegexes: RegExp[] = [
-    // Between city1 and city2
     /(?:between|connecting)\s+([\w\s,]+(?:and|&)[\w\s]+)(?:\.|,)/i,
-    // Cities include: city1, city2, and city3
     /cities\s*(?:include|:)\s*([\w\s,]+(?:and|&)[\w\s]+)(?:\.|,)/i,
-    // Provides service to city1, city2, and city3
     /(?:provides service to|serves)\s+([\w\s,]+(?:and|&)[\w\s]+)(?:\.|,)/i
   ];
-  
-  // Try to extract cities using different patterns
   for (const regex of cityRegexes) {
     const match = cleaned.match(regex);
     if (match && match[1]) {
-      // Split the matched text into city names
       const cities = match[1]
-        .replace(/\s+and\s+|\s*&\s*/g, ', ') // Replace "and" and "&" with commas
-        .split(/\s*,\s*/)                    // Split by commas
-        .map(city => city.trim())            // Trim whitespace
-        .filter(city => city.length > 1);    // Filter out any empty or single-character entries
-      
+        .replace(/\s+and\s+|\s*&\s*/g, ', ')
+        .split(/\s*,\s*/)
+        .map(city => city.trim())
+        .filter(city => city.length > 1);
       if (cities.length >= 2) {
         extractedCities = cities;
         break;
       }
     }
   }
-  
-  // Extract hotels - look for common patterns
+
+  // Extract hotel names
   const hotelMatches = cleaned.match(/(?:hotels?|accommodations?|lodging)(?:\s+include|\s*:)?\s+([\w\s,'&]+(?:Inn|Hotel|Lodge|Motel|Suites|Resort|Plaza|&|and)[\w\s,'&]+)/gi);
   const extractedHotels: string[] = [];
-  
   if (hotelMatches && hotelMatches.length > 0) {
     const hotelText = hotelMatches.join(' ');
-    
-    // Extract hotel names - look for patterns like capitalized words followed by Hotel, Inn, etc.
     const hotelNameRegex = /([A-Z][\w\s,'&]+(?:Inn|Hotel|Lodge|Motel|Suites|Resort|Plaza))/g;
     let hotelMatch: RegExpExecArray | null;
     while ((hotelMatch = hotelNameRegex.exec(hotelText)) !== null) {
-      if (hotelMatch[1] && hotelMatch[1].trim().length > 5) { // Ensure it's a substantial hotel name
+      if (hotelMatch[1] && hotelMatch[1].trim().length > 5) {
         extractedHotels.push(hotelMatch[1].trim());
       }
     }
   }
-  
-  // Add structured city list if we found cities
+
+  // Add structured lists if found
   if (extractedCities.length >= 2) {
     cleaned += '\n\nCities Served:\n' + extractedCities.map(city => `- ${city}`).join('\n');
   }
-  
-  // Add structured hotel list if we found hotels
   if (extractedHotels.length >= 1) {
     cleaned += '\n\nHotels Served:\n' + extractedHotels.map(hotel => `- ${hotel}`).join('\n');
   }
-  
-  return cleaned.trim();
+
+  // Safety check: ensure "Not wheelchair accessible" is not misread as positive amenity
+  // Append a tag that can be checked later in the pipeline if needed
+  cleaned = cleaned.replace(/Not\s*wheelchair\s*accessible(?!\w)/i, 'Not wheelchair accessible\n[NO_WHEELCHAIR_ACCESS]');
+
+  // Clean up extra line breaks
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+
+  return cleaned;
 }
+
 
 /**
  * Validates generated content for common SEO and formatting issues
