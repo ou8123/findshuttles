@@ -16,12 +16,22 @@ import Link from 'next/link'; // Ensure Link is imported if not already
 import * as HIcons from '@heroicons/react/24/outline';
 import { Prisma } from '@prisma/client'; // Import Prisma for JsonValue type
 import { Waypoint } from '@/types/common'; // Import the Waypoint type
+import PossibleNearbyStops, { NearbyStop } from '@/components/PossibleNearbyStops'; // Import the new component
+import RouteMapWithNearbyStops from '@/components/RouteMapWithNearbyStops'; // Import the combined component
 
 // Define the structure for a waypoint stop (matching aiWaypoints.ts)
 interface WaypointStop {
   name: string;
   lat: number;
   lng: number;
+}
+
+// Type guard for nearby stops
+function isNearbyStop(obj: any): obj is NearbyStop {
+  return typeof obj === 'object' && obj !== null &&
+         typeof obj.name === 'string' &&
+         typeof obj.lat === 'number' &&
+         typeof obj.lng === 'number';
 }
 
 // Type guard to check if an object is a valid WaypointStop
@@ -102,6 +112,7 @@ async function fetchRouteData(routeSlug) {
         isPrivateDriver: true, // Fetch new flag
         isSightseeingShuttle: true, // Fetch new flag
         mapWaypoints: true, // Fetch mapWaypoints
+        possibleNearbyStops: true, // Fetch possible nearby stops
         // Include related data with specific fields
         departureCity: {
           select: {
@@ -263,11 +274,20 @@ export default async function RoutePage({ params }) {
   // --- Logic to determine map display ---
   const isTourType = route.isPrivateDriver || route.isSightseeingShuttle;
   const isSameCityRoute = route.departureCityId === route.destinationCityId;
+  
   // Safely check and filter mapWaypoints, then assert the type of the resulting array
   const filteredWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
   const validWaypoints = filteredWaypoints as unknown as WaypointStop[]; // Assert type here
   // Corrected condition: require at least 1 valid waypoint for tour map
   const hasValidWaypoints = validWaypoints.length >= 1; 
+  
+  // Process possible nearby stops for applicable route types
+  const isApplicableForNearbyStops = (route.isAirportPickup || route.isAirportDropoff || route.isCityToCity) && !isTourType;
+  const filteredNearbyStops = isApplicableForNearbyStops && Array.isArray(route.possibleNearbyStops) 
+    ? route.possibleNearbyStops.filter(isNearbyStop) 
+    : [];
+  const validNearbyStops = filteredNearbyStops as unknown as NearbyStop[];
+  const hasValidNearbyStops = validNearbyStops.length >= 1;
   
   // Determine which map type to show (Corrected Logic)
   let mapType = 'standard'; // Default to standard A-to-B
@@ -410,44 +430,71 @@ export default async function RoutePage({ params }) {
                <div className="map-section my-8">
                  {mapType === 'standard' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
                 <>
-                  <h2 className="text-xl font-semibold mb-3">Estimated Route</h2> 
-                  <RouteMap
-                    departureLat={route.departureCity.latitude}
-                    departureLng={route.departureCity.longitude}
-                    destinationLat={route.destinationCity.latitude}
-                    destinationLng={route.destinationCity.longitude}
-                    isTourRoute={isTourType} // Pass the tour flag
-                  />
+                  <h2 className="text-xl font-semibold mb-3">Estimated Route</h2>
+                  
+                  {/* Use combined component when nearby stops are available, otherwise use regular RouteMap */}
+                  {hasValidNearbyStops ? (
+                    <RouteMapWithNearbyStops
+                      departureLat={route.departureCity.latitude}
+                      departureLng={route.departureCity.longitude}
+                      destinationLat={route.destinationCity.latitude}
+                      destinationLng={route.destinationCity.longitude}
+                      possibleNearbyStops={validNearbyStops}
+                      isTourRoute={isTourType}
+                    />
+                  ) : (
+                    <RouteMap
+                      departureLat={route.departureCity.latitude}
+                      departureLng={route.departureCity.longitude}
+                      destinationLat={route.destinationCity.latitude}
+                      destinationLng={route.destinationCity.longitude}
+                      isTourRoute={isTourType}
+                    />
+                  )}
                 </>
               )}
               {mapType === 'waypoints' && route.departureCity?.latitude && route.departureCity?.longitude && route.destinationCity?.latitude && route.destinationCity?.longitude && (
                  <>
                    <h2 className="text-xl font-semibold mb-3">Suggested Route with Stops</h2>
-                   <RouteMap
-                     departureLat={route.departureCity.latitude}
-                     departureLng={route.departureCity.longitude}
-                     destinationLat={route.destinationCity.latitude} // Still pass destination for potential centering/fallback
-                     destinationLng={route.destinationCity.longitude} // Still pass destination for potential centering/fallback
-                     waypoints={validWaypoints} // Pass the validated waypoints
-                     isTourRoute={isTourType} // Pass the tour flag
-                    />
-                    <p className="text-xs text-gray-500 mt-1 text-center">This is a suggested route based on popular stops. Actual route may vary.</p>
+                   
+                   {/* Use combined component when nearby stops are available for waypoint routes too */}
+                   {hasValidNearbyStops ? (
+                     <RouteMapWithNearbyStops
+                       departureLat={route.departureCity.latitude}
+                       departureLng={route.departureCity.longitude}
+                       destinationLat={route.destinationCity.latitude}
+                       destinationLng={route.destinationCity.longitude}
+                       waypoints={validWaypoints}
+                       possibleNearbyStops={validNearbyStops}
+                       isTourRoute={isTourType}
+                     />
+                   ) : (
+                     <RouteMap
+                       departureLat={route.departureCity.latitude}
+                       departureLng={route.departureCity.longitude}
+                       destinationLat={route.destinationCity.latitude}
+                       destinationLng={route.destinationCity.longitude}
+                       waypoints={validWaypoints}
+                       isTourRoute={isTourType}
+                     />
+                   )}
+                   
+                   <p className="text-xs text-gray-500 mt-1 text-center">This is a suggested route based on popular stops. Actual route may vary.</p>
 
-                    {/* Waypoint List Display */}
-                    {validWaypoints && validWaypoints.length > 0 && (
-                      <div className="mt-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Stops Along the Way</h3>
-                        <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1 text-sm">
-                          {validWaypoints.map((waypoint, index) => ( 
-                            <li key={index}>
-                              {waypoint.name || `Stop ${index + 1}`} 
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {/* End Waypoint List Display */}
-                  </>
+                   {/* Only show this if we're not showing the nearby stops list */}
+                   {!hasValidNearbyStops && validWaypoints && validWaypoints.length > 0 && (
+                     <div className="mt-6">
+                       <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Stops Along the Way</h3>
+                       <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1 text-sm">
+                         {validWaypoints.map((waypoint, index) => ( 
+                           <li key={index}>
+                             {waypoint.name || `Stop ${index + 1}`} 
+                           </li>
+                         ))}
+                       </ul>
+                     </div>
+                   )}
+                 </>
                )}
                 {mapType === 'none' && (
                  <div className="flex items-center justify-center h-32 bg-gray-50 border border-dashed border-gray-300 rounded">

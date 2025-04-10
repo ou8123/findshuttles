@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       isPrivateDriver, // New flag
       isSightseeingShuttle, // New flag
       mapWaypoints: manualMapWaypoints, // Check for manually provided waypoints
+      possibleNearbyStops: manualNearbyStops, // Check for manually provided nearby stops
       selectedAmenityIds // Expect selectedAmenityIds from the form
     } = body;
 
@@ -193,6 +194,25 @@ export async function POST(request: Request) {
     }
     // --- End waypoint logic ---
 
+    // --- Nearby Stops Logic: Validate and use manually provided stops ---
+    let finalNearbyStops: Prisma.JsonValue | null = null;
+
+    if (manualNearbyStops && Array.isArray(manualNearbyStops) && manualNearbyStops.length > 0) {
+        // Basic validation for manually provided nearby stops (structure: {name, lat, lng})
+        const isValidNearbyStops = manualNearbyStops.every(
+            (stop: any) => typeof stop === 'object' && stop !== null && 
+                          typeof stop.name === 'string' && 
+                          typeof stop.lat === 'number' && 
+                          typeof stop.lng === 'number'
+        );
+        if (isValidNearbyStops) {
+            console.log("Using manually provided possibleNearbyStops.");
+            finalNearbyStops = manualNearbyStops as Prisma.JsonValue;
+        } else {
+            console.warn("Manual possibleNearbyStops provided but format is invalid (expected {name, lat, lng}). Ignoring.");
+        }
+    }
+    // --- End nearby stops logic ---
 
     // Prepare data for creation, using correct connect syntax for relations
     const routeCreateData = {
@@ -216,6 +236,7 @@ export async function POST(request: Request) {
         isPrivateDriver: finalIsPrivateDriver,
         isSightseeingShuttle: finalIsSightseeingShuttle,
         mapWaypoints: finalMapWaypoints, // Use the final waypoints (manual or generated)
+        possibleNearbyStops: finalNearbyStops, // Use the validated nearby stops
         // Connect amenities based on the selected IDs from the form
         amenities: {
           connect: selectedAmenityIds && Array.isArray(selectedAmenityIds) && selectedAmenityIds.length > 0 

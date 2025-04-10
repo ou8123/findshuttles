@@ -10,6 +10,7 @@ import {
   // DirectionsRenderer, // No longer using this
 } from '@react-google-maps/api';
 import { WaypointStop } from '@/lib/aiWaypoints';
+import { NearbyStop } from './PossibleNearbyStops';
 
 // Use the actual google.maps type for the final state
 type ClientDirectionsResult = google.maps.DirectionsResult;
@@ -20,6 +21,7 @@ interface RouteMapProps {
   destinationLat: number;
   destinationLng: number;
   waypoints?: WaypointStop[] | null; // Array of { lat: number, lng: number } or null/undefined
+  possibleNearbyStops?: NearbyStop[] | null; // New prop for nearby attractions
   isTourRoute?: boolean; // Add prop to indicate tour type
 }
 
@@ -32,10 +34,11 @@ const RouteMap: React.FC<RouteMapProps> = ({
   destinationLat,
   destinationLng,
   waypoints,
+  possibleNearbyStops,
   isTourRoute = false, // Default to false if not provided
 }) => {
   // Log received props at the beginning
-  console.log('[RouteMap Props Received]', { departureLat, departureLng, destinationLat, destinationLng, waypoints, isTourRoute });
+  console.log('[RouteMap Props Received]', { departureLat, departureLng, destinationLat, destinationLng, waypoints, possibleNearbyStops, isTourRoute });
 
   const [error, setError] = useState<string | null>(null);
   // State to hold the raw directions result from the API
@@ -44,6 +47,11 @@ const RouteMap: React.FC<RouteMapProps> = ({
   const [decodedPath, setDecodedPath] = useState<google.maps.LatLng[]>([]);
   const requestMadeRef = useRef(false);
   const mapRef = useRef<google.maps.Map | null>(null);
+  
+  // States for interactivity with nearby stops
+  const [hoveredNearbyStopId, setHoveredNearbyStopId] = useState<string | null>(null);
+  const [clickedNearbyStopIndex, setClickedNearbyStopIndex] = useState<number | null>(null);
+  const nearbyStopMarkerRefs = useRef<(google.maps.Marker | null)[]>([]);
   // Use the FRONTEND key ONLY for loading the JS API (map display)
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -188,10 +196,12 @@ const RouteMap: React.FC<RouteMapProps> = ({
       decodedPath.forEach(point => bounds.extend(point));
       // Add waypoints to bounds if they exist
       waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
+      // Add nearby stops to bounds if they exist
+      possibleNearbyStops?.forEach(stop => bounds.extend(new window.google.maps.LatLng(stop.lat, stop.lng)));
 
       // Use fitBounds without padding to zoom as close as possible while showing everything
       map.fitBounds(bounds);
-      console.log("Effect: Fitted map bounds to path and waypoints (no padding)");
+      console.log("Effect: Fitted map bounds to path, waypoints, and nearby stops");
 
     } else if (!directionsResult && !error) { // Initial load before fetch or if reset
        map.setCenter(center);
@@ -202,10 +212,40 @@ const RouteMap: React.FC<RouteMapProps> = ({
        bounds.extend(new window.google.maps.LatLng(departureLat, departureLng));
        bounds.extend(new window.google.maps.LatLng(destinationLat, destinationLng));
        waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
+       possibleNearbyStops?.forEach(stop => bounds.extend(new window.google.maps.LatLng(stop.lat, stop.lng)));
        map.fitBounds(bounds); // Use fitBounds here as a fallback for errors
-       console.log("Effect: Fitted map bounds to start/end/waypoints due to error or missing path");
+       console.log("Effect: Fitted map bounds to start/end/waypoints/nearbystops due to error or missing path");
     }
-  }, [decodedPath, mapRef, center, directionsResult, error, departureLat, departureLng, destinationLat, destinationLng, waypoints]); // Dependencies for the effect
+  }, [decodedPath, mapRef, center, directionsResult, error, departureLat, departureLng, destinationLat, destinationLng, waypoints, possibleNearbyStops]); // Dependencies for the effect
+  
+  // Effect to handle animation of clicked nearby stop markers
+  useEffect(() => {
+    if (clickedNearbyStopIndex === null || !mapRef.current || !window.google || !window.google.maps) {
+      return;
+    }
+
+    const marker = nearbyStopMarkerRefs.current[clickedNearbyStopIndex];
+    const stop = possibleNearbyStops?.[clickedNearbyStopIndex];
+    const map = mapRef.current;
+
+    if (marker && stop && map) {
+      console.log(`[RouteMap] Animating/Panning to nearby stop index ${clickedNearbyStopIndex}`);
+      
+      // Pan map to the marker
+      map.panTo({ lat: stop.lat, lng: stop.lng });
+
+      // Start bounce animation
+      marker.setAnimation(window.google.maps.Animation.BOUNCE);
+
+      // Stop bounce animation after a short duration
+      const bounceTimeout = setTimeout(() => {
+        marker.setAnimation(null);
+      }, 750);
+
+      // Cleanup timeout on unmount or if index changes
+      return () => clearTimeout(bounceTimeout);
+    }
+  }, [clickedNearbyStopIndex, possibleNearbyStops]); // Rerun when clicked index changes
 
 
   if (loadError) {
@@ -267,6 +307,24 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {/* Waypoint Markers */}
         {waypoints && waypoints.map((wp, index) => (
             <Marker key={`wp-${index}`} position={{ lat: wp.lat, lng: wp.lng }} label={`${index + 1}`} />
+        ))}
+        
+        {/* Nearby Stops Markers - with distinct styling */}
+        {possibleNearbyStops && possibleNearbyStops.map((stop, index) => (
+          <Marker 
+            key={`nearby-${index}`} 
+            position={{ lat: stop.lat, lng: stop.lng }} 
+            label={`N${index + 1}`}
+            icon={{
+              url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', // Green markers for nearby stops
+              labelOrigin: new google.maps.Point(14, 15) // Adjust label position
+            }}
+            onLoad={(marker) => {
+              nearbyStopMarkerRefs.current[index] = marker;
+            }}
+            title={stop.name}
+            animation={clickedNearbyStopIndex === index ? google.maps.Animation.BOUNCE : undefined}
+          />
         ))}
       </GoogleMap>
     </>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Amenity } from '@prisma/client'; // Import Amenity type
 import ContentEditorControls from '@/components/ContentEditorControls';
 import { WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint type
+import { NearbyStop } from '@/components/PossibleNearbyStops'; // Import the nearby stop type
 
 interface City {
   id: string;
@@ -39,6 +40,7 @@ interface RouteData {
     isPrivateDriver: boolean; // Added new flag
     isSightseeingShuttle: boolean; // Added new flag
     mapWaypoints?: WaypointStop[] | null; // Add mapWaypoints field
+    possibleNearbyStops?: NearbyStop[] | null; // Add possibleNearbyStops field
     amenities: { id: string }[]; // Add amenities relation
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
@@ -68,6 +70,7 @@ const EditRoutePage = () => {
   const [allAmenities, setAllAmenities] = useState<Amenity[]>([]); // State to hold all amenities
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]); // State for selected amenity IDs
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
+  const [possibleNearbyStops, setPossibleNearbyStops] = useState<NearbyStop[]>([]); // State for nearby stops
   const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true); // Loading state for amenities
   const [amenityError, setAmenityError] = useState<string | null>(null); // Error state for amenities
 
@@ -170,6 +173,8 @@ const EditRoutePage = () => {
         setOtherStops(routeData.otherStops ?? '');
         setAdditionalInstructions(routeData.additionalInstructions ?? '');
         setMapWaypoints(Array.isArray(routeData.mapWaypoints) ? routeData.mapWaypoints : []);
+        // Load possible nearby stops data
+        setPossibleNearbyStops(Array.isArray(routeData.possibleNearbyStops) ? routeData.possibleNearbyStops : []);
         // Initialize selected amenities based on fetched route data
         setSelectedAmenityIds(routeData.amenities?.map(a => a.id) || []);
 
@@ -250,13 +255,22 @@ const EditRoutePage = () => {
     const originalRouteType = getOriginalRouteType();
     const originalWaypointsForCompare = Array.isArray(originalData.mapWaypoints) ? originalData.mapWaypoints : [];
     const currentWaypointsForCompare = mapWaypoints; 
+    
+    // Get original nearby stops for comparison
+    const originalNearbyStopsForCompare = Array.isArray(originalData.possibleNearbyStops) ? originalData.possibleNearbyStops : [];
+    const currentNearbyStopsForCompare = possibleNearbyStops;
+    
     const originalAmenityIds = originalData.amenities?.map(a => a.id).sort() || [];
     const currentAmenityIds = [...selectedAmenityIds].sort();
 
     const waypointsCleared = (originalWaypointsForCompare.length > 0 && currentWaypointsForCompare.length === 0);
+    const nearbyStopsCleared = (originalNearbyStopsForCompare.length > 0 && currentNearbyStopsForCompare.length === 0);
     
     // Check if amenities have changed
     const amenitiesChanged = JSON.stringify(originalAmenityIds) !== JSON.stringify(currentAmenityIds);
+    
+    // Check if nearby stops have changed
+    const nearbyStopsChanged = JSON.stringify(originalNearbyStopsForCompare) !== JSON.stringify(currentNearbyStopsForCompare);
 
     const otherFieldsChanged = !(
         departureCityId === originalData.departureCityId &&
@@ -276,8 +290,8 @@ const EditRoutePage = () => {
 
     const waypointsChanged = otherFieldsChanged ? true : (JSON.stringify(currentWaypointsForCompare) !== JSON.stringify(originalWaypointsForCompare));
 
-    // Include amenity changes in the check
-    if (!otherFieldsChanged && !waypointsChanged && !amenitiesChanged) {
+    // Include amenity and nearby stops changes in the check
+    if (!otherFieldsChanged && !waypointsChanged && !amenitiesChanged && !nearbyStopsChanged) {
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
     }
@@ -309,6 +323,7 @@ const EditRoutePage = () => {
             isPrivateDriver: currentIsPrivateDriver, 
             isSightseeingShuttle: currentIsSightseeingShuttle, 
             mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
+            possibleNearbyStops: possibleNearbyStops.length > 0 ? possibleNearbyStops : null,
             selectedAmenityIds: selectedAmenityIds // Send selected amenity IDs
          }),
       });
@@ -339,6 +354,7 @@ const EditRoutePage = () => {
         isPrivateDriver: currentIsPrivateDriver, 
         isSightseeingShuttle: currentIsSightseeingShuttle, 
         mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
+        possibleNearbyStops: possibleNearbyStops.length > 0 ? possibleNearbyStops : null, // Update possibleNearbyStops in original data
         amenities: selectedAmenityIds.map(id => ({ id })), // Update original data state
       });
     } catch (error: unknown) {
@@ -453,6 +469,33 @@ const EditRoutePage = () => {
   }, [mapWaypoints]); 
   // --- End Waypoint Handlers ---
 
+  // --- Nearby Stops Handlers ---
+  const handleNearbyStopChange = useCallback((index: number, field: 'name' | 'lat' | 'lng', value: string) => {
+    const updated = [...possibleNearbyStops];
+    if (updated[index]) {
+      let newValue: string | number = value;
+      if (field === 'lat' || field === 'lng') {
+        const parsed = parseFloat(value);
+        newValue = isNaN(parsed) ? value : parsed; 
+      }
+      
+      updated[index] = {
+        ...updated[index],
+        [field]: newValue 
+      };
+      setPossibleNearbyStops(updated);
+    }
+  }, [possibleNearbyStops]);
+
+  const handleAddNearbyStop = useCallback(() => {
+    setPossibleNearbyStops([...possibleNearbyStops, { name: '', lat: 0, lng: 0 }]);
+  }, [possibleNearbyStops]);
+
+  const handleRemoveNearbyStop = useCallback((index: number) => {
+    const updated = possibleNearbyStops.filter((_, i) => i !== index);
+    setPossibleNearbyStops(updated);
+  }, [possibleNearbyStops]);
+  // --- End Nearby Stops Handlers ---
 
   if (isLoadingRoute) {
     return <div className="text-center p-4">Loading route data...</div>;
@@ -884,6 +927,77 @@ const EditRoutePage = () => {
         )}
         {/* --- End Waypoints Section --- */}
 
+        {/* --- Possible Nearby Stops Section --- */}
+        {(routeType === 'airportPickup' || routeType === 'airportDropoff' || routeType === 'cityToCity') && (
+          <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">Possible Nearby Stops</h3>
+            <p className="text-sm text-amber-600 mb-3">
+              These are tourist attractions or points of interest near the route that travelers might want to visit. 
+              The stops will be displayed with the disclaimer that they are not guaranteed and travelers need to 
+              ask the shuttle provider if stopping is possible.
+            </p>
+            
+            {possibleNearbyStops && possibleNearbyStops.length > 0 ? (
+              <div className="space-y-4">
+                {possibleNearbyStops.map((stop, index) => (
+                  <div key={index} className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group">
+                     <div className="flex justify-between items-start">
+                       <span className="text-xs font-medium text-gray-500">Stop {index + 1}</span>
+                       <button
+                         type="button"
+                         onClick={() => handleRemoveNearbyStop(index)}
+                         className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
+                         aria-label={`Remove nearby stop ${index + 1}`}
+                       >
+                         &#x2715;
+                      </button>
+                    </div>
+                    {/* Nearby Stop Name Input */}
+                    <input
+                      type="text"
+                      value={stop.name || ''}
+                      onChange={(e) => handleNearbyStopChange(index, 'name', e.target.value)}
+                      placeholder="Stop name (e.g., Rainbow Waterfall)"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
+                    />
+                    {/* Lat/Lng Inputs */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        step="any"
+                        value={stop.lat ?? ''}
+                        onChange={(e) => handleNearbyStopChange(index, 'lat', e.target.value)}
+                        placeholder="Latitude"
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <input
+                        type="number"
+                        step="any"
+                        value={stop.lng ?? ''}
+                        onChange={(e) => handleNearbyStopChange(index, 'lng', e.target.value)}
+                        placeholder="Longitude"
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mt-2">No nearby stops defined. Add attractions or points of interest near this route.</p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleAddNearbyStop}
+              className="mt-4 text-sm text-green-600 hover:text-green-700 font-medium py-1 px-3 border border-green-300 rounded hover:bg-green-50"
+            >
+              + Add Nearby Stop
+            </button>
+            <p className="text-xs text-gray-500 mt-2">Nearby stops will appear on the route page with a disclaimer that they require approval from shuttle providers.</p>
+          </div>
+        )}
+        {/* --- End Possible Nearby Stops Section --- */}
+
       {/* Submit Button & Status Message */}
       <div className="pt-2">
         {submitStatus && (
@@ -920,4 +1034,3 @@ const EditRoutePage = () => {
 };
 
 export default EditRoutePage;
-
