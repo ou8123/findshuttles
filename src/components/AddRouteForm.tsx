@@ -109,10 +109,10 @@ const AddRouteForm = () => {
       try {
         const response = await fetch('/api/admin/amenities');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data: Amenity[] = await response.json();
-        setAllAmenities(data || []); // Assuming API returns array directly
+        const data = await response.json(); 
+        setAllAmenities(data.amenities || []); // Extract the 'amenities' array
       } catch (err: unknown) {
-        console.error("Failed to fetch amenities:", err);
+        console.error("Failed to fetch amenities:", err); 
         let message = "Could not load amenities.";
         if (err instanceof Error) {
             message = err.message;
@@ -125,12 +125,6 @@ const AddRouteForm = () => {
     fetchAmenities();
 
   }, []);
-
-  // --- Debug useEffect for selectedAmenityIds ---
-  useEffect(() => {
-    console.log("[DEBUG useEffect] selectedAmenityIds changed:", selectedAmenityIds);
-  }, [selectedAmenityIds]);
-  // --- End Debug useEffect ---
 
   // --- Autocomplete Helper ---
   const findMatchingCity = (placeName: string): CityLookup | null => {
@@ -824,6 +818,9 @@ const AddRouteForm = () => {
         {isLoadingAmenities && <p className="text-sm text-gray-500">Loading amenities...</p>}
         {amenityError && <p className="text-sm text-red-500">{amenityError}</p>}
         {!isLoadingAmenities && !amenityError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
+        {/* --- Debug Log for Rendering Conditions (wrapped) --- */}
+        {(() => { console.log("[DEBUG AddRouteForm] Rendering Amenities Checkboxes - Conditions:", { isLoading: isLoadingAmenities, error: amenityError, count: allAmenities.length }); return null; })()}
+        {/* --- End Debug Log --- */}
         {!isLoadingAmenities && !amenityError && allAmenities.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {allAmenities.map((amenity) => (
@@ -845,7 +842,6 @@ const AddRouteForm = () => {
         )}
       </div>
       {/* End Amenities Section */}
-
 
       {/* --- Waypoints Section (Moved to bottom) --- */}
       {(routeType === 'privateDriver' || routeType === 'sightseeingShuttle') && (
@@ -965,3 +961,4 @@ const AddRouteForm = () => {
 };
 
 export default AddRouteForm;
+

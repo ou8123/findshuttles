@@ -90,10 +90,13 @@ const EditRoutePage = () => {
       try {
         const response = await fetch('/api/admin/amenities');
         if (!response.ok) throw new Error('Failed to fetch amenities');
-        const data = await response.json();
-        setAllAmenities(data || []); // Assuming API returns array directly
+        const fetchedData = await response.json(); 
+        console.log("[DEBUG EditRoutePage] Fetched amenities data:", fetchedData); 
+        // Ensure we always set an array, even if fetchedData.amenities is missing or not an array
+        const amenitiesArray = Array.isArray(fetchedData?.amenities) ? fetchedData.amenities : [];
+        setAllAmenities(amenitiesArray); 
       } catch (err) {
-        console.error("Failed to fetch all amenities:", err);
+        console.error("[DEBUG EditRoutePage] Failed to fetch amenities:", err); 
         setAmenityError("Could not load amenities.");
       } finally {
         setIsLoadingAmenities(false);
@@ -195,6 +198,12 @@ const EditRoutePage = () => {
 
     fetchRoute();
   }, [routeId]);
+
+  // --- Debug useEffect for selectedAmenityIds ---
+  useEffect(() => {
+    console.log("[DEBUG useEffect] selectedAmenityIds changed:", selectedAmenityIds);
+  }, [selectedAmenityIds]);
+  // --- End Debug useEffect ---
 
   // Helper to determine original route type for comparison
   const getOriginalRouteType = (): RouteType | null => { 
@@ -395,7 +404,7 @@ const EditRoutePage = () => {
       const newAmenityIds = data.matchedAmenityIds || []; // DEBUG LOG 2 - Capture IDs
       console.log("Updating selectedAmenityIds with:", newAmenityIds); // DEBUG LOG 3 - Log IDs being set
       setSelectedAmenityIds(newAmenityIds); 
-      console.log("State *after* calling setSelectedAmenityIds:", selectedAmenityIds); // DEBUG LOG 4 - Check state immediately after setting
+      // Removed misleading log here (DEBUG LOG 4)
 
       setSubmitStatus({
         success: true,
@@ -782,14 +791,17 @@ const EditRoutePage = () => {
         {/* Amenities Section */}
         <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
           <h3 className="text-lg font-semibold mb-3 text-gray-800">Amenities</h3>
-          {isLoadingAmenities && <p className="text-sm text-gray-500">Loading amenities...</p>}
-          {amenityError && <p className="text-sm text-red-500">{amenityError}</p>}
-          {!isLoadingAmenities && !amenityError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
-          {!isLoadingAmenities && !amenityError && allAmenities.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {allAmenities.map((amenity) => (
-                <div key={amenity.id} className="flex items-center">
-                  <input
+        {isLoadingAmenities && <p className="text-sm text-gray-500">Loading amenities...</p>}
+        {amenityError && <p className="text-sm text-red-500">{amenityError}</p>}
+        {!isLoadingAmenities && !amenityError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
+        {/* --- Debug Log for Rendering Conditions (wrapped) --- */}
+        {(() => { console.log("[DEBUG EditRoutePage] Rendering Amenities Checkboxes - Conditions:", { isLoading: isLoadingAmenities, error: amenityError, count: allAmenities.length }); return null; })()}
+        {/* --- End Debug Log --- */}
+        {!isLoadingAmenities && !amenityError && allAmenities.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {allAmenities.map((amenity) => (
+              <div key={amenity.id} className="flex items-center">
+                <input
                     id={`amenity-${amenity.id}`}
                     type="checkbox"
                     value={amenity.id}
@@ -909,200 +921,3 @@ const EditRoutePage = () => {
 
 export default EditRoutePage;
 
-</final_file_content>
-
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
-
-<environment_details>
-# VSCode Visible Files
-src/app/admin/routes/edit/[routeId]/page.tsx
-
-# VSCode Open Tabs
-../my-shuttle-app/prisma/schema.prisma
-../my-shuttle-app/.env
-../my-shuttle-app/src/app/layout.tsx
-../my-shuttle-app/src/components/theme-provider.tsx
-../my-shuttle-app/src/app/page.tsx
-../my-shuttle-app/src/lib/prisma.ts
-src/app/admin/api/admin/countries/route.ts
-src/app/admin/api/admin/countries/[countryId]/route.ts
-my-shuttle-admin-app/src/lib/prisma.ts
-my-shuttle-admin-app/src/app/admin/cities/page.tsx
-my-shuttle-admin-app/src/app/admin/countries/page.tsx
-my-shuttle-admin-app/src/app/api/admin/cities/route.ts
-my-shuttle-admin-app/src/app/api/admin/cities/[cityId]/route.ts
-my-shuttle-admin-app/src/app/api/admin/countries/[countryId]/route.ts
-my-shuttle-admin-app/src/app/api/admin/countries/route.ts
-my-shuttle-admin-app/src/app/layout.tsx
-my-shuttle-admin-app/src/components/SearchFormWrapper.tsx
-next.config.ts
-my-shuttle-admin-app/next.config.ts
-my-shuttle-admin-app/src/app/page.tsx
-src/app/not-found.tsx
-my-shuttle-admin-app/src/app/not-found.tsx
-seed-production.js
-scripts/add-test-route.ts
-src/app/api/search-redirect/route.ts
-src/app/api/sitemap/route.ts
-src/lib/api-auth.ts
-src/types/next-auth.d.ts
-SECURITY.md
-tsconfig.json
-scripts/reset-password.ts
-netlify-reset-password.js
-src/lib/netlify-auth-debug.ts
-NETLIFY_IDENTITY_SETUP.md
-src/lib/netlify-auth-context.tsx
-src/app/api/admin/bypass-auth/route.ts
-src/app/admin-bypass/page.tsx
-AUTHENTICATION_FIX.md
-src/app/system-access/page.tsx
-src/lib/system-auth.ts
-src/app/api/system-auth/login/route.ts
-src/app/api/system-auth/verify/route.ts
-SYSTEM_ACCESS_GUIDE.md
-src/app/api/auth/[...auth0]/route.ts
-auth0-config.js
-AUTH0_SETUP_GUIDE.md
-package.json
-IMPLEMENTATION_SUMMARY.md
-.env.auth0.example
-src/app/api/auth0/[...auth0]/route.ts
-src/app/api/auth0/login/route.ts
-src/components/Auth0LoginButton.tsx
-src/app/api/auth/login/route.ts
-src/app/api/auth/callback/route.ts
-src/app/admin-debug/page.tsx
-AUTH0_EDGE_RUNTIME_FIX.md
-src/app/admin/page.tsx
-src/components/admin/AdminAuthWrapper.tsx
-src/components/AuthProvider.tsx
-netlify.js
-src/components/admin/AdminSidebarNav.tsx
-src/app/api/auth/logout/route.ts
-src/app/api/auth/debug/route.ts
-src/components/ErrorLogger.tsx
-src/components/AutoScroller.tsx
-src/components/FixedHeightWidgetContainer.tsx
-src/components/SearchFormWrapper.tsx
-src/components/AdaptiveWidgetContainer.tsx
-src/app/api/admin/routes/duplicate/route.ts
-src/components/ValidationResultsDisplay.tsx
-src/components/ContentEditorControls.tsx
-src/components/FormattedDescription.jsx
-src/app/admin/cities/page.tsx
-src/app/admin/countries/page.tsx
-src/components/ViatorIframeWidget.tsx
-src/components/ViatorWidgetRenderer.tsx
-src/components/ViatorAspectContainer.tsx
-src/components/ViatorAspectWidget.tsx
-src/components/ViatorDirectWidget.tsx
-src/components/ViatorAutoResizeWidget.tsx
-src/components/ViatorSimpleWidget.tsx
-src/components/HomeSearchForm.tsx
-src/components/ViatorResponsiveWidget.tsx
-src/components/ViatorWidgetWrapper.tsx
-src/components/ViatorScriptLoader.tsx
-src/components/ViatorAdaptiveContainer.tsx
-src/components/CountryRouteFilter.jsx
-src/lib/auth.ts
-src/app/sitemap.ts
-public/robots.txt
-tailwind.config.js
-src/app/globals.css
-prisma/seed.ts
-scripts/restore-routes.ts
-scripts/backup-restore-db.ts
-scripts/dump-routes.ts
-scripts/check-data.ts
-src/app/api/locations/route.ts
-src/app/api/routes/[routeSlug]/route.ts
-.env
-src/lib/amenity-matcher.ts
-src/components/AddRouteForm.tsx
-src/app/admin/routes/edit/[routeId]/page.tsx
-eslint.config.mjs
-next.config.js
-src/app/layout.tsx
-scripts/restore-neon-db.sh
-.github/workflows/daily-backup.yml
-prisma/schema.prisma
-src/components/AmenityBadge.tsx
-src/components/AmenitiesTable.jsx
-scripts/rename-amenity.ts
-src/components/RouteSummaryBlock.jsx
-src/components/admin/RouteList.tsx
-src/lib/content-utils.ts
-src/app/api/admin/routes/route.ts
-src/app/api/admin/routes/[routeId]/route.ts
-src/app/api/admin/routes/generate-content/route.ts
-scripts/backup-to-gdrive.ts
-scripts/backup-neon-db.sh
-src/middleware.ts
-src/lib/aiWaypoints.ts
-src/app/api/routes/get-directions/route.ts
-src/types/common.ts
-src/components/RouteMap.tsx
-src/app/routes/[routeSlug]/page.tsx
-src/components/ItinerarySection.tsx
-src/components/WaypointList.tsx
-src/components/MapWithWaypoints.tsx
-scripts/create-neon-snapshot.sh
-.git/hooks/pre-push
-src/app/routes/[routeSlug]/page.jsx
-src/lib/errorLogger.ts
-src/components/ErrorHandlerLoader.tsx
-src/lib/maps-utils.ts
-src/app/api/routes/directions/route.ts
-scripts/fix-san-jose-duplicate.ts
-src/app/api/admin/amenities/route.ts
-prisma/migrations/20250406080000_add_amenities/migration.sql
-scripts/check-amenities.ts
-prisma/migrations/20250406083935_add_additional_instructions/migration.sql
-scripts/add-additional-instructions-column.ts
-scripts/create-admin-user.ts
-.gitignore
-src/components/HeroSection.tsx
-src/app/admin/cities/new/page.tsx
-src/app/admin/cities/edit/[cityId]/page.tsx
-src/app/admin/countries/edit/[countryId]/page.tsx
-src/app/page.tsx
-src/app/api/admin/countries/[countryId]/route.ts
-src/components/SearchForm.tsx
-src/components/HotelsGrid.jsx
-src/app/countries/page.jsx
-src/app/countries/[countrySlug]/page.jsx
-src/app/api/admin/cities/route.ts
-src/components/admin/CityList.tsx
-src/app/api/admin/countries/route.ts
-src/components/admin/CountryList.tsx
-scripts/delete-route-by-slug.ts
-src/app/debug/page.tsx
-src/app/api/valid-destinations/route.ts
-src/app/api/auth/[...nextauth]/route.ts
-src/app/login/page.tsx
-src/app/admin/routes/page.tsx
-src/app/admin/layout.tsx
-src/app/admin/countries/new/page.tsx
-src/components/Header.tsx
-netlify.toml
-src/app/api/admin/cities/[cityId]/route.ts
-src/lib/utils.ts
-src/app/api/admin/locations/find-or-create/route.ts
-scripts/normalize-city-names.ts
-scripts/delete-specific-route.ts
-src/lib/auth0-config.js
-src/app/identity-callback/page.tsx
-src/components/TokenDetector.tsx
-.env.production
-my-shuttle-admin-app/next.config.js
-netlify-build.js
-my-shuttle-admin-app/src/lib/auth.ts
-my-shuttle-admin-app/src/app/login/page.tsx
-
-# Current Time
-4/9/2025, 3:30:20 PM (America/Los_Angeles, UTC-7:00)
-
-# Current Mode
-ACT MODE
-</environment_details>
