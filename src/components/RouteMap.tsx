@@ -21,8 +21,10 @@ interface RouteMapProps {
   destinationLat: number;
   destinationLng: number;
   waypoints?: WaypointStop[] | null; // Array of { lat: number, lng: number } or null/undefined
-  possibleNearbyStops?: NearbyStop[] | null; // New prop for nearby attractions
-  isTourRoute?: boolean; // Add prop to indicate tour type
+  possibleNearbyStops?: NearbyStop[] | null;
+  isTourRoute?: boolean;
+  onNearbyStopMarkerClick?: (index: number) => void; // Callback for marker clicks
+  activeNearbyStopIndex?: number | null; // Index of the currently active/clicked stop
 }
 
 // Define the required libraries - ensure 'maps' is included
@@ -35,10 +37,12 @@ const RouteMap: React.FC<RouteMapProps> = ({
   destinationLng,
   waypoints,
   possibleNearbyStops,
-  isTourRoute = false, // Default to false if not provided
+  isTourRoute = false,
+  onNearbyStopMarkerClick,
+  activeNearbyStopIndex,
 }) => {
   // Log received props at the beginning
-  console.log('[RouteMap Props Received]', { departureLat, departureLng, destinationLat, destinationLng, waypoints, possibleNearbyStops, isTourRoute });
+  console.log('[RouteMap Props Received]', { departureLat, departureLng, destinationLat, destinationLng, waypoints, possibleNearbyStops, isTourRoute, activeNearbyStopIndex });
 
   const [error, setError] = useState<string | null>(null);
   // State to hold the raw directions result from the API
@@ -47,10 +51,6 @@ const RouteMap: React.FC<RouteMapProps> = ({
   const [decodedPath, setDecodedPath] = useState<google.maps.LatLng[]>([]);
   const requestMadeRef = useRef(false);
   const mapRef = useRef<google.maps.Map | null>(null);
-  
-  // States for interactivity with nearby stops
-  const [hoveredNearbyStopId, setHoveredNearbyStopId] = useState<string | null>(null);
-  const [clickedNearbyStopIndex, setClickedNearbyStopIndex] = useState<number | null>(null);
   const nearbyStopMarkerRefs = useRef<(google.maps.Marker | null)[]>([]);
   // Use the FRONTEND key ONLY for loading the JS API (map display)
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -182,7 +182,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
     console.log("Map instance stored.");
   }, []);
 
-  // useEffect to adjust map view when decodedPath changes
+  // useEffect to adjust map view primarily when the route path is decoded
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !window.google || !window.google.maps) {
@@ -190,47 +190,77 @@ const RouteMap: React.FC<RouteMapProps> = ({
       return;
     }
 
-    // Fit bounds manually when path is decoded
+    // Fit bounds primarily when the path is decoded
     if (decodedPath.length > 0) {
+      console.log("[RouteMap fitBounds Effect] Path decoded, calculating bounds...");
       const bounds = new window.google.maps.LatLngBounds();
+      // Extend bounds for the route path itself
       decodedPath.forEach(point => bounds.extend(point));
-      // Add waypoints to bounds if they exist
+      // Extend bounds for explicit waypoints
       waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
-      // Add nearby stops to bounds if they exist
+      // Extend bounds for nearby stops *if they exist at this time*
+      // This ensures they are included in the initial view if available,
+      // but changes to nearby stops alone won't re-trigger this effect.
       possibleNearbyStops?.forEach(stop => bounds.extend(new window.google.maps.LatLng(stop.lat, stop.lng)));
 
-      // Use fitBounds without padding to zoom as close as possible while showing everything
-      map.fitBounds(bounds);
-      console.log("Effect: Fitted map bounds to path, waypoints, and nearby stops");
+      try {
+        console.log("[RouteMap fitBounds Effect] Attempting map.fitBounds...");
+        // Use fitBounds without padding to zoom as close as possible while showing everything
+        map.fitBounds(bounds);
+        console.log("[RouteMap fitBounds Effect] Successfully fitted map bounds to path, waypoints, and nearby stops (if present).");
+      } catch (fitBoundsError: any) {
+         console.error("[RouteMap fitBounds Effect] Error calling map.fitBounds:", fitBoundsError);
+         // Fallback: center on the start point if fitBounds fails
+         map.setCenter({ lat: departureLat, lng: departureLng });
+         map.setZoom(10); // Reasonable zoom level
+      }
 
     } else if (!directionsResult && !error) { // Initial load before fetch or if reset
+       console.log("[RouteMap fitBounds Effect] Initial load, setting center and zoom.");
        map.setCenter(center);
        map.setZoom(8);
-       console.log("Effect: Set initial map center and zoom");
-    } else if (error || (directionsResult && decodedPath.length === 0)) { // On error or if fetch succeeded but no path, fit to start/end/waypoints
+    } else if (error || (directionsResult && decodedPath.length === 0)) { // On error or if fetch succeeded but no path
+       console.log("[RouteMap fitBounds Effect] Error or no path, fitting bounds to start/end/waypoints/nearbystops as fallback.");
        const bounds = new window.google.maps.LatLngBounds();
        bounds.extend(new window.google.maps.LatLng(departureLat, departureLng));
        bounds.extend(new window.google.maps.LatLng(destinationLat, destinationLng));
        waypoints?.forEach(wp => bounds.extend(new window.google.maps.LatLng(wp.lat, wp.lng)));
+       // Include nearby stops in fallback bounds calculation as well
        possibleNearbyStops?.forEach(stop => bounds.extend(new window.google.maps.LatLng(stop.lat, stop.lng)));
-       map.fitBounds(bounds); // Use fitBounds here as a fallback for errors
-       console.log("Effect: Fitted map bounds to start/end/waypoints/nearbystops due to error or missing path");
+       try {
+         console.log("[RouteMap fitBounds Effect] Attempting map.fitBounds (fallback)...");
+         map.fitBounds(bounds);
+         console.log("[RouteMap fitBounds Effect] Successfully fitted map bounds (fallback).");
+       } catch (fitBoundsError: any) {
+         console.error("[RouteMap fitBounds Effect] Error calling map.fitBounds (fallback):", fitBoundsError);
+         // Fallback: center on the start point if fitBounds fails
+         map.setCenter({ lat: departureLat, lng: departureLng });
+         map.setZoom(10);
+       }
     }
-  }, [decodedPath, mapRef, center, directionsResult, error, departureLat, departureLng, destinationLat, destinationLng, waypoints, possibleNearbyStops]); // Dependencies for the effect
+    // Dependencies: Run primarily when path changes, or on error/reset, or if core route points change.
+    // Crucially, `possibleNearbyStops` is removed to prevent re-fitting just for them.
+  }, [decodedPath, mapRef, center, directionsResult, error, departureLat, departureLng, destinationLat, destinationLng, waypoints, isTourRoute]); // Removed possibleNearbyStops, kept isTourRoute as it affects markers
   
-  // Effect to handle animation of clicked nearby stop markers
+  // Effect to handle animation of the active nearby stop marker (controlled by parent)
   useEffect(() => {
-    if (clickedNearbyStopIndex === null || !mapRef.current || !window.google || !window.google.maps) {
+    if (activeNearbyStopIndex === null || !mapRef.current || !window.google || !window.google.maps) {
       return;
     }
+    
+    // Ensure activeNearbyStopIndex is a valid number before using it as an index
+    if (typeof activeNearbyStopIndex !== 'number') {
+        console.warn("[RouteMap Animation Effect] activeNearbyStopIndex is not a number:", activeNearbyStopIndex);
+        return;
+    }
 
-    const marker = nearbyStopMarkerRefs.current[clickedNearbyStopIndex];
-    const stop = possibleNearbyStops?.[clickedNearbyStopIndex];
+    const marker = nearbyStopMarkerRefs.current[activeNearbyStopIndex];
+    const stop = possibleNearbyStops?.[activeNearbyStopIndex];
     const map = mapRef.current;
 
     if (marker && stop && map) {
-      console.log(`[RouteMap] Animating/Panning to nearby stop index ${clickedNearbyStopIndex}`);
-      
+      console.log(`[RouteMap] Animating/Panning to nearby stop index ${activeNearbyStopIndex}`);
+
       // Pan map to the marker
       map.panTo({ lat: stop.lat, lng: stop.lng });
 
@@ -245,7 +275,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
       // Cleanup timeout on unmount or if index changes
       return () => clearTimeout(bounceTimeout);
     }
-  }, [clickedNearbyStopIndex, possibleNearbyStops]); // Rerun when clicked index changes
+  }, [activeNearbyStopIndex, possibleNearbyStops]); // Rerun when active index changes
 
 
   if (loadError) {
@@ -311,19 +341,17 @@ const RouteMap: React.FC<RouteMapProps> = ({
         
         {/* Nearby Stops Markers - with distinct styling */}
         {possibleNearbyStops && possibleNearbyStops.map((stop, index) => (
-          <Marker 
-            key={`nearby-${index}`} 
-            position={{ lat: stop.lat, lng: stop.lng }} 
-            label={`N${index + 1}`}
-            icon={{
-              url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', // Green markers for nearby stops
-              labelOrigin: new google.maps.Point(14, 15) // Adjust label position
-            }}
+          <Marker
+            key={`nearby-${index}`}
+            position={{ lat: stop.lat, lng: stop.lng }}
+            label={`${index + 1}`} // Use simple number label
+            // Removed icon and labelOrigin props to use default marker style
             onLoad={(marker) => {
               nearbyStopMarkerRefs.current[index] = marker;
             }}
+            onClick={() => onNearbyStopMarkerClick?.(index)} // Call handler passed from parent
             title={stop.name}
-            animation={clickedNearbyStopIndex === index ? google.maps.Animation.BOUNCE : undefined}
+            animation={activeNearbyStopIndex === index ? google.maps.Animation.BOUNCE : undefined} // Use prop for animation
           />
         ))}
       </GoogleMap>
@@ -331,4 +359,5 @@ const RouteMap: React.FC<RouteMapProps> = ({
   );
 };
 
-export default RouteMap;
+// Memoize the component to prevent unnecessary re-renders if props haven't changed
+export default React.memo(RouteMap);

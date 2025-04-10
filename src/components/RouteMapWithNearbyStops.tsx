@@ -46,6 +46,8 @@ export default function RouteMapWithNearbyStops({
           waypoints={waypoints}
           possibleNearbyStops={possibleNearbyStops}
           isTourRoute={isTourRoute}
+          onNearbyStopMarkerClick={handleStopClick} // Pass click handler down
+          activeNearbyStopIndex={clickedStopIndex} // Pass active index state down
         />
       </div>
 

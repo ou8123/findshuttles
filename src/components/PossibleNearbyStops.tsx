@@ -11,10 +11,7 @@ export interface NearbyStop {
   description?: string;
 }
 
-// Helper function to get the marker label - using N1-N9 for nearby stops to distinguish from waypoints
-const getMarkerLabel = (index: number): string => {
-  return `N${index + 1}`; // N1, N2, N3, etc.
-};
+// Removed getMarkerLabel helper function
 
 export default function PossibleNearbyStops({
   nearbyStops,
@@ -52,8 +49,9 @@ export default function PossibleNearbyStops({
             onClick={() => onStopClick(index)}
           >
             <div className="flex items-center">
+              {/* Use simple index + 1 for the label */}
               <span className="mr-2 font-bold text-green-600 w-4 text-center">
-                {getMarkerLabel(index)}
+                {index + 1}
               </span>
               <span className="font-medium flex-1">{stop.name}</span>
             </div>
