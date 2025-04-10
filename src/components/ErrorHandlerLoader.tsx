@@ -1,17 +1,22 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createGlobalErrorHandler } from '@/lib/errorLogger';
+import { createGlobalErrorHandler } from '@/lib/errorLogger'; // Restore dependency
 
 // This component loads the global error handler
 // It should be included in the root layout
 export default function ErrorHandlerLoader() {
+  // Add a direct console log outside of useEffect to ensure it runs
+  if (typeof window !== 'undefined') {
+    console.log('[ErrorHandlerLoader] Component loaded on client');
+  }
+  
   useEffect(() => {
-    // --- Temporarily Disable Error Handler Initialization ---
-    console.log("Skipping createGlobalErrorHandler call for debugging.");
-    // const cleanup = createGlobalErrorHandler(); 
-    const cleanup = () => {}; // No-op cleanup
-    // --- End Temporary Disable ---
+    // Initialize the global error handler
+    const cleanup = createGlobalErrorHandler(); 
+    
+    // Try to trigger a direct console log to test
+    console.log('[ErrorHandlerLoader] useEffect executed');
     
     // Clean up on unmount
     return () => {

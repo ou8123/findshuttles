@@ -100,6 +100,7 @@ model Route {
   isPrivateDriver      Boolean   @default(false) // New type
   isSightseeingShuttle Boolean   @default(false) // New type
   mapWaypoints         Json?     // Stores Google Maps directions or array of stops for tours
+  possibleNearbyStops  Json?     // For storing an array of {name, lat, lng} for nearby attractions
   departureCity        City      @relation("DepartureCity", fields: [departureCityId], references: [id])
   departureCountry     Country   @relation("DepartureCountry", fields: [departureCountryId], references: [id])
   destinationCity      City      @relation("DestinationCity", fields: [destinationCityId], references: [id])

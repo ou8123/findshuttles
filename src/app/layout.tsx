@@ -37,6 +37,9 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
+      <head>
+        {/* Debugging inline script removed */}
+      </head>
       <body className="antialiased flex flex-col min-h-screen">
         <AuthProvider>
           <ErrorHandlerLoader />

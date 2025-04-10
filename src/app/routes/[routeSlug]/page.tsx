@@ -324,6 +324,8 @@ export default async function RoutePage({ params }) {
     hasValidWaypoints,
     mapType // Log the final mapType
   });
+  
+  // Client-side test log removed
 
   return (
     <AutoScroller scrollToSelector="#route-content">
