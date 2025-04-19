@@ -31,19 +31,19 @@ model Country {
 }
 
 model City {
-  id         String   @id @default(cuid())
-  name       String
-  slug       String
-  latitude   Float?
-  longitude  Float?
-  isPlaceholder Boolean @default(false) // Flag for placeholder cities
-  countryId  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  country    Country  @relation(fields: [countryId], references: [id])
-  routesFrom Route[]  @relation("DepartureCity")
-  routesTo   Route[]  @relation("DestinationCity")
-  hotels     Hotel[]
+  id            String   @id @default(cuid())
+  name          String
+  slug          String
+  latitude      Float?
+  longitude     Float?
+  countryId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  isPlaceholder Boolean  @default(false)
+  country       Country  @relation(fields: [countryId], references: [id])
+  hotels        Hotel[]
+  routesFrom    Route[]  @relation("DepartureCity")
+  routesTo      Route[]  @relation("DestinationCity")
 
   @@unique([name, countryId])
   @@unique([slug, countryId])
@@ -68,45 +68,46 @@ model Hotel {
 model Amenity {
   id        String   @id @default(cuid())
   name      String   @unique
-  iconName  String?  // Optional field for icon identifier (e.g., "baby", "wifi")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  iconName  String?
   routes    Route[]  @relation("RouteAmenities")
 
   @@index([name])
 }
 
 model Route {
-  id                   String    @id @default(cuid())
-  departureCityId      String
-  departureCountryId   String
-  destinationCityId    String
-  destinationCountryId String
-  routeSlug            String    @unique
-  displayName          String    @default("")
-  viatorWidgetCode     String
-  seoDescription       String?
+  id                     String    @id @default(cuid())
+  departureCityId        String
+  departureCountryId     String
+  destinationCityId      String
+  destinationCountryId   String
+  routeSlug              String    @unique
+  viatorWidgetCode       String
+  seoDescription         String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  metaDescription        String?
+  metaKeywords           String?
+  metaTitle              String?
+  displayName            String    @default("")
+  otherStops             String?
+  travelTime             String?
+  isAirportDropoff       Boolean   @default(false)
+  isAirportPickup        Boolean   @default(false)
+  isCityToCity           Boolean   @default(true)
   additionalInstructions String?
-  otherStops          String?
-  travelTime          String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  metaDescription      String?
-  metaKeywords         String?
-  metaTitle            String?
-  isAirportPickup      Boolean   @default(false)
-  isAirportDropoff     Boolean   @default(false)
-  isCityToCity         Boolean   @default(true) // Default to true if others are false
-  isPrivateDriver      Boolean   @default(false) // New type
-  isSightseeingShuttle Boolean   @default(false) // New type
-  mapWaypoints         Json?     // Stores Google Maps directions or array of stops for tours
-  possibleNearbyStops  Json?     // For storing an array of {name, lat, lng} for nearby attractions
-  departureCity        City      @relation("DepartureCity", fields: [departureCityId], references: [id])
-  departureCountry     Country   @relation("DepartureCountry", fields: [departureCountryId], references: [id])
-  destinationCity      City      @relation("DestinationCity", fields: [destinationCityId], references: [id])
-  destinationCountry   Country   @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
-  amenities           Amenity[]  @relation("RouteAmenities")
-  hotelsServed        Hotel[]    @relation("RouteHotels")
+  isPrivateDriver        Boolean   @default(false)
+  isSightseeingShuttle   Boolean   @default(false)
+  mapWaypoints           Json?
+  possibleNearbyStops    Json?
+  viatorDestinationLink String? // ✅ New field for destination tour link
+  departureCity          City      @relation("DepartureCity", fields: [departureCityId], references: [id])
+  departureCountry       Country   @relation("DepartureCountry", fields: [departureCountryId], references: [id])
+  destinationCity        City      @relation("DestinationCity", fields: [destinationCityId], references: [id])
+  destinationCountry     Country   @relation("DestinationCountry", fields: [destinationCountryId], references: [id])
+  amenities              Amenity[] @relation("RouteAmenities")
+  hotelsServed           Hotel[]   @relation("RouteHotels")
 
   @@index([routeSlug])
   @@index([displayName])

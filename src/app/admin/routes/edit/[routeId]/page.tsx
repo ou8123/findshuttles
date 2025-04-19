@@ -59,8 +59,9 @@ interface RouteData {
     isPrivateDriver: boolean; // Added new flag
     isSightseeingShuttle: boolean; // Added new flag
     mapWaypoints?: WaypointStop[] | null; // Add mapWaypoints field
-    possibleNearbyStops?: NearbyStop[] | null; // Add possibleNearbyStops field
-    amenities: { id: string }[]; // Add amenities relation
+    possibleNearbyStops?: NearbyStop[] | null;
+    viatorDestinationLink?: string | null; // Ensure this matches DB schema (String?)
+    amenities: { id: string }[];
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
 }
@@ -90,6 +91,7 @@ const EditRoutePage = () => {
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]); // State for selected amenity IDs
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
   const [possibleNearbyStops, setPossibleNearbyStops] = useState<NearbyStop[]>([]);
+  const [viatorDestinationLink, setViatorDestinationLink] = useState(''); // ✅ New state for Viator link
   const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true);
   const [amenityError, setAmenityError] = useState<string | null>(null);
 
@@ -191,6 +193,7 @@ const EditRoutePage = () => {
         setTravelTime(routeData.travelTime ?? '');
         setOtherStops(routeData.otherStops ?? '');
         setAdditionalInstructions(routeData.additionalInstructions ?? '');
+        setViatorDestinationLink(routeData.viatorDestinationLink ?? ''); // ✅ Set Viator link state
         setMapWaypoints(Array.isArray(routeData.mapWaypoints) ? routeData.mapWaypoints : []);
         // Load possible nearby stops data
         setPossibleNearbyStops(Array.isArray(routeData.possibleNearbyStops) ? routeData.possibleNearbyStops : []);
@@ -222,6 +225,18 @@ const EditRoutePage = () => {
 
     fetchRoute();
   }, [routeId]);
+
+  // Effect to clear mapWaypoints if route type changes to one that doesn't support them
+  useEffect(() => {
+    if (routeType === 'airportPickup' || routeType === 'airportDropoff' || routeType === 'cityToCity') {
+      // Check if waypoints actually exist before clearing to avoid unnecessary state updates
+      if (mapWaypoints.length > 0) {
+         console.log(`Route type changed to ${routeType}, clearing existing mapWaypoints.`);
+         setMapWaypoints([]);
+      }
+    }
+    // This effect should run only when routeType changes
+  }, [routeType]); // Dependency array includes routeType
 
   // --- Debug useEffect for selectedAmenityIds ---
   useEffect(() => {
@@ -304,6 +319,7 @@ const EditRoutePage = () => {
         currentTravelTime === originalData.travelTime &&
         currentOtherStops === originalData.otherStops && 
         (additionalInstructions.trim() || null) === originalData.additionalInstructions &&
+        (viatorDestinationLink.trim() || null) === originalData.viatorDestinationLink && // ✅ Check Viator link change
         routeType === originalRouteType
     );
 
@@ -343,6 +359,7 @@ const EditRoutePage = () => {
             isSightseeingShuttle: currentIsSightseeingShuttle, 
             mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
             possibleNearbyStops: possibleNearbyStops.length > 0 ? possibleNearbyStops : null,
+            viatorDestinationLink: viatorDestinationLink.trim() || null, // ✅ Send Viator link
             selectedAmenityIds: selectedAmenityIds // Send selected amenity IDs
          }),
       });
@@ -374,6 +391,7 @@ const EditRoutePage = () => {
         isSightseeingShuttle: currentIsSightseeingShuttle, 
         mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
         possibleNearbyStops: possibleNearbyStops.length > 0 ? possibleNearbyStops : null, // Update possibleNearbyStops in original data
+        viatorDestinationLink: viatorDestinationLink.trim() || null, // ✅ Update original data state
         amenities: selectedAmenityIds.map(id => ({ id })), // Update original data state
       });
     } catch (error: unknown) {
@@ -419,6 +437,7 @@ const EditRoutePage = () => {
           isCityToCity: routeType === 'cityToCity',
           isPrivateDriver: routeType === 'privateDriver', 
           isSightseeingShuttle: routeType === 'sightseeingShuttle', 
+          viatorDestinationLink: viatorDestinationLink.trim() || null // ✅ Pass link to API
         }),
       });
 
@@ -840,6 +859,22 @@ const EditRoutePage = () => {
             Include details about the service, featured cities, hotels, or special amenities. 
             This content will be cleaned and formatted before sending to AI.
           </p>
+        </div>
+
+        {/* Destination Tours Link */}
+        <div>
+          <label htmlFor="viator-destination-link" className="block text-sm font-medium text-gray-700 mb-1">
+            Destination Tours Link (Optional)
+          </label>
+          <input
+            id="viator-destination-link"
+            type="url"
+            value={viatorDestinationLink}
+            onChange={(e) => setViatorDestinationLink(e.target.value)}
+            placeholder="https://www.viator.com/en-CA/s/La-Fortuna/d5092"
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+          />
+          <p className="text-xs text-gray-500 mt-1">Link to the Viator (or other) tours page for the destination city.</p>
         </div>
 
         {/* Content Editor Controls */}

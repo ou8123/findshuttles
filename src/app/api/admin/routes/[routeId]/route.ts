@@ -33,6 +33,7 @@ const routeSelect = {
   isSightseeingShuttle: true, 
   mapWaypoints: true, // Select the waypoints field
   possibleNearbyStops: true, // Select the nearby stops field
+  viatorDestinationLink: true, // ✅ Select the Viator link field
   amenities: { select: { id: true, name: true } }, // Include amenities here
   departureCity: {
     select: {
@@ -100,6 +101,7 @@ interface UpdateRouteData {
   isSightseeingShuttle?: boolean; 
   mapWaypoints?: Prisma.JsonValue | null; // Add mapWaypoints to allow manual override/clearing
   possibleNearbyStops?: Prisma.JsonValue | null; // Add possibleNearbyStops field
+  viatorDestinationLink?: string | null; // ✅ Add Viator link field
   selectedAmenityIds?: string[]; // Add selectedAmenityIds
 }
 
@@ -331,6 +333,7 @@ function parseDurationMinutes(travelTime: string | null | undefined): number {
       isCityToCity: data.isCityToCity ?? true, // Consider refining default based on other flags
       isPrivateDriver: data.isPrivateDriver ?? false, 
       isSightseeingShuttle: data.isSightseeingShuttle ?? false, 
+      viatorDestinationLink: data.viatorDestinationLink || null, // ✅ Include Viator link in update data
       // Use Prisma.DbNull for null, and cast to InputJsonValue otherwise
       // Corrected: Use Prisma.DbNull only when saving null to the DB
       mapWaypoints: waypointsToSave === null ? Prisma.DbNull : (waypointsToSave as Prisma.InputJsonValue),

@@ -146,7 +146,8 @@ export async function POST(request: Request) {
       isCityToCity = true, // Default to true if others are false
       isPrivateDriver = false, // New flag
       isSightseeingShuttle = false, // New flag
-      additionalInstructions = ''
+      additionalInstructions = '',
+      viatorDestinationLink = null // ✅ Extract Viator link
       // Extract travelTime and otherStops from requestData if needed for prompt context
       // travelTime,
       // otherStops
@@ -216,8 +217,11 @@ export async function POST(request: Request) {
 
     // Define the user prompt content as a separate variable
     const userPromptContent = `
-Generate SEO content for the following shuttle route:
+**Prompt for Generating SEO Content for Shuttle Routes**
 
+**Objective:** Generate human-like, SEO-optimized content for the shuttle route defined by the variables below. The output must be valid JSON following the specified structure.
+
+**Input Variables:**
 Route type: ${routeTypeString}
 Departure city: ${departureCityName}, ${departureCountryName}
 Destination city: ${destinationCityName}, ${destinationCountryName}
@@ -227,69 +231,68 @@ Travel duration: ${travelTime || 'Not provided'}
 Other stops (if any): ${otherStops?.join(', ') || 'None'}
 Additional comments: ${processedInstructions || 'None'}
 
-Instructions:
+**General Instructions:**
 - All content must be human-like, SEO-optimized, and written in natural language.
-- Do not use vague marketing language (e.g., "premier service"), and do not mention drivers, vehicle types, or operator names unless explicitly included.
-- Do not mention amenities such as car seats, bottled water, wheelchair access, or Wi-Fi unless explicitly required in the additional instructions.
-- Output must be valid JSON. Do not include explanations or extra fields. Match this structure exactly:
+- Avoid vague marketing language (e.g., "premier service"). Do not mention drivers, vehicle types, or operator names unless explicitly included in \`processedInstructions\`.
+- Do not include references to bottled water, car seats, wheelchair access, service animals, or similar logistical amenities unless the admin UI matches them as real amenities.
+- Output must be valid JSON. Do not include explanations or extra fields outside the defined structure.
 
+**Required JSON Output Structure:**
 {
   "seoDescription": "Up to 3 paragraphs. First focuses on the transport, second introduces destination highlights and activities. Optional short third paragraph if needed.",
   "metaTitle": "Concise title like '[Departure] to [Destination] Shuttle'",
   "metaDescription": "1-sentence summary including transport and 1 destination highlight",
   "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
-  "otherStops": ["List", "real", "intermediate", "places", "if", "any"],
-  "travelTime": "e.g. 3.5 hours",
-  "mapWaypoints": [ { "name": "Example Stop Name", "lat": 10.123, "lng": -84.567 } ] // Include only for relevant route types
+  "otherStops": ["List", "real", "intermediate", "places", "if", "any"], // Populated based on 'Other stops' input
+  "travelTime": "e.g. 3.5 hours", // Populated based on 'Travel duration' input
+  "mapWaypoints": [ { "name": "Example Stop Name", "lat": 10.123, "lng": -84.567 } ] // Include only for relevant route types (e.g., PRIVATE_DRIVER, SIGHTSEEING_SHUTTLE)
 }
 
-GLOBAL RULES:
-- Max total word count: ~250 words.
-- Each paragraph should be ~50–80 words. No more than 3 paragraphs.
-- Use varied, descriptive sentence structure and vocabulary.
-- Tie each attraction mentioned to at least one activity (e.g., hiking at a volcano, surfing at a beach).
-- If both departure and destination are in the same country, include the country name only once in the metaTitle and metaDescription.
+**Global Content Rules:**
+- **Word Count:** Max total word count for \`seoDescription\` is ~250 words.
+- **Paragraphs:** \`seoDescription\` should have 2-3 paragraphs, each ~50–80 words.
+- **Vocabulary:** Use varied, descriptive sentence structure and vocabulary.
+- **Attractions & Activities:** Tie each named attraction to at least one relevant activity (e.g., “hike to La Fortuna Waterfall,” “surf at Playa Tamarindo,” “birdwatch in Monteverde Cloud Forest”).
+- **Points of Interest Requirement:** For all CITY_TO_CITY, AIRPORT_PICKUP, and AIRPORT_DROPOFF routes, \`seoDescription\` must include **at least two named points of interest** at the destination, each with an associated **activity**.
+- **Country Mentions:** For content involving only one country, mention the country name no more than once in the \`seoDescription\` unless essential for clarity.
 
-ROUTE TYPE LOGIC:
+**Route Type Specific Logic:**
 
-**AIRPORT_PICKUP**
-- Always open with a warm, friendly welcome to the destination country (e.g., “Welcome to ${destinationCountryName}!”).
-- Describe the convenience of the shuttle service.
-- Briefly highlight 2–3 attractions in or near the destination city.
-- Mention 1–2 possible activities (e.g., beach day, cultural tour).
+**1. AIRPORT_PICKUP (\`routeTypeString\` = 'AIRPORT_PICKUP')**
+- **Opening:** Always open \`seoDescription\` with a warm welcome (e.g., “Welcome to ${destinationCountryName}!”).
+- **Content:** Describe the convenience of the shuttle service from the airport. Briefly highlight 2–3 attractions in or near the destination city, mentioning 1–2 possible related activities.
 
-**AIRPORT_DROPOFF**
-- Start with info about drop-off and airport convenience.
-- If the airport city is on the traveler's itinerary or they have time to explore, suggest 2–3 notable attractions and 1–2 activities.
+**2. AIRPORT_DROPOFF (\`routeTypeString\` = 'AIRPORT_DROPOFF')**
+- **Opening:** Start \`seoDescription\` with information about the convenient drop-off at the airport.
+- **Content:** If the airport city offers attractions relevant to travelers, suggest 2–3 notable ones and 1–2 associated activities.
 
-**CITY_TO_CITY**
-- Mention it’s a comfortable, direct transfer between cities.
-- Briefly highlight 2–3 destination attractions (parks, beaches, volcanoes, etc.).
-- Include 1–2 related activities travelers might enjoy.
+**3. CITY_TO_CITY (\`routeTypeString\` = 'CITY_TO_CITY')**
+- **Opening:** Mention the comfortable, direct transfer between the specified cities in \`seoDescription\`.
+- **Content:** Briefly highlight 2–3 destination attractions (parks, beaches, volcanoes, etc.) and include 1–2 related activities travelers might enjoy, tying the activity to a named location.
 
-**PRIVATE_DRIVER**
-- In the **first paragraph**, clearly state that the private driver service offers both **seamless city-to-city transfers** and **personalized custom tours** tailored to customer preferences.
-- Explain that the service is ideal for:
-  - Flexible city-to-city transfers between popular or off-the-beaten-path destinations.
-  - Custom sightseeing day trips based on customer preferences.
-- If \`mapWaypoints\` are included, treat them as **sample suggestions only**. Optionally mention 1–2 by name as possible stops.
-- Highlight at least 2 specific named stops (e.g., national parks, museums, beaches, or historical sites) and 1–2 outdoor activities such as hiking or wildlife viewing.
-- Limit waypoint suggestions to possible stops **within 20 miles** of the departure city.
-- ✅ Include a short, varied, friendly call to action at the end (e.g., “Plan your perfect day today!”).
+**4. PRIVATE_DRIVER (\`routeTypeString\` = 'PRIVATE_DRIVER')**
+- **First Paragraph:** Clearly state the service offers both **seamless city-to-city transfers** and **personalized custom tours** tailored to preferences. Explain it's ideal for flexible transfers (popular or off-the-beaten-path) and custom sightseeing day trips.
+- **Waypoints:** If \`mapWaypoints\` are provided, treat them as **sample suggestions only**. Optionally mention 1–2 by name as possible stops during a custom tour.
+- **Content:** Highlight 2–3 potential attraction options and 1–2 activities accessible from the departure/destination areas. Recommend at least 2 potential stops within ~20 miles of the departure city suitable for a day trip.
+- **CTA:** ✅ Include a short, varied, friendly call to action at the end of \`seoDescription\` (e.g., “Plan your perfect Costa Rican adventure today!”).
 
-**SIGHTSEEING_SHUTTLE**
-- This is a round-trip sightseeing shuttle starting and ending in the same city.
-- Focus on the stops and themes of the route.
-- Highlight 3–5 specific attractions the shuttle includes.
-- Briefly mention a few things travelers will see/do.
-- ✅ Add a soft CTA at the end (e.g., “Reserve your seat and enjoy the adventure.”)
+**5. SIGHTSEEING_SHUTTLE (\`routeTypeString\` = 'SIGHTSEEING_SHUTTLE')**
+- **Focus:** This is a round-trip sightseeing shuttle starting and ending in the same city. Focus \`seoDescription\` on the specific stops and themes of the route.
+- **Content:** Highlight 3–5 specific attractions included in the shuttle tour. Briefly mention what travelers will see or do.
+- **CTA:** ✅ Add a soft CTA at the end of \`seoDescription\` (e.g., “Reserve your seat and enjoy the scenic journey.”).
 
-📌 CTA Guidelines:
+**Call to Action (CTA) Guidelines:**
 - Use a soft, friendly CTA **only** for PRIVATE_DRIVER and SIGHTSEEING_SHUTTLE routes.
-- Do not use a CTA on airport or city-to-city routes unless it feels natural.
-- Keep CTAs short, warm, and varied — avoid repetition across routes.
+- Avoid CTAs on airport or city-to-city routes unless it feels natural within the flow.
+- Keep CTAs short, warm, and varied — avoid repeating the exact same CTA across different routes.
 
-Follow the logic for each route type closely. Make sure output is polished and well-formatted.
+**📌 Viator Link Integration:**
+- **Requirement:** If the 'Destination tours link' input variable is provided (i.e., not 'None'), append the following sentence exactly at the very end of the \`seoDescription\` content, replacing '[THE_PROVIDED_LINK]' with the actual URL from the 'Destination tours link' input variable:
+  \`Explore tours at your destination: [THE_PROVIDED_LINK]\`
+- **Example:** If the input link is 'https://example.com/tours', append: \`Explore tours at your destination: [https://example.com/tours]\`
+- **Note:** If no link was provided ('None'), do not append this sentence. Ensure the exact text including brackets and the *actual provided link* is the final part of the \`seoDescription\`.
+
+**Final Check:** Ensure the generated output strictly adheres to the JSON structure and all content rules before finalizing.
 `.trim();
 
     // Construct the messages array for OpenAI - ** LATEST REFINED PROMPT **
