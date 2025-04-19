@@ -2,9 +2,7 @@ import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 import React from 'react'; // Explicitly import React
 
-export const config = {
-  runtime: 'edge',
-};
+export const runtime = "edge";
 
 // Note: Using a placeholder logo URL. Replace with your actual logo URL.
 const LOGO_URL = "https://www.bookshuttles.com/images/BookShuttles.com-Logo.png"; // Replace if needed
