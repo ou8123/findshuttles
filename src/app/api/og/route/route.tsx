@@ -7,7 +7,7 @@ export const runtime = "edge";
 // Note: Using a placeholder logo URL. Replace with your actual logo URL.
 const LOGO_URL = "https://www.bookshuttles.com/images/BookShuttles.com-Logo.png"; // Replace if needed
 
-export default function handler(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
