@@ -230,9 +230,7 @@ Additional comments: ${processedInstructions || 'None'}
 Instructions:
 - All content must be human-like, SEO-optimized, and written in natural language.
 - Do not use vague marketing language (e.g., "premier service"), and do not mention drivers, vehicle types, or operator names unless explicitly included.
-- Do not mention common amenities such as bottled water, car seats, air conditioning, Wi-Fi, or accessibility unless explicitly provided in the additional comments.
-- If the route does not involve travel between two different countries, include the country name only once in the meta title and description.
-- Tie each mentioned attraction to a relevant activity whenever possible (e.g., “hike to Arenal Volcano,” “birdwatching in Monteverde”).
+- Do not mention amenities such as car seats, bottled water, wheelchair access, or Wi-Fi unless explicitly required in the additional instructions.
 - Output must be valid JSON. Do not include explanations or extra fields. Match this structure exactly:
 
 {
@@ -249,6 +247,8 @@ GLOBAL RULES:
 - Max total word count: ~250 words.
 - Each paragraph should be ~50–80 words. No more than 3 paragraphs.
 - Use varied, descriptive sentence structure and vocabulary.
+- Tie each attraction mentioned to at least one activity (e.g., hiking at a volcano, surfing at a beach).
+- If both departure and destination are in the same country, include the country name only once in the metaTitle and metaDescription.
 
 ROUTE TYPE LOGIC:
 
@@ -266,7 +266,6 @@ ROUTE TYPE LOGIC:
 - Mention it’s a comfortable, direct transfer between cities.
 - Briefly highlight 2–3 destination attractions (parks, beaches, volcanoes, etc.).
 - Include 1–2 related activities travelers might enjoy.
-- Tie any mentioned landmarks directly to a relevant activity.
 
 **PRIVATE_DRIVER**
 - In the **first paragraph**, clearly state that the private driver service offers both **seamless city-to-city transfers** and **personalized custom tours** tailored to customer preferences.
@@ -274,7 +273,8 @@ ROUTE TYPE LOGIC:
   - Flexible city-to-city transfers between popular or off-the-beaten-path destinations.
   - Custom sightseeing day trips based on customer preferences.
 - If \`mapWaypoints\` are included, treat them as **sample suggestions only**. Optionally mention 1–2 by name as possible stops.
-- Mention at least 2 attraction types (e.g., national parks, beaches, museums, historical sites) and at least 1 outdoor activity (e.g., hiking, ziplining).
+- Highlight at least 2 specific named stops (e.g., national parks, museums, beaches, or historical sites) and 1–2 outdoor activities such as hiking or wildlife viewing.
+- Limit waypoint suggestions to possible stops **within 20 miles** of the departure city.
 - ✅ Include a short, varied, friendly call to action at the end (e.g., “Plan your perfect day today!”).
 
 **SIGHTSEEING_SHUTTLE**

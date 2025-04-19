@@ -1,12 +1,31 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Amenity } from '@prisma/client'; // Import Amenity type
+import { Amenity } from '@prisma/client';
 import ContentEditorControls from '@/components/ContentEditorControls';
-import { WaypointStop } from '@/lib/aiWaypoints'; // Import the waypoint type
-import { NearbyStop } from '@/components/PossibleNearbyStops'; // Import the nearby stop type
+import { WaypointStop } from '@/lib/aiWaypoints';
+import { NearbyStop } from '@/components/PossibleNearbyStops';
+// DND Kit imports
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Bars3Icon } from '@heroicons/react/24/outline'; // For drag handle icon
 
 interface City {
   id: string;
@@ -70,9 +89,9 @@ const EditRoutePage = () => {
   const [allAmenities, setAllAmenities] = useState<Amenity[]>([]); // State to hold all amenities
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]); // State for selected amenity IDs
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
-  const [possibleNearbyStops, setPossibleNearbyStops] = useState<NearbyStop[]>([]); // State for nearby stops
-  const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true); // Loading state for amenities
-  const [amenityError, setAmenityError] = useState<string | null>(null); // Error state for amenities
+  const [possibleNearbyStops, setPossibleNearbyStops] = useState<NearbyStop[]>([]);
+  const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true);
+  const [amenityError, setAmenityError] = useState<string | null>(null);
 
   // State for city selection
   const [availableCities, setAvailableCities] = useState<City[]>([]);
@@ -496,6 +515,32 @@ const EditRoutePage = () => {
     setPossibleNearbyStops(updated);
   }, [possibleNearbyStops]);
   // --- End Nearby Stops Handlers ---
+
+  // --- DND Kit Sensors and Drag End Handler ---
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setPossibleNearbyStops((items) => {
+        const oldIndex = items.findIndex((item, index) => (item.id ?? `nearby-${index}`) === active.id);
+        const newIndex = items.findIndex((item, index) => (item.id ?? `nearby-${index}`) === over.id);
+        // Ensure IDs are unique for arrayMove
+        const itemsWithUniqueIds = items.map((item, index) => ({ ...item, uniqueId: item.id ?? `nearby-${index}` }));
+        const movedItems = arrayMove(itemsWithUniqueIds, oldIndex, newIndex);
+        // Remove temporary uniqueId before setting state
+        return movedItems.map(({ uniqueId, ...rest }) => rest);
+      });
+    }
+  }, []);
+  // --- End DND Kit ---
+
 
   if (isLoadingRoute) {
     return <div className="text-center p-4">Loading route data...</div>;
@@ -927,61 +972,41 @@ const EditRoutePage = () => {
         )}
         {/* --- End Waypoints Section --- */}
 
-        {/* --- Possible Nearby Stops Section --- */}
+        {/* --- Possible Nearby Stops Section (with DND) --- */}
         {(routeType === 'airportPickup' || routeType === 'airportDropoff' || routeType === 'cityToCity') && (
           <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Possible Nearby Stops</h3>
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">Possible Nearby Stops (Drag to Reorder)</h3>
             <p className="text-sm text-amber-600 mb-3">
-              These are tourist attractions or points of interest near the route that travelers might want to visit. 
-              The stops will be displayed with the disclaimer that they are not guaranteed and travelers need to 
+              These are tourist attractions or points of interest near the route that travelers might want to visit.
+              The stops will be displayed with the disclaimer that they are not guaranteed and travelers need to
               ask the shuttle provider if stopping is possible.
             </p>
-            
+
             {possibleNearbyStops && possibleNearbyStops.length > 0 ? (
-              <div className="space-y-4">
-                {possibleNearbyStops.map((stop, index) => (
-                  <div key={index} className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group">
-                     <div className="flex justify-between items-start">
-                       <span className="text-xs font-medium text-gray-500">Stop {index + 1}</span>
-                       <button
-                         type="button"
-                         onClick={() => handleRemoveNearbyStop(index)}
-                         className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
-                         aria-label={`Remove nearby stop ${index + 1}`}
-                       >
-                         &#x2715;
-                      </button>
-                    </div>
-                    {/* Nearby Stop Name Input */}
-                    <input
-                      type="text"
-                      value={stop.name || ''}
-                      onChange={(e) => handleNearbyStopChange(index, 'name', e.target.value)}
-                      placeholder="Stop name (e.g., Rainbow Waterfall)"
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
-                    />
-                    {/* Lat/Lng Inputs */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        step="any"
-                        value={stop.lat ?? ''}
-                        onChange={(e) => handleNearbyStopChange(index, 'lat', e.target.value)}
-                        placeholder="Latitude"
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                {/* Ensure items have unique IDs for SortableContext */}
+                <SortableContext
+                  items={possibleNearbyStops.map((stop, index) => stop.id ?? `nearby-${index}`)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {possibleNearbyStops.map((stop, index) => (
+                      <SortableNearbyStopItem
+                        key={stop.id ?? `nearby-${index}`}
+                        id={stop.id ?? `nearby-${index}`}
+                        stop={stop}
+                        index={index}
+                        handleNearbyStopChange={handleNearbyStopChange}
+                        handleRemoveNearbyStop={handleRemoveNearbyStop}
                       />
-                      <input
-                        type="number"
-                        step="any"
-                        value={stop.lng ?? ''}
-                        onChange={(e) => handleNearbyStopChange(index, 'lng', e.target.value)}
-                        placeholder="Longitude"
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <p className="text-sm text-gray-500 mt-2">No nearby stops defined. Add attractions or points of interest near this route.</p>
             )}
@@ -1032,5 +1057,101 @@ const EditRoutePage = () => {
     </div>
   );
 };
+
+// --- Sortable Item Component for Nearby Stops ---
+interface SortableNearbyStopItemProps {
+  id: string;
+  stop: NearbyStop;
+  index: number;
+  handleNearbyStopChange: (index: number, field: 'name' | 'lat' | 'lng', value: string) => void;
+  handleRemoveNearbyStop: (index: number) => void;
+}
+
+function SortableNearbyStopItem({
+  id,
+  stop,
+  index,
+  handleNearbyStopChange,
+  handleRemoveNearbyStop
+}: SortableNearbyStopItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging, // Added to style while dragging
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1, // Make item semi-transparent while dragging
+    zIndex: isDragging ? 10 : 'auto', // Ensure dragging item is on top
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="p-3 border border-gray-300 rounded bg-white shadow-sm space-y-2 relative group flex items-start" // Use flex for alignment
+    >
+      {/* Drag Handle */}
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="p-1 mr-2 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing touch-none" // Added touch-none
+        aria-label="Drag to reorder stop"
+      >
+        <Bars3Icon className="h-5 w-5" />
+      </button>
+
+      {/* Stop Content */}
+      <div className="flex-grow space-y-2">
+        <div className="flex justify-between items-start">
+          {/* Display the number */}
+          <span className="text-sm font-medium text-gray-700">Stop {index + 1}</span>
+          <button
+            type="button"
+            onClick={() => handleRemoveNearbyStop(index)}
+            className="absolute top-1 right-1 text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100"
+            aria-label={`Remove nearby stop ${index + 1}`}
+          >
+            &#x2715; {/* Cross symbol */}
+          </button>
+        </div>
+        {/* Nearby Stop Name Input */}
+        <input
+          type="text"
+          value={stop.name || ''}
+          onChange={(e) => handleNearbyStopChange(index, 'name', e.target.value)}
+          placeholder="Stop name (e.g., Rainbow Waterfall)"
+          className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
+        />
+        {/* Lat/Lng Inputs */}
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            step="any"
+            value={stop.lat ?? ''}
+            onChange={(e) => handleNearbyStopChange(index, 'lat', e.target.value)}
+            placeholder="Latitude"
+            className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <input
+            type="number"
+            step="any"
+            value={stop.lng ?? ''}
+            onChange={(e) => handleNearbyStopChange(index, 'lng', e.target.value)}
+            placeholder="Longitude"
+            className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+// --- End Sortable Item Component ---
 
 export default EditRoutePage;

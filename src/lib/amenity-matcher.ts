@@ -2,14 +2,14 @@ import prisma from '@/lib/prisma';
 
 // Map of phrases to amenity names
 const AMENITY_TRIGGERS = {
-  // Ensuring only specific bilingual triggers remain
-  // Removed: 'certified driver', 'experienced driver', 'friendly driver'
+  // Bilingual Driver Triggers
   'bilingual driver': 'Bilingual Driver',
   'english speaking driver': 'Bilingual Driver',
   'spanish speaking driver': 'Bilingual Driver',
   'english and spanish': 'Bilingual Driver',
   'speaks english': 'Bilingual Driver',
   'speaks spanish': 'Bilingual Driver',
+  'bilingual professionals': 'Bilingual Driver', // Added
   'hotel': 'Hotel Pickup',
   'resort': 'Hotel Pickup',
   'pickup from hotel': 'Hotel Pickup',
@@ -45,6 +45,7 @@ const AMENITY_TRIGGERS = {
   'service include a bottle of water': 'Bottled Water',
   'service includes a bottle of water': 'Bottled Water',
   'service include a bottle': 'Bottled Water',
+  'water bottle': 'Bottled Water', // Added
 
   'photo stop': 'Driver Will Make Stops on Request',
   'stop for photos': 'Driver Will Make Stops on Request',
@@ -63,6 +64,9 @@ const AMENITY_TRIGGERS = {
   'stopping to take': 'Driver Will Make Stops on Request',
   'driver can stop': 'Driver Will Make Stops on Request',
   'along the way if': 'Driver Will Make Stops on Request',
+  'one hour of free time to stop': 'Driver Will Make Stops on Request', // Added
+  'free wait time': 'Driver Will Make Stops on Request', // Added (Note: might overlap with Flight Delay Friendly)
+  'stop for photographs': 'Driver Will Make Stops on Request', // Added
 
   'flight delay': 'Flight Delay Friendly',
   'waiting for delayed flight': 'Flight Delay Friendly',

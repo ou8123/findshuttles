@@ -359,5 +359,6 @@ const RouteMap: React.FC<RouteMapProps> = ({
   );
 };
 
-// Memoize the component to prevent unnecessary re-renders if props haven't changed
-export default React.memo(RouteMap);
+// Temporarily remove React.memo for debugging re-rendering issues
+// export default React.memo(RouteMap);
+export default RouteMap;
