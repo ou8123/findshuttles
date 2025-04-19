@@ -111,6 +111,35 @@ function preprocessAdditionalInstructions(input: string): string {
   return processed.trim();
 }
 
+// Function to extract potential stops from text (Improved Logic)
+function extractOtherStops(rawText: string): string[] {
+  // Attempt to match patterns like "hotel in Santa Teresa, Malpais, Montezuma..."
+  const cityListMatch = rawText.match(/hotel in ([^\.]+)/i);
+  let cleaned: string[] = [];
+
+  if (cityListMatch?.[1]) {
+    cleaned = cityListMatch[1]
+      ?.replace(/the\s+/gi, "") // Remove "the "
+      ?.replace(/or /gi, "")    // Remove "or "
+      ?.split(/,|\band\b/)      // Split by comma or "and"
+      ?.map((c) => c.trim())    // Trim whitespace
+      ?.filter(Boolean) ?? [];  // Remove empty strings
+  } else {
+    // Fallback or alternative pattern matching if needed
+    // For now, if the primary pattern doesn't match, return empty
+    // You could add the previous stopPattern logic here as a fallback if desired
+    console.log("extractOtherStops: Primary pattern 'hotel in ...' not found.");
+  }
+
+  // Filter out common false positives
+  const falsePositives = new Set(["Call", "Overview", "What", "Save", "Meet"]);
+  const filtered = cleaned.filter((city) => !falsePositives.has(city));
+
+  // Return unique stops
+  return Array.from(new Set(filtered));
+}
+
+
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
@@ -210,10 +239,12 @@ export async function POST(request: Request) {
     else if (isSightseeingShuttle) routeTypeString = 'SIGHTSEEING_SHUTTLE';
     // Note: isCityToCity flag isn't strictly needed if it's the default when others are false
 
-    // Retrieve travelTime and otherStops from the request body if available, otherwise use defaults or null
-    // These might have been passed in the initial request or generated previously
+    // Retrieve travelTime from the request body if available
     const travelTime = requestData.travelTime || null;
-    const otherStops = requestData.otherStops || []; // Default to empty array if not provided
+    // Extract otherStops from the processed instructions
+    const extractedOtherStops = extractOtherStops(processedInstructions);
+    // Use extracted stops if found, otherwise default to empty array
+    const otherStops = extractedOtherStops.length > 0 ? extractedOtherStops : [];
 
     // Define the user prompt content as a separate variable
     const userPromptContent = `
@@ -230,6 +261,7 @@ Is airport dropoff? ${isAirportDropoff}
 Travel duration: ${travelTime || 'Not provided'}
 Other stops (if any): ${otherStops?.join(', ') || 'None'}
 Additional comments: ${processedInstructions || 'None'}
+Destination tours link: ${viatorDestinationLink || 'None'}
 
 **General Instructions:**
 - All content must be human-like, SEO-optimized, and written in natural language.
@@ -244,23 +276,26 @@ Additional comments: ${processedInstructions || 'None'}
   "metaDescription": "1-sentence summary including transport and 1 destination highlight",
   "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
   "otherStops": ["List", "real", "intermediate", "places", "if", "any"], // Populated based on 'Other stops' input
-  "travelTime": "e.g. 3.5 hours", // Populated based on 'Travel duration' input
+  "travelTime": "e.g. 3.5 hours",
   "mapWaypoints": [ { "name": "Example Stop Name", "lat": 10.123, "lng": -84.567 } ] // Include only for relevant route types (e.g., PRIVATE_DRIVER, SIGHTSEEING_SHUTTLE)
 }
 
 **Global Content Rules:**
 - **Word Count:** Max total word count for \`seoDescription\` is ~250 words.
-- **Paragraphs:** \`seoDescription\` should have 2-3 paragraphs, each ~50–80 words.
+- **Paragraphs:** \`seoDescription\` should have 2–3 paragraphs, each ~50–80 words.
 - **Vocabulary:** Use varied, descriptive sentence structure and vocabulary.
 - **Attractions & Activities:** Tie each named attraction to at least one relevant activity (e.g., “hike to La Fortuna Waterfall,” “surf at Playa Tamarindo,” “birdwatch in Monteverde Cloud Forest”).
 - **Points of Interest Requirement:** For all CITY_TO_CITY, AIRPORT_PICKUP, and AIRPORT_DROPOFF routes, \`seoDescription\` must include **at least two named points of interest** at the destination, each with an associated **activity**.
 - **Country Mentions:** For content involving only one country, mention the country name no more than once in the \`seoDescription\` unless essential for clarity.
+- **Travel Time Formatting:** If travel time is a range (e.g., "1 to 3 hours"), output it as-is. If it’s a specific number (e.g., "1 hour"), display it as “About 1 hour.” Do not include "(approx.)".
 
 **Route Type Specific Logic:**
 
+// Always mention hotel/resort pickup for airport pickups, even if not mentioned in raw instructions.
 **1. AIRPORT_PICKUP (\`routeTypeString\` = 'AIRPORT_PICKUP')**
 - **Opening:** Always open \`seoDescription\` with a warm welcome (e.g., “Welcome to ${destinationCountryName}!”).
-- **Content:** Describe the convenience of the shuttle service from the airport. Briefly highlight 2–3 attractions in or near the destination city, mentioning 1–2 possible related activities.
+- **Content:** Describe the convenience of the shuttle service from the airport. Be sure to mention that pickup can also be arranged from nearby hotels or resorts if applicable.
+- Briefly highlight 2–3 attractions in or near the destination city, mentioning 1–2 possible related activities.
 
 **2. AIRPORT_DROPOFF (\`routeTypeString\` = 'AIRPORT_DROPOFF')**
 - **Opening:** Start \`seoDescription\` with information about the convenient drop-off at the airport.
@@ -287,10 +322,10 @@ Additional comments: ${processedInstructions || 'None'}
 - Keep CTAs short, warm, and varied — avoid repeating the exact same CTA across different routes.
 
 **📌 Viator Link Integration:**
-- **Requirement:** If the 'Destination tours link' input variable is provided (i.e., not 'None'), append the following sentence exactly at the very end of the \`seoDescription\` content, replacing '[THE_PROVIDED_LINK]' with the actual URL from the 'Destination tours link' input variable:
-  \`Explore tours at your destination: [THE_PROVIDED_LINK]\`
-- **Example:** If the input link is 'https://example.com/tours', append: \`Explore tours at your destination: [https://example.com/tours]\`
-- **Note:** If no link was provided ('None'), do not append this sentence. Ensure the exact text including brackets and the *actual provided link* is the final part of the \`seoDescription\`.
+- **Requirement:** If the 'Destination tours link' input variable above is provided (and is not 'None'), append the following sentence exactly at the very end of the \`seoDescription\` content, using the actual URL from the 'Destination tours link' input variable inside the square brackets:
+  \`Explore tours at your destination: [Actual URL from 'Destination tours link' input variable]\`
+- **Example:** If the 'Destination tours link' input variable is 'https://example.com/tours', append the exact text: \`Explore tours at your destination: [https://example.com/tours]\`
+- **Note:** If the 'Destination tours link' input variable is 'None', do not append this sentence.
 
 **Final Check:** Ensure the generated output strictly adheres to the JSON structure and all content rules before finalizing.
 `.trim();
@@ -605,7 +640,7 @@ You are a professional travel content writer generating SEO content for shuttle 
         const matchedAmenityIds = allDbAmenities
           .filter(amenity => matchedAmenityNames.includes(amenity.name))
           .map(amenity => amenity.id);
-        
+
         // Add matchedAmenityIds to the response
         finalResponse.matchedAmenityIds = matchedAmenityIds;
         // --- End Match Amenities ---

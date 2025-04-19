@@ -120,7 +120,6 @@ async function main() {
     { name: 'Hotel Pickup' },
     { name: 'Airport Pickup' },
     { name: 'Bottled Water' },
-    { name: 'Car Seats Available' },
     { name: 'Bilingual Driver' },
     { name: 'Flight Delay Friendly' },
     { name: 'Alcoholic Beverages' },

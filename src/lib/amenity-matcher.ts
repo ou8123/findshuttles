@@ -10,6 +10,18 @@ const AMENITY_TRIGGERS = {
   'speaks english': 'Bilingual Driver',
   'speaks spanish': 'Bilingual Driver',
   'bilingual professionals': 'Bilingual Driver', // Added
+
+  // Airport Pickup Triggers
+  'airport pickup': 'Airport Pickup', // Basic
+  'from liberia airport': 'Airport Pickup',
+  'from san jose airport': 'Airport Pickup',
+  'from the airport': 'Airport Pickup',
+  'travel from liberia airport': 'Airport Pickup',
+  'travel from sjo airport': 'Airport Pickup',
+  'departing from the airport': 'Airport Pickup',
+  'departing from liberia airport': 'Airport Pickup',
+
+  // Hotel Pickup Triggers (Ensure these don't overlap incorrectly with Airport)
   'hotel': 'Hotel Pickup',
   'resort': 'Hotel Pickup',
   'pickup from hotel': 'Hotel Pickup',
@@ -67,6 +79,13 @@ const AMENITY_TRIGGERS = {
   'one hour of free time to stop': 'Driver Will Make Stops on Request', // Added
   'free wait time': 'Driver Will Make Stops on Request', // Added (Note: might overlap with Flight Delay Friendly)
   'stop for photographs': 'Driver Will Make Stops on Request', // Added
+  'option to stop': 'Driver Will Make Stops on Request', // Added
+  'stop along the way': 'Driver Will Make Stops on Request', // Added
+  'flexibility to stop': 'Driver Will Make Stops on Request', // Added
+  'able to stop': 'Driver Will Make Stops on Request', // Added
+  'bathroom break': 'Driver Will Make Stops on Request', // Added
+  'take breaks': 'Driver Will Make Stops on Request', // Added
+  'courtesy stop': 'Driver Will Make Stops on Request', // Added
 
   'flight delay': 'Flight Delay Friendly',
   'waiting for delayed flight': 'Flight Delay Friendly',
@@ -124,6 +143,13 @@ const AMENITY_TRIGGERS = {
   'booster seat': 'Child Seats Available',
   'infant seats available': 'Child Seats Available',
   'travelling with children': 'Child Seats Available', // Renamed target
+  // ✅ Add typo-tolerant patterns
+  'child/infant sea': 'Child Seats Available',
+  'infant sea': 'Child Seats Available',
+  'baby sea': 'Child Seats Available',
+  // ✅ Optional: broaden existing triggers
+  'child available': 'Child Seats Available',
+  'free baby seat': 'Child Seats Available',
 
   'service animal': 'Service Animals Allowed',
   'service animals allowed': 'Service Animals Allowed',
@@ -132,6 +158,18 @@ const AMENITY_TRIGGERS = {
   'indicate in the comments': 'Service Animals Allowed',
   'indicate it in the comments': 'Service Animals Allowed',
   'indicate in the additional comments': 'Service Animals Allowed',
+
+  // Alcoholic Beverages Triggers
+  'alcohol': 'Alcoholic Beverages',
+  'alcoholic': 'Alcoholic Beverages',
+  'beer': 'Alcoholic Beverages',
+  'wine': 'Alcoholic Beverages',
+  'cocktail': 'Alcoholic Beverages',
+  'alcoholic drink': 'Alcoholic Beverages',
+  'complimentary alcoholic': 'Alcoholic Beverages',
+  'alcoholic beverage': 'Alcoholic Beverages',
+  'alcoholic beverages': 'Alcoholic Beverages',
+  'includes beer': 'Alcoholic Beverages',
 };
 
 /**
