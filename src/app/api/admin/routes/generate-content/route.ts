@@ -272,7 +272,7 @@ Destination tours link: ${viatorDestinationLink || 'None'}
 **Required JSON Output Structure:**
 {
   "seoDescription": "Up to 3 paragraphs. First focuses on the transport, second introduces destination highlights and activities. Optional short third paragraph if needed.",
-  "metaTitle": "Concise title like '[Departure] to [Destination] Shuttle'",
+  "metaTitle": "Concise title like '[Departure] to [Destination], [CountryName] Shuttles'", // Example for same-country route
   "metaDescription": "1-sentence summary including transport and 1 destination highlight",
   "metaKeywords": "Comma-separated SEO keywords (route name, destinations, shuttle, attraction names, etc.)",
   "otherStops": ["List", "real", "intermediate", "places", "if", "any"], // Populated based on 'Other stops' input
@@ -288,10 +288,11 @@ Destination tours link: ${viatorDestinationLink || 'None'}
 - **Points of Interest Requirement:** For all CITY_TO_CITY, AIRPORT_PICKUP, and AIRPORT_DROPOFF routes, \`seoDescription\` must include **at least two named points of interest** at the destination, each with an associated **activity**.
 - **Country Mentions:** For content involving only one country, mention the country name no more than once in the \`seoDescription\` unless essential for clarity.
 - **Travel Time Formatting:** If travel time is a range (e.g., "1 to 3 hours"), output it as-is. If it’s a specific number (e.g., "1 hour"), display it as “About 1 hour.” Do not include "(approx.)".
+- **Meta Title Formatting:** If departure and destination are in the same country, use format "[Departure] to [Destination], [CountryName] Shuttles". If different countries, use "[Departure], [DepartureCountry] to [Destination], [DestinationCountry] Shuttle".
 
 **Route Type Specific Logic:**
 
-// Always mention hotel/resort pickup for airport pickups, even if not mentioned in raw instructions.
+**Important:** Always include a sentence stating that pickup can also be arranged from nearby hotels or resorts — even if this was not mentioned in the original instructions.
 **1. AIRPORT_PICKUP (\`routeTypeString\` = 'AIRPORT_PICKUP')**
 - **Opening:** Always open \`seoDescription\` with a warm welcome (e.g., “Welcome to ${destinationCountryName}!”).
 - **Content:** Describe the convenience of the shuttle service from the airport. Be sure to mention that pickup can also be arranged from nearby hotels or resorts if applicable.
@@ -320,12 +321,6 @@ Destination tours link: ${viatorDestinationLink || 'None'}
 - Use a soft, friendly CTA **only** for PRIVATE_DRIVER and SIGHTSEEING_SHUTTLE routes.
 - Avoid CTAs on airport or city-to-city routes unless it feels natural within the flow.
 - Keep CTAs short, warm, and varied — avoid repeating the exact same CTA across different routes.
-
-**📌 Viator Link Integration:**
-- **Requirement:** If the 'Destination tours link' input variable above is provided (and is not 'None'), append the following sentence exactly at the very end of the \`seoDescription\` content, using the actual URL from the 'Destination tours link' input variable inside the square brackets:
-  \`Explore tours at your destination: [Actual URL from 'Destination tours link' input variable]\`
-- **Example:** If the 'Destination tours link' input variable is 'https://example.com/tours', append the exact text: \`Explore tours at your destination: [https://example.com/tours]\`
-- **Note:** If the 'Destination tours link' input variable is 'None', do not append this sentence.
 
 **Final Check:** Ensure the generated output strictly adheres to the JSON structure and all content rules before finalizing.
 `.trim();

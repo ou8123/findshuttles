@@ -12,6 +12,9 @@ import HotelsGrid from '@/components/HotelsGrid'; // Added
 import ItinerarySection from '@/components/ItinerarySection'; // Import the new component
 import AmenitiesTable from '@/components/AmenitiesTable'; // Import AmenitiesTable
 import Link from 'next/link'; // Ensure Link is imported if not already
+import { getServerSession } from "next-auth/next"; // Import getServerSession
+import { authOptions } from '@/lib/auth'; // Import authOptions
+import { getSecureAdminPath } from '@/middleware'; // Import the helper function
 // Import necessary Heroicons for the Highlights Grid helper
 import * as HIcons from '@heroicons/react/24/outline';
 import { Prisma, Route, City, Country, Amenity, Hotel } from '@prisma/client'; // Import specific model types
@@ -156,6 +159,9 @@ const getAmenityIcon = (iconName) => {
  * Route Page - Now using .tsx extension
  */
 export default async function RoutePage({ params }) {
+  // Get user session server-side using getServerSession and authOptions
+  const session = await getServerSession(authOptions);
+
   // Get the route slug from params
   const resolvedParams = await params;
   const { routeSlug } = resolvedParams;
@@ -313,27 +319,33 @@ export default async function RoutePage({ params }) {
       // ✅ Add font-bold for styling
       const linkHtml = `<a href="${route.viatorDestinationLink}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">${linkText}</a>`;
 
-      // Replace the literal placeholder string with the HTML link
-      const newDescription = processedSeoDescription.replace(literalPlaceholder, linkHtml);
+      // --- MODIFIED LOGIC: Remove placeholder instead of replacing ---
+      let descriptionWithoutPlaceholder = processedSeoDescription;
+      let placeholderFound = false;
 
-    if (newDescription !== processedSeoDescription) {
-      processedSeoDescription = newDescription;
-      console.log("[RoutePage Debug] Replaced Viator link placeholder with actual link.");
-    } else {
-         // Fallback: If the exact sentence wasn't found, try replacing just the bracketed URL
-         // Need to escape special characters in the URL for regex use
+      // 1. Try removing the full sentence placeholder first
+      descriptionWithoutPlaceholder = processedSeoDescription.replace(literalPlaceholder, '');
+      if (descriptionWithoutPlaceholder !== processedSeoDescription) {
+        placeholderFound = true;
+        console.log("[RoutePage Debug] Removed full Viator link placeholder sentence.");
+      } else {
+         // 2. Fallback: Try removing just the bracketed URL
          const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
          const bracketedUrlRegex = new RegExp(`\\[${escapeRegex(route.viatorDestinationLink)}\\]`, 'g');
-         // Use the same linkHtml (with updated text and style) for the fallback replacement
-         const fallbackDescription = processedSeoDescription.replace(bracketedUrlRegex, linkHtml);
+         descriptionWithoutPlaceholder = processedSeoDescription.replace(bracketedUrlRegex, '');
 
-         if (fallbackDescription !== processedSeoDescription) {
-         processedSeoDescription = fallbackDescription;
-         console.log("[RoutePage Debug] Replaced Viator link placeholder (fallback bracketed URL match).");
-       } else {
-         console.log("[RoutePage Debug] Viator link placeholder or bracketed URL not found in seoDescription.");
-       }
-    }
+         if (descriptionWithoutPlaceholder !== processedSeoDescription) {
+           placeholderFound = true;
+           console.log("[RoutePage Debug] Removed Viator link placeholder (fallback bracketed URL match).");
+         } else {
+           console.log("[RoutePage Debug] Viator link placeholder or bracketed URL not found in seoDescription.");
+         }
+      }
+      // Update the description only if the placeholder was found and removed
+      if (placeholderFound) {
+        processedSeoDescription = descriptionWithoutPlaceholder.trim(); // Trim potential trailing whitespace
+      }
+      // Note: linkHtml is still generated but will be rendered separately below
   }
   // --- End Viator Link Processing ---
 
@@ -375,6 +387,17 @@ export default async function RoutePage({ params }) {
             </ol>
           </nav>
 
+          {/* Admin Edit Button - Conditionally Rendered */}
+          {session?.user?.role === 'ADMIN' && route?.id && (
+            <div className="my-4"> {/* Add some margin */}
+              <Link
+                href={getSecureAdminPath(`/admin/routes/edit/${route.id}`)} // Use the secure path helper
+                className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Edit Route (Admin)
+              </Link>
+            </div>
+          )}
 
           {/* === Layout Order === */}
 
@@ -403,6 +426,19 @@ export default async function RoutePage({ params }) {
                   text={processedSeoDescription} // ✅ Use processed description
                   className="text-current dark:text-gray-200"
                />
+                {/* Render the link separately if it exists */}
+                {route.viatorDestinationLink && (
+                  <p className="mt-4"> {/* Add margin-top for spacing */}
+                    <a
+                      href={route.viatorDestinationLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline font-bold" // Style directly
+                    >
+                      Click here to see tours in {route.destinationCity?.name || 'your destination'}
+                    </a>
+                  </p>
+                )}
              </div>
             </div>
           )}

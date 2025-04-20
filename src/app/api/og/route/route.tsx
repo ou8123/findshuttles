@@ -4,12 +4,17 @@ import React from 'react'; // Explicitly import React
 
 export const runtime = "edge";
 
-// Note: Using a placeholder logo URL. Replace with your actual logo URL.
-const LOGO_URL = "https://www.bookshuttles.com/images/BookShuttles.com-Logo.png"; // Replace if needed
+// Relative path to the logo in the public directory
+const LOGO_PATH = "/images/BookShuttles.com-Logo.png";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const url = new URL(req.url);
+    const { searchParams } = url;
+
+    // Construct absolute URL for the logo based on the request's origin
+    const baseUrl = url.origin; // e.g., http://localhost:3000
+    const absoluteLogoUrl = `${baseUrl}${LOGO_PATH}`;
 
     // Get 'from' and 'to' query parameters
     const hasFrom = searchParams.has('from');
@@ -24,16 +29,16 @@ export async function GET(req: NextRequest) {
           color: 'white',
           width: '1200px',
           height: '630px',
-          display: 'flex',
+          display: 'flex', // Main container uses flex
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           fontFamily: '"Arial", sans-serif', // Ensure font is available in edge runtime or use web safe font
           padding: '40px',
           textAlign: 'center', // Center text
-        }}>
-          {/* Use the LOGO_URL defined above */}
-          <img src={LOGO_URL} width={180} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          }}>
+          {/* Use the dynamically constructed absolute LOGO_URL */}
+          <img src={absoluteLogoUrl} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text */}
           <div style={{ fontSize: 60, fontWeight: 700, lineHeight: 1.2 }}> {/* Increased font size */}
             {from} → {to}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getSecureAdminPath } from '@/middleware'; // Import the helper function
@@ -49,6 +49,7 @@ const RouteList = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [deleteStatus, setDeleteStatus] = useState<{ id: string | null; message: string; success: boolean } | null>(null);
+    const [duplicateStatus, setDuplicateStatus] = useState<{ id: string | null; message: string; success: boolean } | null>(null); // Added duplicate status state
     const [searchTerm, setSearchTerm] = useState(searchQuery);
 
     // Function to update URL with search parameters
@@ -61,8 +62,9 @@ const RouteList = () => {
         window.history.pushState({}, '', newUrl);
     };
 
-    // Fetch routes with pagination and search
-    const fetchRoutes = async (page: number = 1, search: string = '') => {
+    // Fetch routes wrapped in useCallback to prevent re-creation on every render
+    // This is important for dependency arrays in other hooks like handleDuplicate
+    const fetchRoutesCallback = useCallback(async (page: number = 1, search: string = '') => {
         setIsLoading(true);
         setError(null);
         try {
@@ -113,12 +115,14 @@ const RouteList = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [pageSize]); // pageSize is constant, updateUrlParams is stable if defined outside or wrapped in useCallback
 
-    // Handle search submission
+    // Fetch routes with pagination and search (Original function - keep for reference or remove)
+    // const fetchRoutes = async (page: number = 1, search: string = '') => { ... };
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        fetchRoutes(1, searchTerm); // Always start from page 1 when searching
+        fetchRoutesCallback(1, searchTerm); // Use callback version
     };
 
     // Generate page number array for pagination controls
@@ -160,20 +164,19 @@ const RouteList = () => {
         }
     }, [pagination.totalPages, pagination.page]);
 
-    // Initial data fetch
+    // Initial data fetch using callback
     useEffect(() => {
-        fetchRoutes(currentPage, searchQuery);
-    }, [currentPage, searchQuery]);
+        fetchRoutesCallback(currentPage, searchQuery);
+    }, [currentPage, searchQuery, fetchRoutesCallback]); // Added fetchRoutesCallback to dependency array
 
     // Re-fetch data when the window gains focus (e.g., navigating back)
     useEffect(() => {
       const handleFocus = () => {
         console.log("RouteList focus detected, re-fetching routes...");
-        // Fetch based on current URL params, not just page 1
         const currentParams = new URLSearchParams(window.location.search);
         const page = parseInt(currentParams.get('page') || '1');
         const search = currentParams.get('search') || '';
-        fetchRoutes(page, search);
+        fetchRoutesCallback(page, search); // Use callback version
       };
       window.addEventListener('focus', handleFocus);
       return () => {
@@ -198,8 +201,9 @@ const RouteList = () => {
                 throw new Error(result.error || `HTTP error! status: ${response.status}`);
             }
 
-            // Refresh the routes list instead of filtering locally
-            await fetchRoutes();
+            // Refresh the routes list using the callback version
+            // Fetch the current page after deletion
+            await fetchRoutesCallback(pagination.page, searchTerm);
             setDeleteStatus({ id: null, message: `Successfully deleted "${routeDesc}".`, success: true });
             setTimeout(() => setDeleteStatus(null), 3000);
 
@@ -213,6 +217,43 @@ const RouteList = () => {
             setTimeout(() => setDeleteStatus(null), 5000);
         }
     };
+
+    // Handle duplicate action
+    const handleDuplicate = useCallback(async (routeId: string, routeDesc: string) => {
+        if (!window.confirm(`Are you sure you want to duplicate the route "${routeDesc}"?`)) {
+            return;
+        }
+
+        setDuplicateStatus({ id: routeId, message: 'Duplicating...', success: false });
+        setDeleteStatus(null); // Clear delete status if any
+
+        try {
+            const response = await fetch(`/api/admin/routes/${routeId}/duplicate`, {
+                method: 'POST',
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || `HTTP error! status: ${response.status}`);
+            }
+
+            // Refresh the routes list using the callback version
+            await fetchRoutesCallback(pagination.page, searchTerm);
+            setDuplicateStatus({ id: null, message: `Successfully duplicated "${routeDesc}" as "${result.newRouteSlug}".`, success: true });
+            setTimeout(() => setDuplicateStatus(null), 5000); // Show success message longer
+
+        } catch (error: unknown) {
+            console.error(`Failed to duplicate route ${routeId}:`, error);
+            let message = "Failed to duplicate route.";
+            if (error instanceof Error) {
+                message = error.message;
+            }
+            setDuplicateStatus({ id: routeId, message: message, success: false });
+            // Don't auto-clear error message immediately
+            // setTimeout(() => setDuplicateStatus(null), 5000);
+        }
+    }, [fetchRoutesCallback, pagination.page, searchTerm]); // Use fetchRoutesCallback in dependency array
 
     if (isLoading) {
         return <div className="text-center p-4">Loading routes...</div>;
@@ -242,9 +283,16 @@ const RouteList = () => {
             </form>
 
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                {/* Display delete status */}
                 {deleteStatus && (
                     <div className={`p-3 ${deleteStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} text-sm rounded-t-lg`}>
                         {deleteStatus.message}
+                    </div>
+                )}
+                {/* Display duplicate status */}
+                {duplicateStatus && (
+                     <div className={`p-3 ${duplicateStatus.success ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'} text-sm ${deleteStatus ? '' : 'rounded-t-lg'}`}>
+                        {duplicateStatus.message}
                     </div>
                 )}
                 <table className="min-w-full divide-y divide-gray-200">
@@ -327,9 +375,19 @@ const RouteList = () => {
                                         >
                                             Edit
                                         </Link>
+                                        {/* Duplicate Button */}
+                                        <button
+                                            onClick={() => handleDuplicate(route.id, route.displayName)}
+                                            disabled={isDeleting || duplicateStatus?.id === route.id} // Disable if deleting or duplicating this specific route
+                                            className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed mx-2"
+                                            title="Duplicate this route"
+                                        >
+                                            {duplicateStatus?.id === route.id ? 'Duplicating...' : 'Duplicate'}
+                                        </button>
+                                        {/* Delete Button */}
                                         <button
                                             onClick={() => handleDelete(route.id, route.displayName)}
-                                            disabled={isDeleting}
+                                            disabled={isDeleting || duplicateStatus?.id === route.id} // Disable if deleting or duplicating this specific route
                                             className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed mx-2"
                                         >
                                             {isDeleting ? 'Deleting...' : 'Delete'}
@@ -366,7 +424,7 @@ const RouteList = () => {
                                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                                     {/* Previous Page */}
                                     <button
-                                        onClick={() => fetchRoutes(pagination.page - 1, searchTerm)}
+                                        onClick={() => fetchRoutesCallback(pagination.page - 1, searchTerm)} // Use callback version
                                         disabled={pagination.page === 1}
                                         className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
                                             pagination.page === 1 
@@ -393,7 +451,7 @@ const RouteList = () => {
                                         return (
                                             <button
                                                 key={pageNum}
-                                                onClick={() => fetchRoutes(pageNum, searchTerm)}
+                                                onClick={() => fetchRoutesCallback(pageNum, searchTerm)} // Use callback version
                                                 className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium ${
                                                     pagination.page === pageNum
                                                         ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
@@ -407,7 +465,7 @@ const RouteList = () => {
 
                                     {/* Next Page */}
                                     <button
-                                        onClick={() => fetchRoutes(pagination.page + 1, searchTerm)}
+                                        onClick={() => fetchRoutesCallback(pagination.page + 1, searchTerm)} // Use callback version
                                         disabled={!pagination.hasMore}
                                         className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
                                             !pagination.hasMore 

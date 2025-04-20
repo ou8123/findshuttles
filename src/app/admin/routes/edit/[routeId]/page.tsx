@@ -51,19 +51,22 @@ interface RouteData {
     metaKeywords?: string | null;
     seoDescription?: string | null;
     additionalInstructions?: string | null;
-    travelTime?: string | null; 
-    otherStops?: string | null; 
-    isAirportPickup: boolean; 
-    isAirportDropoff: boolean; 
-    isCityToCity: boolean; 
+    travelTime?: string | null;
+    otherStops?: string | null;
+    isAirportPickup: boolean;
+    isAirportDropoff: boolean;
+    isCityToCity: boolean;
     isPrivateDriver: boolean; // Added new flag
     isSightseeingShuttle: boolean; // Added new flag
     mapWaypoints?: WaypointStop[] | null; // Add mapWaypoints field
     possibleNearbyStops?: NearbyStop[] | null;
     viatorDestinationLink?: string | null; // Ensure this matches DB schema (String?)
-    amenities: { id: string }[];
+    amenities: { id: string; name?: string }[]; // Include name if selected in API
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
+    // Add potentially missing relations if needed by the component
+    departureCountry?: { name: string; slug: string };
+    destinationCountry?: { name: string; slug: string };
 }
 
 const EditRoutePage = () => {
@@ -82,8 +85,8 @@ const EditRoutePage = () => {
   const [metaKeywords, setMetaKeywords] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
-  const [travelTime, setTravelTime] = useState(''); 
-  const [otherStops, setOtherStops] = useState(''); 
+  const [travelTime, setTravelTime] = useState('');
+  const [otherStops, setOtherStops] = useState('');
   const [routeType, setRouteType] = useState<RouteType>('cityToCity'); // State for route type flags
   const [originalData, setOriginalData] = useState<RouteData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -92,95 +95,70 @@ const EditRoutePage = () => {
   const [mapWaypoints, setMapWaypoints] = useState<WaypointStop[]>([]); // State for waypoints
   const [possibleNearbyStops, setPossibleNearbyStops] = useState<NearbyStop[]>([]);
   const [viatorDestinationLink, setViatorDestinationLink] = useState(''); // ✅ New state for Viator link
-  const [isLoadingAmenities, setIsLoadingAmenities] = useState<boolean>(true);
-  const [amenityError, setAmenityError] = useState<string | null>(null);
 
   // State for city selection
   const [availableCities, setAvailableCities] = useState<City[]>([]);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [cityLoadError, setCityLoadError] = useState<string | null>(null);
 
-  // Loading/Submitting/Error state
-  const [isLoadingRoute, setIsLoadingRoute] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Combined submitting state
-  const [error, setError] = useState<string | null>(null);
+  // Combined Loading/Error state for initial data fetches
+  const [isLoadingPageData, setIsLoadingPageData] = useState(true);
+  const [pageLoadError, setPageLoadError] = useState<string | null>(null);
+
+  // Loading/Submitting state for form actions
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Fetch all available amenities
-  useEffect(() => {
-    const fetchAllAmenities = async () => {
-      setIsLoadingAmenities(true);
-      setAmenityError(null);
-      try {
-        const response = await fetch('/api/admin/amenities');
-        if (!response.ok) throw new Error('Failed to fetch amenities');
-        const fetchedData = await response.json(); 
-        console.log("[DEBUG EditRoutePage] Fetched amenities data:", fetchedData); 
-        // Ensure we always set an array, even if fetchedData.amenities is missing or not an array
-        const amenitiesArray = Array.isArray(fetchedData?.amenities) ? fetchedData.amenities : [];
-        setAllAmenities(amenitiesArray); 
-      } catch (err) {
-        console.error("[DEBUG EditRoutePage] Failed to fetch amenities:", err); 
-        setAmenityError("Could not load amenities.");
-      } finally {
-        setIsLoadingAmenities(false);
-      }
-    };
-    fetchAllAmenities();
-  }, []);
 
-  // Fetch all available cities
-  useEffect(() => {
-    const fetchCities = async () => {
-      setIsLoadingCities(true);
-      setCityLoadError(null);
-      try {
-        const response = await fetch('/api/admin/cities'); 
-        if (!response.ok) throw new Error(`Failed to fetch cities: ${response.status}`);
-        const data = await response.json();
-        const cities = data.cities || []; 
-        console.log("Fetched cities:", cities.length);
-        setAvailableCities(cities);
-      } catch (err) {
-        console.error("Failed to fetch cities:", err);
-        setCityLoadError("Could not load city data. You can still edit other fields.");
-      } finally {
-        setIsLoadingCities(false);
-      }
-    };
-    
-    fetchCities();
-  }, []);
-
-  // Fetch the specific route data
+  // Combined useEffect to fetch initial page data concurrently
   useEffect(() => {
     if (!routeId) {
-        setError("Route ID not found in URL.");
-        setIsLoadingRoute(false);
-        return;
+      setPageLoadError("Route ID not found in URL.");
+      setIsLoadingPageData(false);
+      return;
     }
 
-    const fetchRoute = async () => {
-      setIsLoadingRoute(true);
-      setError(null);
-      try {
-        console.log(`Attempting to fetch route with ID: ${routeId}`);
-        const response = await fetch(`/api/admin/routes/${routeId}`);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-          throw new Error(errorData.error || `Failed to fetch route: ${response.status}`);
-        }
-        
-        const routeData: RouteData = await response.json();
-        console.log("Successfully fetched route directly:", routeData);
+    const fetchInitialData = async () => {
+      setIsLoadingPageData(true);
+      setPageLoadError(null);
 
+      try {
+        console.log(`Fetching initial data for route ID: ${routeId}`);
+        const [amenitiesResponse, citiesResponse, routeResponse] = await Promise.all([
+          fetch('/api/admin/amenities'),
+          fetch('/api/admin/cities'),
+          fetch(`/api/admin/routes/${routeId}`)
+        ]);
+
+        // Check all responses before proceeding
+        if (!amenitiesResponse.ok) throw new Error(`Failed to fetch amenities: ${amenitiesResponse.statusText}`);
+        if (!citiesResponse.ok) throw new Error(`Failed to fetch cities: ${citiesResponse.statusText}`);
+        if (!routeResponse.ok) {
+            const errorData = await routeResponse.json().catch(() => ({ error: `HTTP error! status: ${routeResponse.status}` }));
+            throw new Error(errorData.error || `Failed to fetch route: ${routeResponse.status}`);
+        }
+
+        // Process results after all promises resolve
+        const amenitiesData = await amenitiesResponse.json();
+        const citiesData = await citiesResponse.json();
+        const routeData: RouteData = await routeResponse.json();
+
+        // Validate route data
         if (!routeData || typeof routeData !== 'object' || !routeData.id) {
           throw new Error('Invalid route data received from API.');
         }
-        
+
+        // Set Amenities State
+        const amenitiesArray = Array.isArray(amenitiesData?.amenities) ? amenitiesData.amenities : [];
+        setAllAmenities(amenitiesArray);
+        console.log("[DEBUG EditRoutePage] Fetched amenities data:", amenitiesArray.length);
+
+        // Set Cities State
+        const citiesArray = citiesData.cities || [];
+        setAvailableCities(citiesArray);
+        console.log("Fetched cities:", citiesArray.length);
+
+        // Set Route State
+        console.log("Successfully fetched route directly:", routeData);
         setOriginalData(routeData);
-        
         setDepartureCityId(routeData.departureCityId);
         setDestinationCityId(routeData.destinationCityId);
         setRouteSlug(routeData.routeSlug);
@@ -193,38 +171,33 @@ const EditRoutePage = () => {
         setTravelTime(routeData.travelTime ?? '');
         setOtherStops(routeData.otherStops ?? '');
         setAdditionalInstructions(routeData.additionalInstructions ?? '');
-        setViatorDestinationLink(routeData.viatorDestinationLink ?? ''); // ✅ Set Viator link state
+        setViatorDestinationLink(routeData.viatorDestinationLink ?? '');
         setMapWaypoints(Array.isArray(routeData.mapWaypoints) ? routeData.mapWaypoints : []);
-        // Load possible nearby stops data
         setPossibleNearbyStops(Array.isArray(routeData.possibleNearbyStops) ? routeData.possibleNearbyStops : []);
-        // Initialize selected amenities based on fetched route data
         setSelectedAmenityIds(routeData.amenities?.map(a => a.id) || []);
 
-        if (routeData.isAirportPickup) {
-          setRouteType('airportPickup');
-        } else if (routeData.isAirportDropoff) {
-          setRouteType('airportDropoff');
-        } else if (routeData.isPrivateDriver) { 
-          setRouteType('privateDriver');
-        } else if (routeData.isSightseeingShuttle) { 
-          setRouteType('sightseeingShuttle');
-        } else { 
-          setRouteType('cityToCity'); 
-        }
+        // Set route type
+        if (routeData.isAirportPickup) setRouteType('airportPickup');
+        else if (routeData.isAirportDropoff) setRouteType('airportDropoff');
+        else if (routeData.isPrivateDriver) setRouteType('privateDriver');
+        else if (routeData.isSightseeingShuttle) setRouteType('sightseeingShuttle');
+        else setRouteType('cityToCity');
+
       } catch (err: unknown) {
-        console.error("Failed to fetch route data:", err);
-        let message = "Could not load route data. Please try again or contact support.";
+        console.error("Failed to fetch initial page data:", err);
+        let message = "Could not load necessary page data. Please try again or contact support.";
         if (err instanceof Error) {
             message = err.message;
         }
-        setError(message);
+        setPageLoadError(message); // Use combined error state
       } finally {
-        setIsLoadingRoute(false);
+        setIsLoadingPageData(false); // Set combined loading state to false
       }
     };
 
-    fetchRoute();
-  }, [routeId]);
+    fetchInitialData();
+  }, [routeId]); // Dependency array only includes routeId
+
 
   // Effect to clear mapWaypoints if route type changes to one that doesn't support them
   useEffect(() => {
@@ -245,18 +218,18 @@ const EditRoutePage = () => {
   // --- End Debug useEffect ---
 
   // Helper to determine original route type for comparison
-  const getOriginalRouteType = (): RouteType | null => { 
-    if (!originalData) return null; 
+  const getOriginalRouteType = (): RouteType | null => {
+    if (!originalData) return null;
     if (originalData.isAirportPickup) return 'airportPickup';
     if (originalData.isAirportDropoff) return 'airportDropoff';
-    if (originalData.isPrivateDriver) return 'privateDriver'; 
-    if (originalData.isSightseeingShuttle) return 'sightseeingShuttle'; 
-    if (originalData.isCityToCity) return 'cityToCity'; 
-    return 'cityToCity'; 
+    if (originalData.isPrivateDriver) return 'privateDriver';
+    if (originalData.isSightseeingShuttle) return 'sightseeingShuttle';
+    if (originalData.isCityToCity) return 'cityToCity';
+    return 'cityToCity';
   };
 
   // Mark handleSubmit as async
-  const handleSubmit = async (event: React.FormEvent) => { 
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!departureCityId || !destinationCityId || !viatorWidgetCode || !routeSlug || !displayName) {
@@ -272,14 +245,14 @@ const EditRoutePage = () => {
     const currentMetaDesc = metaDescription.trim() === '' ? null : metaDescription.trim();
     const currentMetaKeywords = metaKeywords.trim() === '' ? null : metaKeywords.trim();
     const currentSeoDesc = seoDescription.trim() === '' ? null : seoDescription.trim();
-    const currentTravelTime = travelTime.trim() === '' ? null : travelTime.trim(); 
+    const currentTravelTime = travelTime.trim() === '' ? null : travelTime.trim();
     const otherStopsAsString = Array.isArray(otherStops) ? otherStops.join(', ') : (otherStops || '');
     const currentOtherStops = otherStopsAsString.trim() === '' ? null : otherStopsAsString.trim();
     const currentIsAirportPickup = routeType === 'airportPickup';
     const currentIsAirportDropoff = routeType === 'airportDropoff';
     const currentIsCityToCity = routeType === 'cityToCity';
-    const currentIsPrivateDriver = routeType === 'privateDriver'; 
-    const currentIsSightseeingShuttle = routeType === 'sightseeingShuttle'; 
+    const currentIsPrivateDriver = routeType === 'privateDriver';
+    const currentIsSightseeingShuttle = routeType === 'sightseeingShuttle';
 
     if (!originalData) {
       setSubmitStatus({ success: false, message: 'Original route data not found.' });
@@ -288,21 +261,21 @@ const EditRoutePage = () => {
 
     const originalRouteType = getOriginalRouteType();
     const originalWaypointsForCompare = Array.isArray(originalData.mapWaypoints) ? originalData.mapWaypoints : [];
-    const currentWaypointsForCompare = mapWaypoints; 
-    
+    const currentWaypointsForCompare = mapWaypoints;
+
     // Get original nearby stops for comparison
     const originalNearbyStopsForCompare = Array.isArray(originalData.possibleNearbyStops) ? originalData.possibleNearbyStops : [];
     const currentNearbyStopsForCompare = possibleNearbyStops;
-    
+
     const originalAmenityIds = originalData.amenities?.map(a => a.id).sort() || [];
     const currentAmenityIds = [...selectedAmenityIds].sort();
 
     const waypointsCleared = (originalWaypointsForCompare.length > 0 && currentWaypointsForCompare.length === 0);
     const nearbyStopsCleared = (originalNearbyStopsForCompare.length > 0 && currentNearbyStopsForCompare.length === 0);
-    
+
     // Check if amenities have changed
     const amenitiesChanged = JSON.stringify(originalAmenityIds) !== JSON.stringify(currentAmenityIds);
-    
+
     // Check if nearby stops have changed
     const nearbyStopsChanged = JSON.stringify(originalNearbyStopsForCompare) !== JSON.stringify(currentNearbyStopsForCompare);
 
@@ -317,7 +290,7 @@ const EditRoutePage = () => {
         currentMetaKeywords === originalData.metaKeywords &&
         currentSeoDesc === originalData.seoDescription &&
         currentTravelTime === originalData.travelTime &&
-        currentOtherStops === originalData.otherStops && 
+        currentOtherStops === originalData.otherStops &&
         (additionalInstructions.trim() || null) === originalData.additionalInstructions &&
         (viatorDestinationLink.trim() || null) === originalData.viatorDestinationLink && // ✅ Check Viator link change
         routeType === originalRouteType
@@ -330,9 +303,9 @@ const EditRoutePage = () => {
         setSubmitStatus({ success: false, message: 'No changes detected.' });
         return;
     }
-    
-    setIsSubmitting(true); 
-    setSubmitStatus(null); 
+
+    setIsSubmitting(true);
+    setSubmitStatus(null);
 
     try {
       // Use the PUT route handler which expects selectedAmenityIds
@@ -349,14 +322,14 @@ const EditRoutePage = () => {
             metaDescription: currentMetaDesc,
             metaKeywords: currentMetaKeywords,
             seoDescription: currentSeoDesc,
-            travelTime: currentTravelTime, 
-            otherStops: currentOtherStops, 
+            travelTime: currentTravelTime,
+            otherStops: currentOtherStops,
             additionalInstructions: additionalInstructions.trim() || null,
             isAirportPickup: currentIsAirportPickup,
             isAirportDropoff: currentIsAirportDropoff,
             isCityToCity: currentIsCityToCity,
-            isPrivateDriver: currentIsPrivateDriver, 
-            isSightseeingShuttle: currentIsSightseeingShuttle, 
+            isPrivateDriver: currentIsPrivateDriver,
+            isSightseeingShuttle: currentIsSightseeingShuttle,
             mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
             possibleNearbyStops: possibleNearbyStops.length > 0 ? possibleNearbyStops : null,
             viatorDestinationLink: viatorDestinationLink.trim() || null, // ✅ Send Viator link
@@ -368,32 +341,20 @@ const EditRoutePage = () => {
       if (!response.ok) throw new Error(result.error || `HTTP error! status: ${response.status}`);
 
       setSubmitStatus({ success: true, message: `Route updated successfully!` });
-      
-      // Update original data state to reflect saved changes, including amenities
-      setOriginalData({
-        ...originalData,
-        departureCityId,
-        destinationCityId,
-        routeSlug,
-        displayName,
-        viatorWidgetCode,
-        metaTitle: currentMetaTitle,
-        metaDescription: currentMetaDesc,
-        metaKeywords: currentMetaKeywords,
-        seoDescription: currentSeoDesc,
-        travelTime: currentTravelTime, 
-        otherStops: currentOtherStops, 
-        additionalInstructions: additionalInstructions.trim() || null,
-        isAirportPickup: currentIsAirportPickup,
-        isAirportDropoff: currentIsAirportDropoff,
-        isCityToCity: currentIsCityToCity,
-        isPrivateDriver: currentIsPrivateDriver, 
-        isSightseeingShuttle: currentIsSightseeingShuttle, 
-        mapWaypoints: mapWaypoints.length > 0 ? mapWaypoints : null,
-        possibleNearbyStops: possibleNearbyStops.length > 0 ? possibleNearbyStops : null, // Update possibleNearbyStops in original data
-        viatorDestinationLink: viatorDestinationLink.trim() || null, // ✅ Update original data state
-        amenities: selectedAmenityIds.map(id => ({ id })), // Update original data state
-      });
+
+      // Update original data state using the actual data returned from the API
+      // This ensures the state reflects exactly what was saved, including the viator link
+      setOriginalData(prevData => ({
+        ...(prevData || {}), // Keep existing fields if any were missing in result
+        ...result, // Overwrite with the successfully saved data from API
+        // Ensure nested objects are handled correctly if API select differs
+        amenities: result.amenities || [],
+        // Manually reconstruct departure/destination city if not fully included in result's select
+        // (They should be included based on routeSelect in the API)
+        departureCity: result.departureCity || prevData?.departureCity || { name: '', id: ''},
+        destinationCity: result.destinationCity || prevData?.destinationCity || { name: '', id: ''},
+      }) as RouteData); // Cast result back to RouteData type
+
     } catch (error: unknown) {
       console.error("Failed to update route:", error);
       let message = "Failed to update route.";
@@ -420,10 +381,10 @@ const EditRoutePage = () => {
        setSubmitStatus({ success: false, message: 'Please select departure and destination cities first.' });
        return;
     }
-    
+
     setIsGenerating(true);
     setSubmitStatus(null);
-    
+
     try {
       const response = await fetch('/api/admin/routes/generate-content', {
         method: 'POST',
@@ -435,8 +396,8 @@ const EditRoutePage = () => {
           isAirportPickup: routeType === 'airportPickup',
           isAirportDropoff: routeType === 'airportDropoff',
           isCityToCity: routeType === 'cityToCity',
-          isPrivateDriver: routeType === 'privateDriver', 
-          isSightseeingShuttle: routeType === 'sightseeingShuttle', 
+          isPrivateDriver: routeType === 'privateDriver',
+          isSightseeingShuttle: routeType === 'sightseeingShuttle',
           viatorDestinationLink: viatorDestinationLink.trim() || null // ✅ Pass link to API
         }),
       });
@@ -457,7 +418,7 @@ const EditRoutePage = () => {
       // Update selected amenities based on the response
       const newAmenityIds = data.matchedAmenityIds || []; // DEBUG LOG 2 - Capture IDs
       console.log("Updating selectedAmenityIds with:", newAmenityIds); // DEBUG LOG 3 - Log IDs being set
-      setSelectedAmenityIds(newAmenityIds); 
+      setSelectedAmenityIds(newAmenityIds);
       // Removed misleading log here (DEBUG LOG 4)
 
       setSubmitStatus({
@@ -467,9 +428,9 @@ const EditRoutePage = () => {
     } catch (error) {
       let detailedErrorMessage = 'Failed to generate content. Please try again.';
       if (error instanceof Error) {
-        detailedErrorMessage = error.message; 
+        detailedErrorMessage = error.message;
       }
-      console.error('Error generating content:', detailedErrorMessage, error); 
+      console.error('Error generating content:', detailedErrorMessage, error);
       setSubmitStatus({
         success: false,
         message: detailedErrorMessage
@@ -486,25 +447,25 @@ const EditRoutePage = () => {
       let newValue: string | number = value;
       if (field === 'lat' || field === 'lng') {
         const parsed = parseFloat(value);
-        newValue = isNaN(parsed) ? value : parsed; 
+        newValue = isNaN(parsed) ? value : parsed;
       }
-      
+
       updated[index] = {
         ...updated[index],
-        [field]: newValue 
+        [field]: newValue
       };
       setMapWaypoints(updated);
     }
-  }, [mapWaypoints]); 
+  }, [mapWaypoints]);
 
   const handleAddWaypoint = useCallback(() => {
     setMapWaypoints([...mapWaypoints, { name: '', lat: 0, lng: 0 }]);
-  }, [mapWaypoints]); 
+  }, [mapWaypoints]);
 
   const handleRemoveWaypoint = useCallback((index: number) => {
     const updated = mapWaypoints.filter((_, i) => i !== index);
     setMapWaypoints(updated);
-  }, [mapWaypoints]); 
+  }, [mapWaypoints]);
   // --- End Waypoint Handlers ---
 
   // --- Nearby Stops Handlers ---
@@ -514,12 +475,12 @@ const EditRoutePage = () => {
       let newValue: string | number = value;
       if (field === 'lat' || field === 'lng') {
         const parsed = parseFloat(value);
-        newValue = isNaN(parsed) ? value : parsed; 
+        newValue = isNaN(parsed) ? value : parsed;
       }
-      
+
       updated[index] = {
         ...updated[index],
-        [field]: newValue 
+        [field]: newValue
       };
       setPossibleNearbyStops(updated);
     }
@@ -561,17 +522,17 @@ const EditRoutePage = () => {
   // --- End DND Kit ---
 
 
-  if (isLoadingRoute) {
+  if (isLoadingPageData) { // Use combined loading state
     return <div className="text-center p-4">Loading route data...</div>;
   }
-  
-  if (error) {
+
+  if (pageLoadError) { // Use combined error state
     return (
       <div>
         <Link href="/management-portal-8f7d3e2a1c/routes" className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
           &larr; Back to Routes
         </Link>
-        <p className="text-center p-4 text-red-600">{error}</p>
+        <p className="text-center p-4 text-red-600">{pageLoadError}</p>
       </div>
     );
   }
@@ -590,8 +551,9 @@ const EditRoutePage = () => {
             <label htmlFor="departure-city" className="block text-sm font-medium text-gray-700 mb-1">
               Departure City *
             </label>
-            {isLoadingCities ? (
-              <div className="p-2 border border-gray-300 rounded-md bg-gray-50">Loading cities...</div>
+            {/* Use combined loading state for simplicity, or keep individual if preferred */}
+            {isLoadingPageData ? (
+              <div className="p-2 border border-gray-300 rounded-md bg-gray-50">Loading...</div>
             ) : (
               <select
                 id="departure-city"
@@ -608,16 +570,17 @@ const EditRoutePage = () => {
                 ))}
               </select>
             )}
-            {cityLoadError && <p className="text-xs text-red-600 mt-1">{cityLoadError}</p>}
+            {/* Consider showing cityLoadError specifically if needed */}
+            {/* {cityLoadError && <p className="text-xs text-red-600 mt-1">{cityLoadError}</p>} */}
           </div>
-          
+
           {/* Destination City Selection */}
           <div>
             <label htmlFor="destination-city" className="block text-sm font-medium text-gray-700 mb-1">
               Destination City *
             </label>
-            {isLoadingCities ? (
-              <div className="p-2 border border-gray-300 rounded-md bg-gray-50">Loading cities...</div>
+            {isLoadingPageData ? (
+              <div className="p-2 border border-gray-300 rounded-md bg-gray-50">Loading...</div>
             ) : (
               <select
                 id="destination-city"
@@ -634,7 +597,8 @@ const EditRoutePage = () => {
                 ))}
               </select>
             )}
-            {cityLoadError && <p className="text-xs text-red-600 mt-1">{cityLoadError}</p>}
+             {/* Consider showing cityLoadError specifically if needed */}
+            {/* {cityLoadError && <p className="text-xs text-red-600 mt-1">{cityLoadError}</p>} */}
           </div>
         </div>
 
@@ -695,9 +659,9 @@ const EditRoutePage = () => {
             <div className="flex items-center">
               <input
                 id="isAirportPickup"
-                name="routeType" 
+                name="routeType"
                 type="radio"
-                value="airportPickup" 
+                value="airportPickup"
                 checked={routeType === 'airportPickup'}
                 onChange={(e) => setRouteType(e.target.value as RouteType)}
                 className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -711,7 +675,7 @@ const EditRoutePage = () => {
                 id="isAirportDropoff"
                 name="routeType"
                 type="radio"
-                value="airportDropoff" 
+                value="airportDropoff"
                 checked={routeType === 'airportDropoff'}
                 onChange={(e) => setRouteType(e.target.value as RouteType)}
                 className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -725,7 +689,7 @@ const EditRoutePage = () => {
                 id="isCityToCity"
                 name="routeType"
                 type="radio"
-                value="cityToCity" 
+                value="cityToCity"
                 checked={routeType === 'cityToCity'}
                 onChange={(e) => setRouteType(e.target.value as RouteType)}
                 className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -739,7 +703,7 @@ const EditRoutePage = () => {
               id="isPrivateDriver"
               name="routeType"
               type="radio"
-              value="privateDriver" 
+              value="privateDriver"
               checked={routeType === 'privateDriver'}
               onChange={(e) => setRouteType(e.target.value as RouteType)}
               className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -753,7 +717,7 @@ const EditRoutePage = () => {
               id="isSightseeingShuttle"
               name="routeType"
               type="radio"
-              value="sightseeingShuttle" 
+              value="sightseeingShuttle"
               checked={routeType === 'sightseeingShuttle'}
               onChange={(e) => setRouteType(e.target.value as RouteType)}
               className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
@@ -856,7 +820,7 @@ const EditRoutePage = () => {
             placeholder="Enter information about the route service, amenities, cities, hotels, etc..."
           />
           <p className="text-xs text-gray-500 mt-1">
-            Include details about the service, featured cities, hotels, or special amenities. 
+            Include details about the service, featured cities, hotels, or special amenities.
             This content will be cleaned and formatted before sending to AI.
           </p>
         </div>
@@ -914,13 +878,13 @@ const EditRoutePage = () => {
         {/* Amenities Section */}
         <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
           <h3 className="text-lg font-semibold mb-3 text-gray-800">Amenities</h3>
-        {isLoadingAmenities && <p className="text-sm text-gray-500">Loading amenities...</p>}
-        {amenityError && <p className="text-sm text-red-500">{amenityError}</p>}
-        {!isLoadingAmenities && !amenityError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
+        {isLoadingPageData && <p className="text-sm text-gray-500">Loading amenities...</p>}
+        {pageLoadError && <p className="text-sm text-red-500">Could not load amenities.</p>}
+        {!isLoadingPageData && !pageLoadError && allAmenities.length === 0 && <p className="text-sm text-gray-500">No amenities found.</p>}
         {/* --- Debug Log for Rendering Conditions (wrapped) --- */}
-        {(() => { console.log("[DEBUG EditRoutePage] Rendering Amenities Checkboxes - Conditions:", { isLoading: isLoadingAmenities, error: amenityError, count: allAmenities.length }); return null; })()}
+        {(() => { console.log("[DEBUG EditRoutePage] Rendering Amenities Checkboxes - Conditions:", { isLoading: isLoadingPageData, error: pageLoadError, count: allAmenities.length }); return null; })()}
         {/* --- End Debug Log --- */}
-        {!isLoadingAmenities && !amenityError && allAmenities.length > 0 && (
+        {!isLoadingPageData && !pageLoadError && allAmenities.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {allAmenities.map((amenity) => (
               <div key={amenity.id} className="flex items-center">
@@ -1074,9 +1038,9 @@ const EditRoutePage = () => {
             {isSubmitting ? 'Updating...' : 'Update Route'}
           </button>
           {originalData?.routeSlug && (
-            <Link 
-              href={`/routes/${originalData.routeSlug}`} 
-              target="_blank" 
+            <Link
+              href={`/routes/${originalData.routeSlug}`}
+              target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
