@@ -104,7 +104,7 @@ export async function POST(request: Request) {
   let data: { name: string; countryId: string; latitude?: number; longitude?: number };
   try {
     data = await request.json();
-  } catch { // Removed unused error variable
+  } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
@@ -118,49 +118,61 @@ export async function POST(request: Request) {
        return NextResponse.json({ error: 'Invalid coordinate format (must be numbers)' }, { status: 400 });
    }
 
-  // Normalize the name (remove accents)
-  const normalizedName = data.name
+  // Normalize the city name (remove accents)
+  const normalizedCityName = data.name
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
-  const slug = generateNormalizedSlug(normalizedName); // Use normalized name for slug
-
-  if (!slug) {
-     return NextResponse.json({ error: 'Failed to generate a valid slug from the provided name' }, { status: 400 });
-  }
+  let slug = ''; // Define slug variable outside try block
 
   try {
-    // Check if country exists
-    const countryExists = await prisma.country.findUnique({ where: { id: data.countryId } });
-    if (!countryExists) {
-        return NextResponse.json({ error: 'Specified Country ID not found' }, { status: 400 });
+    // Fetch the country to get its name for the slug
+    const country = await prisma.country.findUnique({
+      where: { id: data.countryId },
+      select: { name: true } // Select only the name
+    });
+
+    if (!country) {
+      return NextResponse.json({ error: 'Specified Country ID not found' }, { status: 400 });
+    }
+
+    // Generate slug including country name
+    slug = generateNormalizedSlug(`${normalizedCityName} ${country.name}`);
+
+    if (!slug) {
+       return NextResponse.json({ error: 'Failed to generate a valid slug from the provided city and country name' }, { status: 400 });
     }
 
     const newCity = await prisma.city.create({
       data: {
-        name: normalizedName, // Save normalized name
-        slug: slug,
+        name: normalizedCityName, // Save normalized name
+        slug: slug, // Use the combined slug
         countryId: data.countryId,
         latitude: data.latitude, // Optional
         longitude: data.longitude, // Optional
       },
     });
-    console.log(`Admin Cities POST: Successfully created city ${newCity.name} by user ${session.user?.email}`);
+    console.log(`Admin Cities POST: Successfully created city ${newCity.name} with slug ${slug} by user ${session.user?.email}`);
     return NextResponse.json(newCity, { status: 201 });
 
   } catch (error) {
     console.error("Admin Cities POST Error:", error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // Unique constraint violation (likely name+countryId or slug - though slug isn't unique alone)
-      // The default @@unique([name, countryId]) constraint error
+      // Unique constraint violation (likely name+countryId or slug)
       if (error.code === 'P2002') {
-        // Prisma often includes the fields in the meta target
          const target = (error.meta?.target as string[])?.join(', ');
          if (target?.includes('name') && target?.includes('countryId')) {
              return NextResponse.json(
-               { error: `A city with the name "${normalizedName}" already exists in this country.` },
+               { error: `A city with the name "${normalizedCityName}" already exists in this country.` },
                { status: 409 } // Conflict
+             );
+         }
+         // Handle potential slug unique constraint violation
+         if (target?.includes('slug')) {
+             return NextResponse.json(
+               { error: `A city with the generated slug "${slug}" already exists. Please adjust the name slightly.` },
+               { status: 409 }
              );
          }
          // Handle other potential unique constraints if added later
