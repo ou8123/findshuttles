@@ -292,10 +292,9 @@ Destination tours link: ${viatorDestinationLink || 'None'}
 
 **Route Type Specific Logic:**
 
-**Important:** Always include a sentence stating that pickup can also be arranged from nearby hotels or resorts — even if this was not mentioned in the original instructions.
 **1. AIRPORT_PICKUP (\`routeTypeString\` = 'AIRPORT_PICKUP')**
-- **Opening:** Always open \`seoDescription\` with a warm welcome (e.g., “Welcome to ${destinationCountryName}!”).
-- **Content:** Describe the convenience of the shuttle service from the airport. Be sure to mention that pickup can also be arranged from nearby hotels or resorts if applicable.
+- **Opening:** Start \`seoDescription\` with a warm, varied, and fun welcome message suitable for arriving travelers (e.g., "Your adventure in ${destinationCountryName} begins!", "Get ready to explore ${destinationCountryName}!", "Welcome to sunny ${destinationCountryName}!"). Avoid using the exact same opening every time.
+- **Content:** Describe the convenience of the shuttle service from the airport. **Crucially, always include a sentence stating that pickup can also be arranged from nearby hotels or resorts.**
 - Briefly highlight 2–3 attractions in or near the destination city, mentioning 1–2 possible related activities.
 
 **2. AIRPORT_DROPOFF (\`routeTypeString\` = 'AIRPORT_DROPOFF')**
