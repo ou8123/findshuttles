@@ -71,34 +71,34 @@ export async function GET(req: NextRequest) {
         <div style={{
           background: 'white', // New background color
           color: textColor, // New text color
-          width: '1200px',
-          height: '630px',
+          width: '600px',
+          height: '315px',
           display: 'flex', // Main container uses flex
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           fontFamily: '"Inter", sans-serif', // Use the loaded font
-          padding: `20px`, // Keep some padding
+          padding: `10px`, // Reduced padding
           textAlign: 'center', // Center text
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
-          {/* Use the logo Data URI - Increased size further */}
-          <img src={logoDataUri} width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
-          {/* Route Text - Increased size */}
+          {/* Use the logo Data URI - Adjusted size */}
+          <img src={logoDataUri} width={225} height={75} style={{ marginBottom: 15 }} alt="BookShuttles.com Logo" />
+          {/* Route Text - Reduced size */}
           {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
             {from} → {to}
           </div>
-          {/* Tagline - Increased size */}
+          {/* Tagline - Reduced size */}
            {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 38, marginTop: 25, fontWeight: 500 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 19, marginTop: 12, fontWeight: 500 }}>
             Shuttle Service · BookShuttles.com
           </div>
         </div>
       ),
       {
-        width: 1200,
-        height: 630,
+        width: 600,
+        height: 315,
         fonts: [
           {
             name: 'Inter',
