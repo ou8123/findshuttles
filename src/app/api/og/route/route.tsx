@@ -53,11 +53,13 @@ export async function GET(req: NextRequest) {
           {/* Use the dynamically constructed absolute LOGO_URL */}
           <img src={absoluteLogoUrl} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text */}
-          <div style={{ fontSize: 60, fontWeight: 700, lineHeight: 1.2 }}> {/* Increased font size */}
+          {/* Added display:flex to satisfy Satori */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 60, fontWeight: 700, lineHeight: 1.2 }}>
             {from} → {to}
           </div>
           {/* Tagline */}
-          <div style={{ fontSize: 32, marginTop: 25, fontWeight: 500 }}> {/* Increased font size */}
+           {/* Added display:flex to satisfy Satori */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 32, marginTop: 25, fontWeight: 500 }}>
             Shuttle Service · BookShuttles.com
           </div>
         </div>
