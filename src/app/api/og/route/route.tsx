@@ -1,17 +1,24 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 import React from 'react'; // Explicitly import React
+import { readFile } from 'fs/promises'; // Import readFile
+import path from 'path'; // Import path
 
 export const runtime = "edge";
 
-// Function to fetch font data
+// Function to load local font data
 async function getFontData() {
-  const fontUrl = 'https://rsms.me/inter/font-files/Inter-Regular.woff'; // Using WOFF format
-  const response = await fetch(fontUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch font: ${response.statusText}`);
+  // Construct the absolute path to the font file relative to the current file
+  // Note: This assumes the built output structure maintains this relative path.
+  // Adjust if your build process changes file locations significantly.
+  const fontPath = path.join(process.cwd(), 'src/app/api/og/fonts/Inter-Regular.woff2'); // Updated filename
+  try {
+    const fontData = await readFile(fontPath);
+    return fontData;
+  } catch (error) {
+    console.error(`Error reading font file at ${fontPath}:`, error);
+    throw new Error(`Could not load font file: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return response.arrayBuffer();
 }
 
 // Function to fetch logo and convert to Data URI
