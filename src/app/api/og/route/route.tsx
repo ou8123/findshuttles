@@ -49,11 +49,19 @@ export async function GET(req: NextRequest) {
     const { searchParams } = url;
     const baseUrl = url.origin; // e.g., http://localhost:3000 or https://bookshuttles.com
 
+    // --- OG Image Debug Logging ---
+    console.log(`[OG Image Req] URL: ${req.url}`);
+    // --- End Debug Logging ---
+
     // Get 'from' and 'to' query parameters
     const hasFrom = searchParams.has('from');
     const hasTo = searchParams.has('to');
     const from = hasFrom ? searchParams.get('from')?.slice(0, 100) : 'Your Location'; // Limit length
     const to = hasTo ? searchParams.get('to')?.slice(0, 100) : 'Your Destination'; // Limit length
+
+    // --- OG Image Debug Logging ---
+    console.log(`[OG Image Req] Params: from=${from}, to=${to}`);
+    // --- End Debug Logging ---
 
     // Fetch font data and logo data URI concurrently
     const [fontData, logoDataUri] = await Promise.all([
