@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Shuttle Finder",
+  title: "BookShuttles.com",
   description: "Find shuttle routes worldwide",
 };
 

@@ -15,8 +15,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | FindTours.com',
-    default: 'Shuttle Finder | FindTours.com',
+    template: '%s | BookShuttles.com', 
+    default: 'BookShuttles.com', 
   },
   description: "Find shuttle routes worldwide",
 };

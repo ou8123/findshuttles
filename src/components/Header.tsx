@@ -10,7 +10,7 @@ const Header = () => {
             src="/images/BookShuttles.com-Logo.png" 
             alt="Book Shuttles Logo" 
             style={{ 
-              height: '60px', /* 20% larger height */
+              height: '72px', /* Increased height by 20% */
               width: 'auto',  /* Auto width to maintain aspect ratio */
               objectFit: 'contain',
               objectPosition: 'bottom', /* Align to bottom */

@@ -66,7 +66,7 @@ export async function generateMetadata({ params }) {
 
   if (!route) {
     return {
-      title: 'Route Not Found | FindTours.com',
+      title: 'Route Not Found | BookShuttles.com',
     };
   }
 
