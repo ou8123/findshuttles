@@ -49,19 +49,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = url;
     const baseUrl = url.origin; // e.g., http://localhost:3000 or https://bookshuttles.com
 
-    // --- OG Image Debug Logging ---
-    console.log(`[OG Image Req] URL: ${req.url}`);
-    // --- End Debug Logging ---
-
     // Get 'from' and 'to' query parameters
     const hasFrom = searchParams.has('from');
     const hasTo = searchParams.has('to');
     const from = hasFrom ? searchParams.get('from')?.slice(0, 100) : 'Your Location'; // Limit length
     const to = hasTo ? searchParams.get('to')?.slice(0, 100) : 'Your Destination'; // Limit length
-
-    // --- OG Image Debug Logging ---
-    console.log(`[OG Image Req] Params: from=${from}, to=${to}`);
-    // --- End Debug Logging ---
 
     // Fetch font data and logo data URI concurrently
     const [fontData, logoDataUri] = await Promise.all([
@@ -91,8 +83,8 @@ export async function GET(req: NextRequest) {
           border: `${borderThickness}px solid ${greenColor}`, // Thick green border
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
-          {/* Use the logo Data URI - Increased size */}
-          <img src={logoDataUri} width={360} height={120} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          {/* Use the logo Data URI - Increased size further */}
+          <img src={logoDataUri} width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text - Increased size */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
