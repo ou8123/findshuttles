@@ -65,8 +65,8 @@ export async function GET(req: NextRequest) {
       // Fallback to getting 'from' and 'to' from query parameters
       const hasFrom = searchParams.has('from');
       const hasTo = searchParams.has('to');
-      from = hasFrom ? searchParams.get('from')?.slice(0, 100) : from; // Limit length
-      to = hasTo ? searchParams.get('to')?.slice(0, 100) : to; // Limit length
+      from = hasFrom && searchParams.get('from') ? searchParams.get('from')!.slice(0, 100) : from; // Limit length and ensure string
+      to = hasTo && searchParams.get('to') ? searchParams.get('to')!.slice(0, 100) : to; // Limit length and ensure string
     }
 
 
