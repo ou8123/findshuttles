@@ -14,7 +14,7 @@ export async function generateMetadata({ params }) {
   if (!data || !data.country) {
     // Return metadata for a not found page or a default
     return {
-      title: 'Country Routes Not Found | FindShuttles.com',
+      title: 'Country Routes Not Found | BookShuttles.com',
       description: 'Could not find shuttle routes for the specified country.',
     };
   }
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }) {
     : `Browse professional, point-to-point shuttle routes throughout ${countryName}. Explore transportation options between major cities and destinations.`;
 
   return {
-    title: `Shuttle Routes in ${countryName} | FindShuttles.com`,
+    title: `Shuttle Routes in ${countryName} | BookShuttles.com`,
     description: metaDescription,
     // Add keywords later if needed
   };
@@ -129,7 +129,7 @@ export default async function CountryRoutesPage({ params }) {
 
   // TODO: Replace this static content with dynamic content based on the country
   const pageContent = {
-    title: `Shuttle Routes in ${country.name} | FindShuttles.com`,
+    title: `Shuttle Routes in ${country.name} | BookShuttles.com`,
     metaDescription: `Browse professional, point-to-point shuttle routes throughout ${country.name}. Explore transportation options between major cities and destinations.`, // Generic version
     introParagraph1: `Find reliable shuttle routes across ${country.name} with BookShuttles.com. Whether you're heading from the capital to the coast or exploring inland regions, BookShuttles.com connects you to convenient, professionally operated shuttle services across the country. Popular routes include transport between major cities and top destinations. Many shuttles offer air-conditioned vehicles and direct service for a smooth travel experience.`,
     introParagraph2: `If ${country.name} is on your itinerary, prepare to experience its diverse landscapes and unforgettable sights. From bustling cities to natural wonders, ${country.name} offers something for every kind of traveler. Whether you're visiting national parks, historical sites, or catching a connecting shuttle, this list of shuttle routes can help you plan seamless travel between key locations.`,
@@ -147,7 +147,7 @@ export default async function CountryRoutesPage({ params }) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">{pageContent.title.replace(' | FindShuttles.com', '')}</h1>
+      <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">{pageContent.title.replace(' | BookShuttles.com', '')}</h1>
       
       {/* Breadcrumbs */}
       <nav className="text-sm text-gray-600 dark:text-gray-400 mb-6" aria-label="Breadcrumb">

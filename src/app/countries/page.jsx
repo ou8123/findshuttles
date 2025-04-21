@@ -7,8 +7,8 @@ import { Metadata } from 'next'; // Keep the import for potential future use or 
 
 // Remove the type annotation ': Metadata'
 export const metadata = {
-  title: 'All Countries with Shuttle Routes | FindShuttles.com',
-  description: 'Browse countries served by shuttle routes available on FindShuttles.com.',
+  title: 'All Countries with Shuttle Routes | BookShuttles.com',
+  description: 'Browse countries served by shuttle routes available on BookShuttles.com.',
 };
 
 async function fetchCountriesWithRouteCounts() {
