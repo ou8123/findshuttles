@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
           {/* Use the logo Data URI - Adjusted size */}
-          <img src={logoDataUri} width={225} height={75} style={{ marginBottom: 15 }} alt="BookShuttles.com Logo" />
+          {/* <img src={logoDataUri} width={225} height={75} style={{ marginBottom: 15 }} alt="BookShuttles.com Logo" /> */}
           {/* Route Text - Reduced size */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
