@@ -1,23 +1,22 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 import React from 'react'; // Explicitly import React
-import { readFile } from 'fs/promises'; // Import readFile
-import path from 'path'; // Import path
+// Removed fs/promises and path imports as they are not available in edge runtime
 
 export const runtime = "edge";
 
-// Function to load local font data
-async function getFontData() {
-  // Construct the absolute path to the font file relative to the current file
-  // Note: This assumes the built output structure maintains this relative path.
-  // Adjust if your build process changes file locations significantly.
-  const fontPath = path.join(process.cwd(), 'src/app/api/og/fonts/Inter-Regular.woff2'); // Updated filename
+// Function to fetch font data from public URL
+async function getFontData(baseUrl: string) {
+  const fontUrl = `${baseUrl}/fonts/Inter-Regular.woff2`; // Path relative to public directory
   try {
-    const fontData = await readFile(fontPath);
-    return fontData;
+    const response = await fetch(fontUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch font (${response.status}): ${fontUrl}`);
+    }
+    return response.arrayBuffer();
   } catch (error) {
-    console.error(`Error reading font file at ${fontPath}:`, error);
-    throw new Error(`Could not load font file: ${error instanceof Error ? error.message : String(error)}`);
+     console.error("Error fetching font:", error);
+     throw new Error(`Could not get font data: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -58,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch font data and logo data URI concurrently
     const [fontData, logoDataUri] = await Promise.all([
-      getFontData(),
+      getFontData(baseUrl), // Pass baseUrl here
       getLogoDataUri(baseUrl) // Pass baseUrl here
     ]);
 
