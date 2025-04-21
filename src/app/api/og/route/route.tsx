@@ -45,8 +45,6 @@ async function getLogoDataUri(baseUrl: string): Promise<string> {
 
 export async function GET(req: NextRequest) {
   try {
-:start_line:48
--------
     const url = new URL(req.url);
     const { searchParams, pathname } = url;
     const baseUrl = url.origin; // e.g., http://localhost:3000 or https://bookshuttles.com
