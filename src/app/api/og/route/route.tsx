@@ -4,6 +4,16 @@ import React from 'react'; // Explicitly import React
 
 export const runtime = "edge";
 
+// Function to fetch font data
+async function getFontData() {
+  const fontUrl = 'https://rsms.me/inter/font-files/Inter-Regular.woff'; // Using WOFF format
+  const response = await fetch(fontUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch font: ${response.statusText}`);
+  }
+  return response.arrayBuffer();
+}
+
 // Relative path to the logo in the public directory
 const LOGO_PATH = "/images/BookShuttles.com-Logo.png";
 
@@ -22,6 +32,9 @@ export async function GET(req: NextRequest) {
     const from = hasFrom ? searchParams.get('from')?.slice(0, 100) : 'Your Location'; // Limit length
     const to = hasTo ? searchParams.get('to')?.slice(0, 100) : 'Your Destination'; // Limit length
 
+    // Fetch font data
+    const fontData = await getFontData();
+
     return new ImageResponse(
       (
         <div style={{
@@ -33,7 +46,7 @@ export async function GET(req: NextRequest) {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          fontFamily: '"Arial", sans-serif', // Ensure font is available in edge runtime or use web safe font
+          fontFamily: '"Inter", sans-serif', // Use the loaded font
           padding: '40px',
           textAlign: 'center', // Center text
           }}>
@@ -52,14 +65,14 @@ export async function GET(req: NextRequest) {
       {
         width: 1200,
         height: 630,
-        // You might need to configure fonts if using custom ones
-        // fonts: [
-        //   {
-        //     name: 'YourFontName',
-        //     data: fontData, // Load font data
-        //     style: 'normal',
-        //   },
-        // ],
+        fonts: [
+          {
+            name: 'Inter',
+            data: fontData, // Use the fetched font data
+            style: 'normal',
+            weight: 400, // Specify weight if needed
+          },
+        ],
       }
     );
   } catch (e: any) {

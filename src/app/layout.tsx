@@ -40,7 +40,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head>
         {/* Debugging inline script removed */}
       </head>
-      <body className="antialiased flex flex-col min-h-screen">
+      <body className="antialiased flex flex-col min-h-screen"> {/* Removed dark: classes */}
         <AuthProvider>
           <ErrorHandlerLoader />
           <Header />
