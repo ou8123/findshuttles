@@ -61,11 +61,16 @@ export async function GET(req: NextRequest) {
       getLogoDataUri(baseUrl) // Pass baseUrl here
     ]);
 
+    // Define border style
+    const borderThickness = 20; // Adjust thickness as needed
+    const greenColor = '#004d3b';
+    const textColor = greenColor; // Use green for text
+
     return new ImageResponse(
       (
         <div style={{
-          background: '#004d3b', // Your brand background color
-          color: 'white',
+          background: 'white', // New background color
+          color: textColor, // New text color
           width: '1200px',
           height: '630px',
           display: 'flex', // Main container uses flex
@@ -73,19 +78,21 @@ export async function GET(req: NextRequest) {
           justifyContent: 'center',
           alignItems: 'center',
           fontFamily: '"Inter", sans-serif', // Use the loaded font
-          padding: '40px',
+          padding: `${borderThickness}px`, // Padding equal to border thickness
           textAlign: 'center', // Center text
+          border: `${borderThickness}px solid ${greenColor}`, // Thick green border
+          boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
-          {/* Use the logo Data URI */}
-          <img src={logoDataUri} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
-          {/* Route Text */}
+          {/* Use the logo Data URI - Increased size */}
+          <img src={logoDataUri} width={360} height={120} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          {/* Route Text - Increased size */}
           {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 60, fontWeight: 700, lineHeight: 1.2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
             {from} → {to}
           </div>
-          {/* Tagline */}
+          {/* Tagline - Increased size */}
            {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 32, marginTop: 25, fontWeight: 500 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 38, marginTop: 25, fontWeight: 500 }}>
             Shuttle Service · BookShuttles.com
           </div>
         </div>
