@@ -7,7 +7,7 @@ export const runtime = "edge";
 
 // Function to fetch font data from public URL
 async function getFontData(baseUrl: string) {
-  const fontUrl = `${baseUrl}/fonts/Inter-Regular.woff2`; // Path relative to public directory
+  const fontUrl = `${baseUrl}/fonts/Inter-Regular.otf`; // Path relative to public directory - using OTF
   try {
     const response = await fetch(fontUrl);
     if (!response.ok) {
