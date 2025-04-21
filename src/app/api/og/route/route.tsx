@@ -14,17 +14,34 @@ async function getFontData() {
   return response.arrayBuffer();
 }
 
-// Relative path to the logo in the public directory
-const LOGO_PATH = "/images/BookShuttles.com-Logo.png";
+// Function to fetch logo and convert to Data URI
+async function getLogoDataUri(baseUrl: string): Promise<string> {
+  const logoPath = "/images/BookShuttles.com-Logo.png";
+  const absoluteLogoUrl = `${baseUrl}${logoPath}`;
+  try {
+    const response = await fetch(absoluteLogoUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch logo (${response.status}): ${absoluteLogoUrl}`);
+    }
+    const contentType = response.headers.get('content-type') || 'image/png'; // Default to png
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error("Error fetching logo:", error);
+    // Fallback or re-throw, depending on desired behavior
+    // Returning an empty string or a placeholder might be options
+    // For now, re-throwing to make the failure explicit
+    throw new Error(`Could not get logo data URI: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const { searchParams } = url;
-
-    // Construct absolute URL for the logo based on the request's origin
-    const baseUrl = url.origin; // e.g., http://localhost:3000
-    const absoluteLogoUrl = `${baseUrl}${LOGO_PATH}`;
+    const baseUrl = url.origin; // e.g., http://localhost:3000 or https://bookshuttles.com
 
     // Get 'from' and 'to' query parameters
     const hasFrom = searchParams.has('from');
@@ -32,8 +49,11 @@ export async function GET(req: NextRequest) {
     const from = hasFrom ? searchParams.get('from')?.slice(0, 100) : 'Your Location'; // Limit length
     const to = hasTo ? searchParams.get('to')?.slice(0, 100) : 'Your Destination'; // Limit length
 
-    // Fetch font data
-    const fontData = await getFontData();
+    // Fetch font data and logo data URI concurrently
+    const [fontData, logoDataUri] = await Promise.all([
+      getFontData(),
+      getLogoDataUri(baseUrl) // Pass baseUrl here
+    ]);
 
     return new ImageResponse(
       (
@@ -50,8 +70,8 @@ export async function GET(req: NextRequest) {
           padding: '40px',
           textAlign: 'center', // Center text
           }}>
-          {/* Use the dynamically constructed absolute LOGO_URL */}
-          <img src={absoluteLogoUrl} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          {/* Use the logo Data URI */}
+          <img src={logoDataUri} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 60, fontWeight: 700, lineHeight: 1.2 }}>
