@@ -96,7 +96,7 @@ export async function generateMetadata({ params }) {
 
   // Construct the Open Graph image URL
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
-  const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}`;
+  const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
     title: finalTitle, // Use the final title with country and brand
@@ -110,8 +110,8 @@ export async function generateMetadata({ params }) {
       images: [
         {
           url: ogImageUrl, // Use the generated URL
-          width: 1200,
-          height: 630,
+          width: 1200, // Reverted to match actual image dimensions
+          height: 630, // Reverted to match actual image dimensions
           alt: `Comfortable shuttle transfer from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.destinationCountry?.name || 'destination country'}`, // Improved alt text
         },
       ],
