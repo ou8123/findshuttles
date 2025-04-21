@@ -314,13 +314,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
   return (
     <form 
-      action="/api/search-redirect" 
-      method="POST" 
-      onSubmit={(e) => !validateForm() && e.preventDefault()} 
-      className={`bg-white p-6 rounded-lg shadow-md ${className}`}
+      action="/api/search-redirect"
+      method="POST"
+      onSubmit={(e) => !validateForm() && e.preventDefault()}
+      // Added dark mode styles and base text/border for consistency
+      className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 p-6 rounded-lg shadow-md dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05)] ${className}`}
     >
       {/* These hidden fields will be submitted with the form */}
-      <input 
+      <input
         type="hidden" 
         name="departureCityId" 
         value={selectedDepartureCity?.id || ''} 
@@ -351,7 +352,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
               <div className="relative w-full">
                 <Combobox.Input
                   ref={inputRef}
-                  className={`w-full border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black ${
+                  // Added dark mode styles and base bg-white
+                  className={`w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-black dark:text-white rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 ${
                     isMobile ? 'h-12 px-3 pr-10 text-base' : 'h-10 px-3 pr-10 text-base'
                   }`}
                   displayValue={(city: any) => city ? `${city.name}, ${city.countryName}` : ''}
@@ -491,8 +493,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                   setIsComboboxOpen(false);
                 }}
               >
-                <Combobox.Options 
-                  className={`absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200 ${
+                <Combobox.Options
+                  // Added dark mode bg and border
+                  className={`absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md py-1 text-base overflow-auto focus:outline-none border border-gray-200 dark:border-gray-600 ${
                     isMobile ? 'max-h-[50vh]' : 'max-h-60'
                   }`}
                 >
@@ -523,8 +526,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                       key={city.id}
                       value={city}
                       className={({ active }) =>
+                        // Added dark mode text and active state colors
                         `relative cursor-default select-none ${isMobile ? 'py-3' : 'py-2'} px-3 ${
-                          active || index === activeOption ? 'bg-indigo-50 text-black' : 'text-gray-900'
+                          active || index === activeOption ? 'bg-indigo-100 dark:bg-indigo-900 text-black dark:text-white' : 'text-gray-900 dark:text-gray-100'
                         } ${isMobile ? 'touch-manipulation' : ''}`
                       }
                     >
@@ -533,14 +537,16 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           <div className="flex items-center">
                             <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
                               {highlightMatch(city.name, departureQuery)},&nbsp;
-                              <span className="text-gray-500">{city.countryName}</span>
+                              {/* Added dark mode for country name */}
+                              <span className="text-gray-500 dark:text-gray-400">{city.countryName}</span>
                             </span>
                           </div>
-                          
+
                           {selected && (
                             <span
+                              // Adjusted dark mode active color for checkmark
                               className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
-                                active ? 'text-indigo-600' : 'text-indigo-500'
+                                active ? 'text-indigo-600 dark:text-indigo-300' : 'text-indigo-500 dark:text-indigo-400'
                               }`}
                             >
                               <CheckIcon className="h-5 w-5" aria-hidden="true" />
@@ -571,8 +577,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
               onChange={(e) => setSelectedDestinationCityId(e.target.value)}
               required
               disabled={!selectedDepartureCity || isLoadingDestinations || validDestinations.length === 0}
-              className={`w-full border border-gray-300 rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none ${
-                isMobile ? 'h-12 px-3 pr-10 text-base' : 'h-10 px-3 pr-10 text-base' 
+              // Added dark mode styles (enabled & disabled) and base bg-white
+              className={`w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-black dark:text-white rounded shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-800 dark:disabled:border-gray-600 dark:disabled:text-gray-400 disabled:cursor-not-allowed appearance-none ${
+                isMobile ? 'h-12 px-3 pr-10 text-base' : 'h-10 px-3 pr-10 text-base'
               }`}
               autoComplete="off"
               aria-label="Select destination city"
@@ -618,10 +625,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
       <button
         type="submit"
         disabled={!selectedDepartureCity || !selectedDestinationCityId || isLoadingDestinations || isLoadingLocationsLookup}
-        className={`w-full mt-4 bg-[#038768] !bg-[#038768] text-white rounded hover:bg-[#004d3b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#038768] disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200 ${
+        // Added dark mode styles, removed redundant !bg and inline style, adjusted focus ring
+        className={`w-full mt-4 bg-[#038768] dark:bg-emerald-500 text-white rounded hover:bg-[#004d3b] dark:hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#038768] dark:focus:ring-emerald-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200 ${
           isMobile ? 'py-3 px-4 text-lg' : 'py-2 px-4 text-base'
         }`}
-        style={{ backgroundColor: '#038768' }}
       >
         Find Shuttles
       </button>

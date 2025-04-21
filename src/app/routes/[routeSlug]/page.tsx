@@ -80,17 +80,31 @@ export async function generateMetadata({ params }) {
     }
   }
 
+  // Add CountryName if cities are in the same country and it's not already there
+  const countryName = route.departureCountry?.name;
+  if (route.departureCountryId === route.destinationCountryId && countryName && !title.includes(countryName)) {
+    title = `${title}, ${countryName}`;
+  }
+
+  // Append Brand only if it's not already present at the end
+  const brandSuffix = ' | BookShuttles.com';
+  let finalTitle = title;
+  if (!title.endsWith(brandSuffix)) {
+    finalTitle = `${title}${brandSuffix}`;
+  }
+
+
   // Construct the Open Graph image URL
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
   const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}`;
 
   return {
-    title: title, // Use the determined title
+    title: finalTitle, // Use the final title with country and brand
     description: route.metaDescription || route.seoDescription || `Find shuttle transportation from ${route.departureCity.name} to ${route.destinationCity.name}`,
     keywords: route.metaKeywords || `shuttle, transportation, ${route.departureCity.name}, ${route.destinationCity.name}`,
     openGraph: {
-      title: title,
-      description: route.metaDescription || `Book reliable shuttle transportation from ${route.departureCity.name} to ${route.destinationCity.name}.`,
+      title: finalTitle, // Use the final title
+      description: route.metaDescription || `View scenic shuttle options from ${route.departureCity.name} to ${route.destinationCity.name}. Book your transfer easily!`, // Slightly different phrasing
       url: `${siteUrl}/routes/${route.routeSlug}`,
       siteName: 'BookShuttles.com',
       images: [
@@ -98,19 +112,25 @@ export async function generateMetadata({ params }) {
           url: ogImageUrl, // Use the generated URL
           width: 1200,
           height: 630,
-          alt: `Shuttle from ${route.departureCity.name} to ${route.destinationCity.name}`,
+          alt: `Comfortable shuttle transfer from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.destinationCountry?.name || 'destination country'}`, // Improved alt text
         },
       ],
       locale: 'en_US', // Optional: Specify locale
       type: 'website', // Or 'article' if more appropriate
     },
-    // Optional: Add Twitter specific tags if needed
-    // twitter: {
-    //   card: 'summary_large_image',
-    //   title: title,
-    //   description: route.metaDescription || `Book reliable shuttle transportation from ${route.departureCity.name} to ${route.destinationCity.name}.`,
-    //   images: [ogImageUrl],
-    // },
+    twitter: {
+      card: 'summary_large_image',
+      title: finalTitle, // Use the final title
+      description: route.metaDescription || `Quick & easy shuttle booking: ${route.departureCity.name} to ${route.destinationCity.name}. See schedules & prices.`, // Different phrasing for Twitter
+      images: [ogImageUrl], // Use the same OG image
+      // Optional: Add site or creator handle if available
+      // site: '@YourTwitterHandle',
+      // creator: '@CreatorHandle',
+    },
+    // Add canonical URL
+    alternates: {
+      canonical: `${siteUrl}/routes/${route.routeSlug}`,
+    },
   };
 }
 

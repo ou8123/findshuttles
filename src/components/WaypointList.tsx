@@ -33,21 +33,21 @@ export default function WaypointList({
           key={wp.id ?? `waypoint-${index}`} // Use index as fallback key
           className={`cursor-pointer p-3 rounded-lg border ${
             hoveredId === wp.id
-              ? 'bg-blue-50 border-blue-500 text-blue-700'
-              : 'bg-white border-gray-200 hover:bg-gray-100'
+              ? 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200' // Adjusted hover/active for dark
+              : 'bg-white border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:hover:bg-gray-700' // Added dark mode styles for default state
           }`}
           onMouseEnter={() => setHoveredId(wp.id ?? null)}
           onMouseLeave={() => setHoveredId(null)}
           onClick={() => onWaypointClick(index)} // Call the passed-in handler
         >
           <div className="flex items-center"> {/* Flex container for label and name */}
-            <span className="mr-2 font-bold text-blue-600 w-4 text-center"> {/* Styled label */}
-              {getMarkerLabel(index)} 
+            <span className="mr-2 font-bold text-blue-600 dark:text-blue-400 w-4 text-center"> {/* Styled label - Added dark mode */}
+              {getMarkerLabel(index)}
             </span>
-            <span className="font-medium flex-1">{wp.name}</span> {/* Waypoint name */}
+            <span className="font-medium flex-1 text-gray-900 dark:text-gray-100">{wp.name}</span> {/* Waypoint name - Added dark mode */}
           </div>
           {wp.description && ( // Conditionally render description if it exists
-            <div className="text-xs text-gray-500 mt-1 pl-6">{wp.description}</div> // Indent description
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-6">{wp.description}</div> // Indent description - Added dark mode
           )}
         </li>
       ))}
