@@ -2,9 +2,46 @@ import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 import React from 'react'; // Explicitly import React
 // Removed fs/promises and path imports as they are not available in edge runtime
-// Removed font and logo fetching functions for debugging
 
 export const runtime = "edge";
+
+// Function to fetch font data from public URL
+async function getFontData(baseUrl: string) {
+  const fontUrl = `${baseUrl}/fonts/Inter-Regular.woff2`; // Path relative to public directory
+  try {
+    const response = await fetch(fontUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch font (${response.status}): ${fontUrl}`);
+    }
+    return response.arrayBuffer();
+  } catch (error) {
+     console.error("Error fetching font:", error);
+     throw new Error(`Could not get font data: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// Function to fetch logo and convert to Data URI
+async function getLogoDataUri(baseUrl: string): Promise<string> {
+  const logoPath = "/images/BookShuttles.com-Logo.png";
+  const absoluteLogoUrl = `${baseUrl}${logoPath}`;
+  try {
+    const response = await fetch(absoluteLogoUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch logo (${response.status}): ${absoluteLogoUrl}`);
+    }
+    const contentType = response.headers.get('content-type') || 'image/png'; // Default to png
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error("Error fetching logo:", error);
+    // Fallback or re-throw, depending on desired behavior
+    // Returning an empty string or a placeholder might be options
+    // For now, re-throwing to make the failure explicit
+    throw new Error(`Could not get logo data URI: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,11 +55,11 @@ export async function GET(req: NextRequest) {
     const from = hasFrom ? searchParams.get('from')?.slice(0, 100) : 'Your Location'; // Limit length
     const to = hasTo ? searchParams.get('to')?.slice(0, 100) : 'Your Destination'; // Limit length
 
-    // Removed font and logo fetching for debugging
-    // const [fontData, logoDataUri] = await Promise.all([
-    //   getFontData(baseUrl), // Pass baseUrl here
-    //   getLogoDataUri(baseUrl) // Pass baseUrl here
-    // ]);
+    // Fetch font data and logo data URI concurrently
+    const [fontData, logoDataUri] = await Promise.all([
+      getFontData(baseUrl), // Pass baseUrl here
+      getLogoDataUri(baseUrl) // Pass baseUrl here
+    ]);
 
     return new ImageResponse(
       (
@@ -35,12 +72,12 @@ export async function GET(req: NextRequest) {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          fontFamily: 'sans-serif', // Use basic system font for debugging
+          fontFamily: '"Inter", sans-serif', // Use the loaded font
           padding: '40px',
           textAlign: 'center', // Center text
           }}>
-          {/* Removed logo for debugging */}
-          {/* <img src={logoDataUri} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" /> */}
+          {/* Use the logo Data URI */}
+          <img src={logoDataUri} width={180} height={60} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 60, fontWeight: 700, lineHeight: 1.2 }}>
@@ -56,15 +93,14 @@ export async function GET(req: NextRequest) {
       {
         width: 1200,
         height: 630,
-        // Removed fonts option for debugging
-        // fonts: [
-        //   {
-        //     name: 'Inter',
-        //     data: fontData, // Use the fetched font data
-        //     style: 'normal',
-        //     weight: 400, // Specify weight if needed
-        //   },
-        // ],
+        fonts: [
+          {
+            name: 'Inter',
+            data: fontData, // Use the fetched font data
+            style: 'normal',
+            weight: 400, // Specify weight if needed
+          },
+        ],
       }
     );
   } catch (e: any) {
