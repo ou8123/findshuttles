@@ -45,15 +45,32 @@ async function getLogoDataUri(baseUrl: string): Promise<string> {
 
 export async function GET(req: NextRequest) {
   try {
+:start_line:48
+-------
     const url = new URL(req.url);
-    const { searchParams } = url;
+    const { searchParams, pathname } = url;
     const baseUrl = url.origin; // e.g., http://localhost:3000 or https://bookshuttles.com
 
-    // Get 'from' and 'to' query parameters
-    const hasFrom = searchParams.has('from');
-    const hasTo = searchParams.has('to');
-    const from = hasFrom ? searchParams.get('from')?.slice(0, 100) : 'Your Location'; // Limit length
-    const to = hasTo ? searchParams.get('to')?.slice(0, 100) : 'Your Destination'; // Limit length
+    let from = 'Your Location';
+    let to = 'Your Destination';
+
+    // Check if the URL path is a route slug
+    if (pathname.startsWith('/routes/')) {
+      const routeSlug = pathname.replace('/routes/', '');
+      const parts = routeSlug.split('-to-');
+      if (parts.length === 2) {
+        // Simple formatting: replace hyphens with spaces and capitalize words
+        from = parts[0].replace(/-/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        to = parts[1].replace(/-/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
+    } else {
+      // Fallback to getting 'from' and 'to' from query parameters
+      const hasFrom = searchParams.has('from');
+      const hasTo = searchParams.has('to');
+      from = hasFrom ? searchParams.get('from')?.slice(0, 100) : from; // Limit length
+      to = hasTo ? searchParams.get('to')?.slice(0, 100) : to; // Limit length
+    }
+
 
     // Fetch font data and logo data URI concurrently
     const [fontData, logoDataUri] = await Promise.all([
@@ -111,8 +128,8 @@ export async function GET(req: NextRequest) {
     );
   } catch (e: any) {
     console.error(`Failed to generate OG image: ${e.message}`);
-    // Return a plain text error response or a fallback image response
-    return new Response(`Failed to generate image`, {
+    // Return the error message in the response for debugging
+    return new Response(`Failed to generate image: ${e.message}`, {
       status: 500,
     });
   }
