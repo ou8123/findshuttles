@@ -1,3 +1,9 @@
+[[redirects]]
+  from = "https://*.netlify.app/*"
+  to = "https://www.bookshuttles.com/:splat"
+  status = 301
+  force = true
+
 [build]
   command = "PRISMA_MIGRATE_TIMEOUT=30000 prisma generate && (prisma migrate deploy || true) && next build"
   publish = ".next"
