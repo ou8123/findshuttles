@@ -1,4 +1,10 @@
 [[redirects]]
+  from = "https://680719ef15897b0007c887da--findshuttles.netlify.app/*"
+  to = "https://www.bookshuttles.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "https://*.netlify.app/*"
   to = "https://www.bookshuttles.com/:splat"
   status = 301
