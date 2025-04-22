@@ -94,10 +94,12 @@ export async function generateMetadata({ params }) {
   }
 
 
-  // Construct the Open Graph image URL
-  // Revert to hardcoded www version to avoid redirect issues for scrapers
-  const siteUrl = 'https://www.bookshuttles.com';
-  const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
+  // Define URLs based on Netlify environment variables
+  const productionUrl = process.env.DEPLOY_PRIME_URL || 'https://www.bookshuttles.com'; // Canonical production URL
+  const currentContextUrl = process.env.URL || productionUrl; // URL for the current build context (preview or prod)
+
+  // Construct the Open Graph image URL using the current context URL
+  const ogImageUrl = `${currentContextUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
     // Add fb:app_id using correct Next.js metadata structure
@@ -110,7 +112,7 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title: finalTitle, // Use the final title
       description: route.metaDescription || `View scenic shuttle options from ${route.departureCity.name} to ${route.destinationCity.name}. Book your transfer easily!`, // Slightly different phrasing
-      url: `${siteUrl}/routes/${route.routeSlug}`,
+      url: `${productionUrl}/routes/${route.routeSlug}`, // Use production URL for og:url
       siteName: 'BookShuttles.com',
       images: [
         {
@@ -120,9 +122,9 @@ export async function generateMetadata({ params }) {
           height: 630,
           alt: `Comfortable shuttle transfer from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.destinationCountry?.name || 'destination country'}`, // Improved alt text
         },
-        // Add static logo as a fallback
+        // Add static logo as a fallback, using current context URL
         {
-          url: `${siteUrl}/images/BookShuttles.com-Logo.png`,
+          url: `${currentContextUrl}/images/BookShuttles.com-Logo.png`,
           width: 450, // Specify dimensions if known
           height: 150,
           alt: 'Book Shuttles Logo',
@@ -140,9 +142,9 @@ export async function generateMetadata({ params }) {
       // site: '@YourTwitterHandle',
       // creator: '@CreatorHandle',
     },
-    // Add canonical URL
+    // Add canonical URL using production URL
     alternates: {
-      canonical: `${siteUrl}/routes/${route.routeSlug}`,
+      canonical: `${productionUrl}/routes/${route.routeSlug}`,
     },
   };
 }
@@ -241,8 +243,8 @@ export default async function RoutePage({ params }) {
 
 
   // --- Prepare Product Schema JSON-LD ---
-  // Revert siteUrl to hardcoded www version for consistency
-  const siteUrl = 'https://www.bookshuttles.com';
+  // Use current context URL for schema URLs that should match the visited page
+  const siteUrl = process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://www.bookshuttles.com';
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
