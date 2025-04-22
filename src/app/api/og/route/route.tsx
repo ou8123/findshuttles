@@ -81,7 +81,8 @@ export async function GET(req: NextRequest) {
     const greenColor = '#004d3b';
     const textColor = greenColor; // Use green for text
 
-    return new ImageResponse(
+    // Generate the image using ImageResponse
+    const imageResponse = new ImageResponse(
       (
         <div style={{
           background: 'white', // New background color
@@ -93,9 +94,9 @@ export async function GET(req: NextRequest) {
           justifyContent: 'center',
           alignItems: 'center',
           fontFamily: '"Inter", sans-serif', // Use the loaded font
-          padding: `${borderThickness}px`, // Padding equal to border thickness
+          // padding removed
           textAlign: 'center', // Center text
-          border: `${borderThickness}px solid ${greenColor}`, // Thick green border
+          // border removed
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
           {/* Use the logo Data URI - Reverted size */}
@@ -125,6 +126,17 @@ export async function GET(req: NextRequest) {
         ],
       }
     );
+
+    // Create a new Response with the image body and explicit headers
+    return new Response(imageResponse.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        // Optional: Add cache control headers if desired
+        // 'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+
   } catch (e: any) {
     console.error(`Failed to generate OG image: ${e.message}`);
     // Return the error message in the response for debugging
