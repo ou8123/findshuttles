@@ -95,7 +95,8 @@ export async function generateMetadata({ params }) {
 
 
   // Construct the Open Graph image URL
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+  // Hardcode to www version to avoid redirect issues for scrapers
+  const siteUrl = 'https://www.bookshuttles.com';
   const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
