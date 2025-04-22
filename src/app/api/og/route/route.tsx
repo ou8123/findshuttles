@@ -1,23 +1,13 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 import React from 'react'; // Explicitly import React
+import fs from 'fs'; // Import Node.js fs module
+import path from 'path'; // Import Node.js path module
 
-export const runtime = "edge";
+// Removed edge runtime export - use default Node.js runtime
+// export const runtime = "edge";
 
-// Function to fetch font data from public URL (Re-added)
-async function getFontData(baseUrl: string) {
-  const fontUrl = `${baseUrl}/fonts/Inter-Regular.otf`; // Path relative to public directory - using OTF
-  try {
-    const response = await fetch(fontUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch font (${response.status}): ${fontUrl}`);
-    }
-    return response.arrayBuffer();
-  } catch (error) {
-     console.error("Error fetching font:", error);
-     throw new Error(`Could not get font data: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
+// Removed getFontData function - will read file directly
 
 // Logo will still be referenced directly via public path
 
@@ -25,7 +15,8 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const { searchParams, pathname } = url;
-    const baseUrl = url.origin; // Re-added baseUrl needed for font fetching
+    // baseUrl no longer needed for font fetching
+    // const baseUrl = url.origin;
 
     let from = 'Your Location';
     let to = 'Your Destination';
@@ -47,8 +38,15 @@ export async function GET(req: NextRequest) {
       to = hasTo && searchParams.get('to') ? searchParams.get('to')!.slice(0, 100) : to; // Limit length and ensure string
     }
 
-    // Fetch font data using the re-added function
-    const fontData = await getFontData(baseUrl);
+    // Read font data directly from the filesystem
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.otf');
+    let fontData: Buffer;
+    try {
+      fontData = fs.readFileSync(fontPath);
+    } catch (error) {
+      console.error("Error reading font file:", error);
+      throw new Error(`Could not read font file: ${fontPath}`);
+    }
 
     // Logo will be referenced directly via public path
 
