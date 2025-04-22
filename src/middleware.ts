@@ -171,7 +171,8 @@ if (pathname.startsWith('/api/auth/') ||
 if (pathname.startsWith('/api/admin/') || // Add bypass for all admin APIs
     pathname.startsWith('/api/locations') ||
     pathname.startsWith('/api/routes') ||
-    pathname.startsWith('/api/valid-destinations')) {
+    pathname.startsWith('/api/valid-destinations') ||
+    pathname.startsWith('/api/og/')) { // Bypass OG image route
   console.log(`Middleware bypassed for API route: ${pathname}`);
   return NextResponse.next();
 }
