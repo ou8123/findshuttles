@@ -94,10 +94,10 @@ export async function generateMetadata({ params }) {
   }
 
 
-  // Construct the Open Graph image URL
-  // Revert to hardcoded www version to avoid redirect issues for scrapers
+  // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
-  const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
+  // Define the static logo URL
+  const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
 
   return {
     // Add fb:app_id using correct Next.js metadata structure
@@ -115,15 +115,7 @@ export async function generateMetadata({ params }) {
       // Use only the static logo image
       images: [
         {
-          url: ogImageUrl, // Use the generated URL
-          // Add explicit width and height for the dynamic image
-          width: 1200,
-          height: 630,
-          alt: `Comfortable shuttle transfer from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.destinationCountry?.name || 'destination country'}`, // Improved alt text
-        },
-        // Add static logo as a fallback
-        {
-          url: `${siteUrl}/images/BookShuttles.com-Logo.png`,
+          url: staticLogoUrl,
           width: 450, // Specify dimensions if known
           height: 150,
           alt: 'Book Shuttles Logo',
@@ -136,7 +128,7 @@ export async function generateMetadata({ params }) {
       card: 'summary_large_image',
       title: finalTitle, // Use the final title
       description: route.metaDescription || `Quick & easy shuttle booking: ${route.departureCity.name} to ${route.destinationCity.name}. See schedules & prices.`, // Different phrasing for Twitter
-      images: [ogImageUrl], // Use the same OG image
+      images: [staticLogoUrl], // Use static logo for Twitter card as well
       // Optional: Add site or creator handle if available
       // site: '@YourTwitterHandle',
       // creator: '@CreatorHandle',
