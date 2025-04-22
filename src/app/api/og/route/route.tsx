@@ -1,53 +1,17 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 import React from 'react'; // Explicitly import React
-// Removed fs/promises and path imports as they are not available in edge runtime
 
 export const runtime = "edge";
 
-// Function to fetch font data from public URL
-async function getFontData(baseUrl: string) {
-  const fontUrl = `${baseUrl}/fonts/Inter-Regular.otf`; // Path relative to public directory - using OTF
-  try {
-    const response = await fetch(fontUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch font (${response.status}): ${fontUrl}`);
-    }
-    return response.arrayBuffer();
-  } catch (error) {
-     console.error("Error fetching font:", error);
-     throw new Error(`Could not get font data: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-// Function to fetch logo and convert to Data URI
-async function getLogoDataUri(baseUrl: string): Promise<string> {
-  const logoPath = "/images/BookShuttles.com-Logo.png";
-  const absoluteLogoUrl = `${baseUrl}${logoPath}`;
-  try {
-    const response = await fetch(absoluteLogoUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch logo (${response.status}): ${absoluteLogoUrl}`);
-    }
-    const contentType = response.headers.get('content-type') || 'image/png'; // Default to png
-    const buffer = await response.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
-    return `data:${contentType};base64,${base64}`;
-  } catch (error) {
-    console.error("Error fetching logo:", error);
-    // Fallback or re-throw, depending on desired behavior
-    // Returning an empty string or a placeholder might be options
-    // For now, re-throwing to make the failure explicit
-    throw new Error(`Could not get logo data URI: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
+// Removed font and logo fetching functions - will rely on public paths
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const { searchParams, pathname } = url;
-    const baseUrl = url.origin; // e.g., http://localhost:3000 or https://bookshuttles.com
+    // baseUrl might not be needed if not fetching assets manually
+    // const baseUrl = url.origin;
 
     let from = 'Your Location';
     let to = 'Your Destination';
@@ -69,15 +33,11 @@ export async function GET(req: NextRequest) {
       to = hasTo && searchParams.get('to') ? searchParams.get('to')!.slice(0, 100) : to; // Limit length and ensure string
     }
 
+    // Font data will be fetched by ImageResponse based on path
+    // Logo will be referenced directly via public path
 
-    // Fetch font data and logo data URI concurrently
-    const [fontData, logoDataUri] = await Promise.all([
-      getFontData(baseUrl), // Pass baseUrl here
-      getLogoDataUri(baseUrl) // Pass baseUrl here
-    ]);
-
-    // Define border style
-    const borderThickness = 20; // Adjust thickness as needed
+    // Define border style (variable kept for reference, but border removed)
+    // const borderThickness = 20;
     const greenColor = '#004d3b';
     const textColor = greenColor; // Use green for text
 
@@ -99,8 +59,8 @@ export async function GET(req: NextRequest) {
           // border removed
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
-          {/* Use the logo Data URI - Reverted size */}
-          <img src={logoDataUri} width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          {/* Use relative path to public logo */}
+          <img src="/images/BookShuttles.com-Logo.png" width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text - Reverted size */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
@@ -116,26 +76,23 @@ export async function GET(req: NextRequest) {
       {
         width: 1200,
         height: 630,
+        // Provide path to font file relative to project root (or use public URL)
+        // Assuming the font is in public/fonts/
+        // Note: @vercel/og might require the full URL in edge runtime if relative path fails
         fonts: [
           {
             name: 'Inter',
-            data: fontData, // Use the fetched font data
+            // Using relative path from project root (adjust if needed)
+            data: await fetch(new URL('../../public/fonts/Inter-Regular.otf', import.meta.url)).then(res => res.arrayBuffer()),
             style: 'normal',
             weight: 400, // Specify weight if needed
           },
         ],
+        // Removed explicit headers - rely on ImageResponse defaults
       }
     );
-
-    // Create a new Response with the image body and explicit headers
-    return new Response(imageResponse.body, {
-      status: 200,
-      headers: {
-        'Content-Type': 'image/png',
-        // Optional: Add cache control headers if desired
-        // 'Cache-Control': 'public, max-age=31536000, immutable',
-      },
-    });
+    // Directly return the ImageResponse
+    return imageResponse;
 
   } catch (e: any) {
     console.error(`Failed to generate OG image: ${e.message}`);
