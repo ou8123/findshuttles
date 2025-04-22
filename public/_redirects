@@ -1,7 +1,5 @@
 # Redirect Netlify deployment URLs to canonical domain
-https://main--findshuttles.netlify.app/*  https://bookshuttles.com/:splat  301!
-https://68070e2ca1a2450008ac20b2--findshuttles.netlify.app/*  https://bookshuttles.com/:splat  301!
-https://findshuttles.netlify.app/*  https://bookshuttles.com/:splat  301!
+https://*.netlify.app/*  https://www.bookshuttles.com/:splat  301!
 
 # Redirect non-www to www
 https://bookshuttles.com/*  https://www.bookshuttles.com/:splat  301!
