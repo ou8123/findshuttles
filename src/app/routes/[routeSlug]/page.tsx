@@ -116,8 +116,8 @@ export async function generateMetadata({ params }) {
       images: [
         {
           url: staticLogoUrl,
-          width: 450, // Specify dimensions if known
-          height: 150,
+          width: 1396, // Corrected dimensions
+          height: 474, // Corrected dimensions
           alt: 'Book Shuttles Logo',
         }
       ],
