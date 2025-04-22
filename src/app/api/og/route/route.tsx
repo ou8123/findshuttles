@@ -4,14 +4,28 @@ import React from 'react'; // Explicitly import React
 
 export const runtime = "edge";
 
-// Removed font and logo fetching functions - will rely on public paths
+// Function to fetch font data from public URL (Re-added)
+async function getFontData(baseUrl: string) {
+  const fontUrl = `${baseUrl}/fonts/Inter-Regular.otf`; // Path relative to public directory - using OTF
+  try {
+    const response = await fetch(fontUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch font (${response.status}): ${fontUrl}`);
+    }
+    return response.arrayBuffer();
+  } catch (error) {
+     console.error("Error fetching font:", error);
+     throw new Error(`Could not get font data: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// Logo will still be referenced directly via public path
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const { searchParams, pathname } = url;
-    // baseUrl might not be needed if not fetching assets manually
-    // const baseUrl = url.origin;
+    const baseUrl = url.origin; // Re-added baseUrl needed for font fetching
 
     let from = 'Your Location';
     let to = 'Your Destination';
@@ -33,7 +47,9 @@ export async function GET(req: NextRequest) {
       to = hasTo && searchParams.get('to') ? searchParams.get('to')!.slice(0, 100) : to; // Limit length and ensure string
     }
 
-    // Font data will be fetched by ImageResponse based on path
+    // Fetch font data using the re-added function
+    const fontData = await getFontData(baseUrl);
+
     // Logo will be referenced directly via public path
 
     // Define border style (variable kept for reference, but border removed)
@@ -82,8 +98,7 @@ export async function GET(req: NextRequest) {
         fonts: [
           {
             name: 'Inter',
-            // Using relative path from project root (adjust if needed)
-            data: await fetch(new URL('../../public/fonts/Inter-Regular.otf', import.meta.url)).then(res => res.arrayBuffer()),
+            data: fontData, // Use the fetched font data
             style: 'normal',
             weight: 400, // Specify weight if needed
           },
