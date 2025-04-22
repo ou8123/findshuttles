@@ -100,6 +100,10 @@ export async function generateMetadata({ params }) {
   const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
+    // Add fb:app_id
+    fb: {
+      app_id: '1354084628971632',
+    },
     title: finalTitle, // Use the final title with country and brand
     description: route.metaDescription || route.seoDescription || `Find shuttle transportation from ${route.departureCity.name} to ${route.destinationCity.name}`,
     keywords: route.metaKeywords || `shuttle, transportation, ${route.departureCity.name}, ${route.destinationCity.name}`,
@@ -111,8 +115,9 @@ export async function generateMetadata({ params }) {
       images: [
         {
           url: ogImageUrl, // Use the generated URL
-          width: 1200, // Reverted to match actual image dimensions
-          height: 630, // Reverted to match actual image dimensions
+          // Add explicit width and height for the dynamic image
+          width: 1200,
+          height: 630,
           alt: `Comfortable shuttle transfer from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.destinationCountry?.name || 'destination country'}`, // Improved alt text
         },
         // Add static logo as a fallback
