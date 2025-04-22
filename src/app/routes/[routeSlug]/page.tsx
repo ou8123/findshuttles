@@ -100,9 +100,9 @@ export async function generateMetadata({ params }) {
   const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
-    // Add fb:app_id
-    fb: {
-      app_id: '1354084628971632',
+    // Add fb:app_id using correct Next.js metadata structure
+    facebook: {
+      appId: '1354084628971632',
     },
     title: finalTitle, // Use the final title with country and brand
     description: route.metaDescription || route.seoDescription || `Find shuttle transportation from ${route.departureCity.name} to ${route.destinationCity.name}`,
