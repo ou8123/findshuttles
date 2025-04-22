@@ -63,27 +63,37 @@ export async function GET(req: NextRequest) {
     const greenColor = '#004d3b';
     const textColor = greenColor; // Use green for text
 
-    // Generate the image using ImageResponse - TEMPORARILY SIMPLIFIED
+    // Generate the image using ImageResponse - Restoring original content
     const imageResponse = new ImageResponse(
       (
-        <div
-          style={{
-            fontSize: 60,
-            background: 'white',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column', // Stack items vertically
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: '"Inter", sans-serif',
-            color: 'black', // Simple text color
-          }}
-        >
-          {/* Display only sanitized From/To */}
-          <div>{sanitizedFrom}</div>
-          <div>→</div>
-          <div>{sanitizedTo}</div>
+        <div style={{
+          background: 'white', // New background color
+          color: textColor, // New text color
+          width: '1200px',
+          height: '630px',
+          display: 'flex', // Main container uses flex
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          fontFamily: '"Inter", sans-serif', // Use the loaded font
+          // padding removed
+          textAlign: 'center', // Center text
+          // border removed
+          boxSizing: 'border-box', // Ensure padding/border are included in width/height
+          }}>
+          {/* Use relative path to public logo */}
+          <img src="/images/BookShuttles.com-Logo.png" width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          {/* Route Text - Reverted size */}
+          {/* Added display:flex to satisfy Satori */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
+            {/* Use sanitized values */}
+            {sanitizedFrom} → {sanitizedTo}
+          </div>
+          {/* Tagline - Reverted size */}
+           {/* Added display:flex to satisfy Satori */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 38, marginTop: 25, fontWeight: 500 }}>
+            Shuttle Service · BookShuttles.com
+          </div>
         </div>
       ),
       {
@@ -108,8 +118,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
-        // Optional: Add cache control headers if desired
-        // 'Cache-Control': 'public, max-age=31536000, immutable',
+        'Cache-Control': 'no-cache', // Force no caching
       },
     });
 
