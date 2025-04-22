@@ -37,21 +37,27 @@
 # Add explicit redirects for Netlify deployment URLs
 [[redirects]]
   from = "https://main--findshuttles.netlify.app/*"
-  to = "https://www.bookshuttles.com/:splat"
+  to = "https://bookshuttles.com/:splat"
   status = 301
   force = true
 
 [[redirects]]
   from = "https://68070e2ca1a2450008ac20b2--findshuttles.netlify.app/*"
-  to = "https://www.bookshuttles.com/:splat"
+  to = "https://bookshuttles.com/:splat"
   status = 301
   force = true
 
 [[redirects]]
   from = "https://findshuttles.netlify.app/*"
-  to = "https://www.bookshuttles.com/:splat"
+  to = "https://bookshuttles.com/:splat"
   status = 301
   force = true
+
+# Fallback rule to ensure all paths are served
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
   # Note: Consider if you need specific headers for this admin path
 
 [[redirects]]
