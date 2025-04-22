@@ -1,128 +1,103 @@
-import { ImageResponse } from '@vercel/og';
-import { NextRequest } from 'next/server';
-import React from 'react'; // Explicitly import React
-import fs from 'fs'; // Import Node.js fs module
-import path from 'path'; // Import Node.js path module
+import { NextRequest, NextResponse } from 'next/server';
+import { createCanvas, loadImage, registerFont } from 'canvas';
+import path from 'path';
 
-// Removed edge runtime export - use default Node.js runtime
-// export const runtime = "edge";
+// Define constants for image dimensions and styling
+const WIDTH = 1200;
+const HEIGHT = 630;
+const LOGO_WIDTH = 450;
+const LOGO_HEIGHT = 150;
+const LOGO_MARGIN_BOTTOM = 30;
+const TITLE_FONT_SIZE = 72;
+const TAGLINE_FONT_SIZE = 38;
+const TAGLINE_MARGIN_TOP = 25;
+const FONT_FAMILY = 'Inter'; // Must match the name used in registerFont
+const TEXT_COLOR = '#004d3b'; // Dark green
+const BACKGROUND_COLOR = '#ffffff'; // White
 
-// Removed getFontData function - will read file directly
+// Register the font
+// Note: This path assumes the function is running from the project root in a Node environment.
+// It might need adjustment depending on the deployment environment's CWD.
+const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.otf');
+try {
+  registerFont(fontPath, { family: FONT_FAMILY });
+  console.log(`[OG Image Gen] Font registered successfully from: ${fontPath}`);
+} catch (error) {
+  console.error(`[OG Image Gen] Error registering font from ${fontPath}:`, error);
+  // Decide if you want to throw or continue without the custom font
+}
 
-// Logo will still be referenced directly via public path
+// Logo path relative to the public directory
+const logoPath = path.join(process.cwd(), 'public', 'images', 'BookShuttles.com-Logo.png');
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    const { searchParams, pathname } = url;
-    // baseUrl no longer needed for font fetching
-    // const baseUrl = url.origin;
+    const { searchParams } = url;
 
-    let from = 'Your Location';
-    let to = 'Your Destination';
+    // Extract 'from' and 'to' parameters
+    let from = searchParams.get('from') || 'Your Location';
+    let to = searchParams.get('to') || 'Your Destination';
 
-    // Check if the URL path is a route slug
-    if (pathname.startsWith('/routes/')) {
-      const routeSlug = pathname.replace('/routes/', '');
-      const parts = routeSlug.split('-to-');
-      if (parts.length === 2) {
-        // Simple formatting: replace hyphens with spaces and capitalize words
-        from = parts[0].replace(/-/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        to = parts[1].replace(/-/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      }
-    } else {
-      // Fallback to getting 'from' and 'to' from query parameters
-      const hasFrom = searchParams.has('from');
-      const hasTo = searchParams.has('to');
-      from = hasFrom && searchParams.get('from') ? searchParams.get('from')!.slice(0, 100) : from; // Limit length and ensure string
-      to = hasTo && searchParams.get('to') ? searchParams.get('to')!.slice(0, 100) : to; // Limit length and ensure string
-    }
+    // Sanitize from/to strings (remove parentheses, limit length)
+    const sanitizedFrom = from.replace(/[()]/g, '').trim().slice(0, 100);
+    const sanitizedTo = to.replace(/[()]/g, '').trim().slice(0, 100);
 
-    // Sanitize from/to strings to remove potentially problematic characters like parentheses
-    const sanitizedFrom = from.replace(/[()]/g, '').trim();
-    const sanitizedTo = to.replace(/[()]/g, '').trim();
+    console.log(`[OG Image Gen - Canvas] Generating image for: From='${sanitizedFrom}', To='${sanitizedTo}' (Original: From='${from}', To='${to}')`);
 
-    // Log the values being used for image generation
-    console.log(`[OG Image Gen] Generating image for: From='${sanitizedFrom}', To='${sanitizedTo}' (Original: From='${from}', To='${to}')`);
+    // Create canvas and context
+    const canvas = createCanvas(WIDTH, HEIGHT);
+    const ctx = canvas.getContext('2d');
 
+    // 1. Draw Background
+    ctx.fillStyle = BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // Read font data directly from the filesystem
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.otf');
-    let fontData: Buffer;
+    // Calculate total content height for vertical centering
+    const totalContentHeight = LOGO_HEIGHT + LOGO_MARGIN_BOTTOM + TITLE_FONT_SIZE * 1.2 + TAGLINE_MARGIN_TOP + TAGLINE_FONT_SIZE;
+    const startY = (HEIGHT - totalContentHeight) / 2; // Top Y coordinate for the content block
+
+    // 2. Load and Draw Logo
     try {
-      fontData = fs.readFileSync(fontPath);
+      const logo = await loadImage(logoPath);
+      const logoX = (WIDTH - LOGO_WIDTH) / 2;
+      const logoY = startY; // Position logo at the calculated start Y
+      ctx.drawImage(logo, logoX, logoY, LOGO_WIDTH, LOGO_HEIGHT);
+      console.log(`[OG Image Gen - Canvas] Logo drawn successfully from: ${logoPath}`);
     } catch (error) {
-      console.error("Error reading font file:", error);
-      throw new Error(`Could not read font file: ${fontPath}`);
+      console.error(`[OG Image Gen - Canvas] Error loading or drawing logo from ${logoPath}:`, error);
+      // Continue without logo if it fails
     }
 
-    // Logo will be referenced directly via public path
+    // 3. Draw Route Text
+    ctx.fillStyle = TEXT_COLOR;
+    ctx.font = `700 ${TITLE_FONT_SIZE}px "${FONT_FAMILY}"`; // Weight 700
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top'; // Align text from the top
+    const routeText = `${sanitizedFrom} → ${sanitizedTo}`;
+    const routeTextY = startY + LOGO_HEIGHT + LOGO_MARGIN_BOTTOM; // Position below logo using startY
+    ctx.fillText(routeText, WIDTH / 2, routeTextY);
 
-    // Define border style (variable kept for reference, but border removed)
-    // const borderThickness = 20;
-    const greenColor = '#004d3b';
-    const textColor = greenColor; // Use green for text
+    // 4. Draw Tagline
+    ctx.font = `500 ${TAGLINE_FONT_SIZE}px "${FONT_FAMILY}"`; // Weight 500
+    const taglineText = 'Shuttle Service · BookShuttles.com';
+    const taglineY = routeTextY + TITLE_FONT_SIZE * 1.2 + TAGLINE_MARGIN_TOP; // Position below route text
+    ctx.fillText(taglineText, WIDTH / 2, taglineY);
 
-    // Generate the image using ImageResponse - Restoring original content
-    const imageResponse = new ImageResponse(
-      (
-        <div style={{
-          background: 'white', // New background color
-          color: textColor, // New text color
-          width: '1200px',
-          height: '630px',
-          display: 'flex', // Main container uses flex
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          fontFamily: '"Inter", sans-serif', // Use the loaded font
-          // padding removed
-          textAlign: 'center', // Center text
-          // border removed
-          boxSizing: 'border-box', // Ensure padding/border are included in width/height
-          }}>
-          {/* Use relative path to public logo */}
-          <img src="/images/BookShuttles.com-Logo.png" width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
-          {/* Route Text - Reverted size */}
-          {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
-            {/* Use sanitized values */}
-            {sanitizedFrom} → {sanitizedTo}
-          </div>
-          {/* Tagline - Reverted size */}
-           {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 38, marginTop: 25, fontWeight: 500 }}>
-            Shuttle Service · BookShuttles.com
-          </div>
-        </div>
-      ),
-      {
-        width: 1200,
-        height: 630,
-        // Provide path to font file relative to project root (or use public URL)
-        // Assuming the font is in public/fonts/
-        // Note: @vercel/og might require the full URL in edge runtime if relative path fails
-        fonts: [
-          {
-            name: 'Inter',
-            data: fontData, // Use the fetched font data
-            style: 'normal',
-            weight: 400, // Specify weight if needed
-          },
-        ],
-        // Pass headers directly to ImageResponse constructor
-        headers: {
-          'Content-Type': 'image/png',
-          'Cache-Control': 'no-cache', // Force no caching
-        },
-      }
-    );
-    // Directly return the ImageResponse
-    return imageResponse;
+    // 5. Convert canvas to PNG buffer
+    const buffer = canvas.toBuffer('image/png');
+
+    // 6. Return response with correct headers
+    return new Response(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'no-cache', // Keep no-cache for now
+      },
+    });
 
   } catch (e: any) {
-    console.error(`Failed to generate OG image: ${e.message}`);
-    // Return the error message in the response for debugging
+    console.error(`[OG Image Gen - Canvas] Failed to generate image: ${e.message}`);
     return new Response(`Failed to generate image: ${e.message}`, {
       status: 500,
     });
