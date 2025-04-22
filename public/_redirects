@@ -1,0 +1,19 @@
+# Redirect Netlify deployment URLs to canonical domain
+https://main--findshuttles.netlify.app/*    https://www.bookshuttles.com/:splat    301!
+https://68070e2ca1a2450008ac20b2--findshuttles.netlify.app/*    https://www.bookshuttles.com/:splat    301!
+
+# Redirect Netlify base URL to canonical domain
+https://findshuttles.netlify.app/*    https://www.bookshuttles.com/:splat    301!
+
+# Ensure HTTP redirects to HTTPS on the canonical domain
+http://www.bookshuttles.com/*      https://www.bookshuttles.com/:splat     301!
+http://bookshuttles.com/*          https://www.bookshuttles.com/:splat     301!
+
+# Redirect non-www to www (if www is preferred canonical)
+https://bookshuttles.com/*         https://www.bookshuttles.com/:splat     301!
+
+# Force all paths to use HTTPS
+http://:hostName/:path         https://:hostName/:path     301!
+
+# Prevent redirect loops by explicitly keeping www.bookshuttles.com as is
+https://www.bookshuttles.com/*     https://www.bookshuttles.com/:splat     200

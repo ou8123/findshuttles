@@ -180,7 +180,7 @@ if (pathname.startsWith('/api/admin/') || // Add bypass for all admin APIs
 // Special handling for auth error routes
 if (pathname === '/api/auth/error') {
   // Redirect to the stealth login path with error parameter, ensuring production domain
-  const productionDomain = process.env.DEPLOY_PRIME_URL || 'https://www.bookshuttles.com';
+  const productionDomain = 'https://www.bookshuttles.com';
   const url = new URL(`/${LOGIN_PATH_TOKEN}`, productionDomain); // Use production domain as base
   url.searchParams.set('error', 'AuthError');
   return addSecurityHeaders(NextResponse.redirect(url));
@@ -238,7 +238,7 @@ if (pathname === '/api/auth/error') {
       // Not authenticated or not an admin
       if (!isAuthenticated) {
         // Redirect to stealth login path, ensuring production domain
-        const productionDomain = process.env.DEPLOY_PRIME_URL || 'https://www.bookshuttles.com';
+        const productionDomain = 'https://www.bookshuttles.com';
         const loginUrl = new URL(`/${LOGIN_PATH_TOKEN}`, productionDomain); // Use production domain as base
         // Use the original request URL for the callback, but ensure it's HTTPS
         const callbackUrl = new URL(request.url);

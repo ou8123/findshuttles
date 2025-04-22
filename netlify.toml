@@ -33,6 +33,25 @@
   to = "/admin/:splat" # Let Next.js handle the internal routing after Netlify rewrite
   status = 200
   force = true
+
+# Add explicit redirects for Netlify deployment URLs
+[[redirects]]
+  from = "https://main--findshuttles.netlify.app/*"
+  to = "https://www.bookshuttles.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://68070e2ca1a2450008ac20b2--findshuttles.netlify.app/*"
+  to = "https://www.bookshuttles.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://findshuttles.netlify.app/*"
+  to = "https://www.bookshuttles.com/:splat"
+  status = 301
+  force = true
   # Note: Consider if you need specific headers for this admin path
 
 [[redirects]]
