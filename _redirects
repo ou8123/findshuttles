@@ -1,9 +1,0 @@
-# Redirect Netlify base URL to canonical domain
-https://findshuttles.netlify.app/*    https://www.bookshuttles.com/:splat    301!
-
-# Ensure HTTP redirects to HTTPS on the canonical domain
-http://www.bookshuttles.com/*      https://www.bookshuttles.com/:splat     301!
-http://bookshuttles.com/*          https://www.bookshuttles.com/:splat     301!
-
-# Redirect non-www to www (if www is preferred canonical)
-https://bookshuttles.com/*         https://www.bookshuttles.com/:splat     301!
