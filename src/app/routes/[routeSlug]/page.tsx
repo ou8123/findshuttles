@@ -95,8 +95,8 @@ export async function generateMetadata({ params }) {
 
 
   // Construct the Open Graph image URL
-  // Hardcode to www version to avoid redirect issues for scrapers
-  const siteUrl = 'https://www.bookshuttles.com';
+  // Dynamically determine siteUrl based on environment (Netlify URL > NEXT_PUBLIC_SITE_URL > fallback)
+  const siteUrl = process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
   const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
@@ -236,7 +236,8 @@ export default async function RoutePage({ params }) {
 
 
   // --- Prepare Product Schema JSON-LD ---
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'; // Base URL from env or fallback
+  // Re-define siteUrl within this component scope using the same dynamic logic
+  const siteUrl = process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -620,12 +621,13 @@ export default async function RoutePage({ params }) {
              "@context": "https://schema.org",
              "@type": "BreadcrumbList",
              "itemListElement": breadcrumbItems.map((item, index) => ({
-               "@type": "ListItem",
-               "position": index + 1,
-               "name": item.name,
-               ...(item.current ? {} : { "item": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'}${item.href}` })
-             }))
-           }) }}
+             "@type": "ListItem",
+             "position": index + 1,
+             "name": item.name,
+             // Use the same dynamically determined siteUrl for breadcrumbs
+             ...(item.current ? {} : { "item": `${siteUrl}${item.href}` })
+           }))
+         }) }}
          />
 
          {/* Product Schema Markup */}
