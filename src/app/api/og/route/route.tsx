@@ -38,6 +38,14 @@ export async function GET(req: NextRequest) {
       to = hasTo && searchParams.get('to') ? searchParams.get('to')!.slice(0, 100) : to; // Limit length and ensure string
     }
 
+    // Sanitize from/to strings to remove potentially problematic characters like parentheses
+    const sanitizedFrom = from.replace(/[()]/g, '').trim();
+    const sanitizedTo = to.replace(/[()]/g, '').trim();
+
+    // Log the values being used for image generation
+    console.log(`[OG Image Gen] Generating image for: From='${sanitizedFrom}', To='${sanitizedTo}' (Original: From='${from}', To='${to}')`);
+
+
     // Read font data directly from the filesystem
     const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.otf');
     let fontData: Buffer;
@@ -78,7 +86,8 @@ export async function GET(req: NextRequest) {
           {/* Route Text - Reverted size */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
-            {from} → {to}
+            {/* Use sanitized values */}
+            {sanitizedFrom} → {sanitizedTo}
           </div>
           {/* Tagline - Reverted size */}
            {/* Added display:flex to satisfy Satori */}
