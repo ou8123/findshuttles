@@ -95,8 +95,8 @@ export async function generateMetadata({ params }) {
 
 
   // Construct the Open Graph image URL
-  // Dynamically determine siteUrl based on environment (Netlify URL > NEXT_PUBLIC_SITE_URL > fallback)
-  const siteUrl = process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+  // Revert to hardcoded www version to avoid redirect issues for scrapers
+  const siteUrl = 'https://www.bookshuttles.com';
   const ogImageUrl = `${siteUrl}/api/og/route?from=${encodeURIComponent(route.departureCity.name)}&to=${encodeURIComponent(route.destinationCity.name)}&v=1`; // Added cache-busting parameter
 
   return {
@@ -236,8 +236,8 @@ export default async function RoutePage({ params }) {
 
 
   // --- Prepare Product Schema JSON-LD ---
-  // Re-define siteUrl within this component scope using the same dynamic logic
-  const siteUrl = process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+  // Revert siteUrl to hardcoded www version for consistency
+  const siteUrl = 'https://www.bookshuttles.com';
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
