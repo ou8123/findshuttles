@@ -103,8 +103,15 @@ export async function GET(req: NextRequest) {
         // Removed explicit headers - rely on ImageResponse defaults
       }
     );
-    // Directly return the ImageResponse
-    return imageResponse;
+    // Create a new Response with the image body and explicit headers (Re-added)
+    return new Response(imageResponse.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        // Optional: Add cache control headers if desired
+        // 'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
 
   } catch (e: any) {
     console.error(`Failed to generate OG image: ${e.message}`);
