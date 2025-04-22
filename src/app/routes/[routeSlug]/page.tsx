@@ -114,6 +114,13 @@ export async function generateMetadata({ params }) {
           height: 630, // Reverted to match actual image dimensions
           alt: `Comfortable shuttle transfer from ${route.departureCity.name} to ${route.destinationCity.name}, ${route.destinationCountry?.name || 'destination country'}`, // Improved alt text
         },
+        // Add static logo as a fallback
+        {
+          url: `${siteUrl}/images/BookShuttles.com-Logo.png`,
+          width: 450, // Specify dimensions if known
+          height: 150,
+          alt: 'Book Shuttles Logo',
+        }
       ],
       locale: 'en_US', // Optional: Specify locale
       type: 'website', // Or 'article' if more appropriate
@@ -277,17 +284,30 @@ export default async function RoutePage({ params }) {
   const isSameCityRoute = route.departureCityId === route.destinationCityId;
 
   // Safely check and filter mapWaypoints, then assert the type of the resulting array
-  const filteredWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
-  const validWaypoints = filteredWaypoints as unknown as WaypointStop[]; // Assert type here
-  // Corrected condition: require at least 1 valid waypoint for tour map
+  let validWaypoints: WaypointStop[] = [];
+  try {
+    const filteredWaypoints = Array.isArray(route.mapWaypoints) ? route.mapWaypoints.filter(isWaypointStop) : [];
+    validWaypoints = filteredWaypoints as unknown as WaypointStop[]; // Assert type here
+  } catch (err) {
+    console.error("Error processing mapWaypoints:", err, "Raw data:", route.mapWaypoints);
+    // Decide how to handle: maybe set validWaypoints = [] or rethrow? For now, log and continue.
+    validWaypoints = [];
+  }
   const hasValidWaypoints = validWaypoints.length >= 1;
+
 
   // Process possible nearby stops for applicable route types
   const isApplicableForNearbyStops = (route.isAirportPickup || route.isAirportDropoff || route.isCityToCity) && !isTourType;
-  const filteredNearbyStops = isApplicableForNearbyStops && Array.isArray(route.possibleNearbyStops)
-    ? route.possibleNearbyStops.filter(isNearbyStop)
-    : [];
-  const validNearbyStops = filteredNearbyStops as unknown as NearbyStop[];
+  let validNearbyStops: NearbyStop[] = [];
+  try {
+    const filteredNearbyStops = isApplicableForNearbyStops && Array.isArray(route.possibleNearbyStops)
+      ? route.possibleNearbyStops.filter(isNearbyStop)
+      : [];
+    validNearbyStops = filteredNearbyStops as unknown as NearbyStop[];
+  } catch (err) {
+    console.error("Error processing possibleNearbyStops:", err, "Raw data:", route.possibleNearbyStops);
+    validNearbyStops = [];
+  }
   const hasValidNearbyStops = validNearbyStops.length >= 1;
 
   // Determine which map type to show (Corrected Logic)
@@ -301,7 +321,7 @@ export default async function RoutePage({ params }) {
   // --- End map display logic ---
 
   // --- Logic for Itinerary Section ---
-  const showItinerary = (route.isPrivateDriver || route.isSightseeingShuttle) && validWaypoints.length > 0;
+  const showItinerary = (route.isPrivateDriver || route.isSightseeingShuttle) && validWaypoints.length > 0; // Use the safely processed validWaypoints
   let itineraryTitle = '';
   if (showItinerary) {
     if (route.isPrivateDriver) {
@@ -320,9 +340,12 @@ export default async function RoutePage({ params }) {
     isTourType,
     isSameCityRoute,
     mapWaypointsFromDB: route.mapWaypoints, // Log raw DB data
-    filteredWaypoints, // Log after filtering
-    validWaypoints, // Log after type assertion
+    // filteredWaypoints, // Log after filtering - removed intermediate log
+    validWaypoints, // Log after safe processing
     hasValidWaypoints,
+    possibleNearbyStopsFromDB: route.possibleNearbyStops, // Log raw DB data
+    validNearbyStops, // Log after safe processing
+    hasValidNearbyStops,
     mapType // Log the final mapType
   });
 
