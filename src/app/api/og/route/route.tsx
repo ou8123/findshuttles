@@ -56,7 +56,20 @@ export async function GET(req: NextRequest) {
       throw new Error(`Could not read font file: ${fontPath}`);
     }
 
-    // Logo will be referenced directly via public path
+    // Read logo data directly from the filesystem and create data URI
+    const logoPath = path.join(process.cwd(), 'public', 'images', 'BookShuttles.com-Logo.png');
+    let logoDataUri: string;
+    try {
+      const logoBuffer = fs.readFileSync(logoPath);
+      const base64 = logoBuffer.toString('base64');
+      logoDataUri = `data:image/png;base64,${base64}`;
+    } catch (error) {
+      console.error("Error reading logo file:", error);
+      // Fallback or decide how to handle - maybe use a placeholder or throw
+      logoDataUri = ''; // Set to empty string if logo fails to load
+      // Or: throw new Error(`Could not read logo file: ${logoPath}`);
+    }
+
 
     // Define border style (variable kept for reference, but border removed)
     // const borderThickness = 20;
@@ -81,8 +94,12 @@ export async function GET(req: NextRequest) {
           // border removed
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
-          {/* Use relative path to public logo */}
-          <img src="/images/BookShuttles.com-Logo.png" width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          {/* Use logo data URI */}
+          {logoDataUri ? (
+            <img src={logoDataUri} width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
+          ) : (
+            <div style={{ width: 450, height: 150, marginBottom: 30, border: '1px dashed grey', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'grey' }}>Logo Error</div>
+          )}
           {/* Route Text - Reverted size */}
           {/* Added display:flex to satisfy Satori */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
