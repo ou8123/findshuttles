@@ -45,6 +45,10 @@ export async function GET(req: NextRequest) {
     // Log the values being used for image generation
     console.log(`[OG Image Gen] Generating image for: From='${sanitizedFrom}', To='${sanitizedTo}' (Original: From='${from}', To='${to}')`);
 
+    // Add logging for intermediate values
+    console.log(`[OG Image Gen Debug] Original From: '${from}', Original To: '${to}'`);
+    console.log(`[OG Image Gen Debug] Sanitized From: '${sanitizedFrom}', Sanitized To: '${sanitizedTo}'`);
+
 
     // Read font data directly from the filesystem
     const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.otf');
@@ -71,17 +75,12 @@ export async function GET(req: NextRequest) {
     }
 
 
-    // Define border style (variable kept for reference, but border removed)
-    // const borderThickness = 20;
-    const greenColor = '#004d3b';
-    const textColor = greenColor; // Use green for text
-
-    // Generate the image using ImageResponse - Restoring original content
+    // Generate the image using ImageResponse - Without border
     const imageResponse = new ImageResponse(
       (
         <div style={{
           background: 'white', // New background color
-          color: textColor, // New text color
+          color: '#004d3b', // Use green for text directly
           width: '1200px',
           height: '630px',
           display: 'flex', // Main container uses flex
@@ -89,9 +88,9 @@ export async function GET(req: NextRequest) {
           justifyContent: 'center',
           alignItems: 'center',
           fontFamily: '"Inter", sans-serif', // Use the loaded font
-          // padding removed
+          padding: '20px', // Keep some padding
           textAlign: 'center', // Center text
-          // border removed
+          // Border removed as requested
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
           {/* Use logo data URI */}
