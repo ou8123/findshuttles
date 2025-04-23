@@ -84,8 +84,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Perform a 302 (temporary) redirect to the route page
-    // 302 is used instead of 301 to ensure no browser caching of the redirect
-    return NextResponse.redirect(new URL(`/routes/${routeSlug}`, request.url), 302);
+    // Use NEXT_PUBLIC_SITE_URL for the base URL to ensure the correct domain
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+    return NextResponse.redirect(new URL(`/routes/${routeSlug}`, siteUrl), 302);
   } catch (error) {
     console.error('Error in search redirect:', error);
     return new NextResponse(
