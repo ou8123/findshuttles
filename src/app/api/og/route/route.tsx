@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
           {/* Removed fontWeight: 700 as bold font is not available */}
           {/* TEMPORARY DEBUG: Use static text */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, lineHeight: 1.2 }}>
-            Test Text Here
+             Static Test Text
           </div>
           {/* <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, lineHeight: 1.2 }}> */}
             {/* Use sanitized values */}
