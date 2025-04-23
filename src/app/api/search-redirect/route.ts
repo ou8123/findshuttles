@@ -85,7 +85,11 @@ export async function POST(request: NextRequest) {
     
     // Perform a 302 (temporary) redirect to the route page
     // Use NEXT_PUBLIC_SITE_URL for the base URL to ensure the correct domain
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+    // Ensure siteUrl always includes the scheme for absolute URLs
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+    if (siteUrl && !siteUrl.startsWith('http')) {
+      siteUrl = `https://${siteUrl}`;
+    }
     // Manually construct the full absolute URL string
     const redirectUrl = `${siteUrl}/routes/${routeSlug}`;
     return NextResponse.redirect(redirectUrl, 302);
