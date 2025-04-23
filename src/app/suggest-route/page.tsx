@@ -1,34 +1,31 @@
 'use client';
 
-import { useState, FormEvent, useRef } from "react"; // Import useRef
+import { useState, FormEvent, useRef } from "react";
 
-// Declare grecaptcha type for TypeScript
-declare global {
-  interface Window {
-    grecaptcha: any; // Use 'any' for simplicity, or install @types/grecaptcha for better typing
-  }
-}
+// Removed grecaptcha declaration
 
 export default function SuggestRoute() {
   const [userType, setUserType] = useState<"provider" | "traveler">("provider");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const formRef = useRef<HTMLFormElement>(null); // Create form ref
+  const [isVerified, setIsVerified] = useState(false); // State for simple checkbox
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const siteKey = "6LcsCSIrAAAAAOvQ2_r5wrPA9fIx3e3rLPFHvK95"; // Enterprise Site Key
+  // Removed siteKey constant
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
 
-    if (!window.grecaptcha || !window.grecaptcha.enterprise) {
-      setSubmitStatus({ type: 'error', message: 'reCAPTCHA script not loaded yet. Please try again.' });
+    // --- Check simple verification checkbox ---
+    if (!isVerified) {
+      setSubmitStatus({ type: 'error', message: 'Please confirm you are not a robot.' });
       setIsSubmitting(false);
       return;
     }
 
-    // --- Get form values BEFORE the async callback ---
+    // --- Get form values ---
     if (!formRef.current) {
       setSubmitStatus({ type: 'error', message: 'Form reference error. Please try again.' });
       setIsSubmitting(false);
@@ -38,30 +35,18 @@ export default function SuggestRoute() {
     const nameValue = (currentForm.elements.namedItem('name') as HTMLInputElement)?.value;
     const emailValue = (currentForm.elements.namedItem('email') as HTMLInputElement)?.value;
     const detailsValue = (currentForm.elements.namedItem('details') as HTMLTextAreaElement)?.value;
-    // We already use the userType state for type
 
-    // Wrap the core logic in the ready callback
-    window.grecaptcha.enterprise.ready(async () => {
-      try {
-        const token = await window.grecaptcha.enterprise.execute(siteKey, { action: 'SUGGEST_ROUTE' });
+    // Removed grecaptcha logic (ready, execute)
 
-        // Add explicit check for the generated token
-        if (!token) {
-          throw new Error("reCAPTCHA token generation failed. Please try again.");
-        }
-
-        // Use the ref to get the form element reliably
-        if (!formRef.current) {
-          throw new Error("Form reference is not available."); // This check might be redundant now but safe to keep
-        }
-        // Construct data using values captured *before* the callback
-        const data = {
-          name: nameValue,
-          email: emailValue,
-          details: detailsValue,
-          type: userType,
-          recaptchaToken: token,
-        };
+    try {
+      // Construct data without reCAPTCHA token
+      const data = {
+        name: nameValue,
+        email: emailValue,
+        details: detailsValue,
+        type: userType,
+        // recaptchaToken removed
+      };
 
       // Log the data being sent
       console.log('Sending data to API:', data);
@@ -77,22 +62,21 @@ export default function SuggestRoute() {
       const result = await response.json();
 
       if (!response.ok) {
+        // Use error message from API if available, otherwise generic message
         throw new Error(result.error || `HTTP error! status: ${response.status}`);
       }
 
-        setSubmitStatus({ type: 'success', message: 'Suggestion submitted successfully! Thank you.' });
-        // Optionally reset the form: formElement.reset();
+      setSubmitStatus({ type: 'success', message: 'Suggestion submitted successfully! Thank you.' });
+      // Optionally reset the form
+      currentForm.reset();
+      setIsVerified(false); // Reset verification checkbox state
 
-      } catch (error: any) {
-        console.error('Submission error:', error);
-        setSubmitStatus({ type: 'error', message: `Submission failed: ${error.message || 'Please try again.'}` });
-      } finally {
-        // Ensure isSubmitting is set to false regardless of success/error inside ready()
-        setIsSubmitting(false);
-      }
-    });
-    // Note: setIsSubmitting(false) is now inside the ready() callback's finally block
-    // to ensure it runs *after* the async operations complete.
+    } catch (error: any) {
+      console.error('Submission error:', error);
+      setSubmitStatus({ type: 'error', message: `Submission failed: ${error.message || 'Please try again.'}` });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,7 +99,7 @@ export default function SuggestRoute() {
         </button>
       </div>
 
-      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4"> {/* Attach ref */}
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="type" value={userType} />
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700">Your Name</label>
@@ -132,6 +116,22 @@ export default function SuggestRoute() {
           <textarea id="details" name="details" placeholder={`Enter details here...`} required disabled={isSubmitting} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-32 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100" />
         </div>
 
+        {/* Simple "I am not a robot" checkbox */}
+        <div className="flex items-center">
+          <input
+            id="verification"
+            name="verification"
+            type="checkbox"
+            checked={isVerified}
+            onChange={(e) => setIsVerified(e.target.checked)}
+            disabled={isSubmitting}
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="verification" className="ml-2 block text-sm text-gray-900">
+            I am not a robot
+          </label>
+        </div>
+
         {/* Submission status message */}
         {submitStatus && (
           <div className={`p-3 rounded-md text-sm ${submitStatus.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -139,13 +139,10 @@ export default function SuggestRoute() {
           </div>
         )}
 
-        {/* Removed the old reCAPTCHA div */}
-        <button type="submit" disabled={isSubmitting} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+        <button type="submit" disabled={isSubmitting || !isVerified} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSubmitting ? 'Submitting...' : 'Submit Suggestion'}
         </button>
-        <p className="text-xs text-gray-500 text-center mt-2">
-          This site is protected by reCAPTCHA Enterprise and the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline">Terms of Service</a> apply.
-        </p>
+        {/* Removed Google reCAPTCHA terms paragraph */}
       </form>
     </div>
   );
