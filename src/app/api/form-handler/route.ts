@@ -78,9 +78,21 @@ async function verifyRecaptchaToken(token: string): Promise<{ valid: boolean; sc
 export async function POST(req: NextRequest) {
   try {
     // Read data from JSON body now
-    const { name, email, details, type, recaptchaToken } = await req.json();
+    const receivedData = await req.json();
+    // Log the received data immediately after parsing
+    console.log('Received data in API handler:', receivedData);
+
+    const { name, email, details, type, recaptchaToken } = receivedData;
 
     if (!name || !email || !details || !type || !recaptchaToken) {
+      // Log which specific field might be missing for easier debugging
+      console.error('Validation failed. Missing fields:', {
+          name: !!name,
+          email: !!email,
+          details: !!details,
+          type: !!type,
+          recaptchaToken: !!recaptchaToken
+      });
       return NextResponse.json({ error: 'Missing required fields or reCAPTCHA token' }, { status: 400 });
     }
 

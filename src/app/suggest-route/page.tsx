@@ -51,6 +51,9 @@ export default function SuggestRoute() {
         recaptchaToken: token, // Include the Enterprise token
       };
 
+      // Log the data being sent
+      console.log('Sending data to API:', data);
+
       const response = await fetch('/api/form-handler', {
         method: 'POST',
         headers: {
