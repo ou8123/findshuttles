@@ -125,10 +125,10 @@ export async function middleware(request: NextRequest) {
   const isRoutePage = pathname.startsWith('/routes/');
 
   if (isCrawler && isRoutePage) {
-    console.log(`[Middleware] Detected crawler (${ua}) on route page (${pathname}). Rewriting to /og-lite.html`);
+    console.log(`[Middleware] Detected crawler (${ua}) on route page (${pathname}). Redirecting to /og-lite.html`);
     const staticOGUrl = new URL('/og-lite.html', request.url);
-    // Return rewrite directly, no need for security headers on this static rewrite
-    return NextResponse.rewrite(staticOGUrl);
+    // Use a 307 Temporary Redirect instead of rewrite
+    return NextResponse.redirect(staticOGUrl, 307);
   }
   // --- END Scraper Detection & Rewrite ---
 
