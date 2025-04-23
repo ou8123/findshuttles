@@ -67,8 +67,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
         />
         {/* Debugging inline script removed */}
         <meta name="google-site-verification" content="ldADGVO7H18ffG-AUyaMvZHPttGJthBfhnYWKuj8gxA" />
-        {/* Use next/script for reCAPTCHA */}
-        <Script src="https://www.google.com/recaptcha/api.js" async defer />
+        {/* Use next/script for reCAPTCHA Enterprise */}
+        <Script src="https://www.google.com/recaptcha/enterprise.js?render=6LcsCSIrAAAAAOvQ2_r5wrPA9fIx3e3rLPFHvK95" async defer />
       </head>
       <body className="antialiased flex flex-col min-h-screen"> {/* Removed dark: classes */}
         <AuthProvider>
