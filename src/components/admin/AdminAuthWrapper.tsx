@@ -29,6 +29,19 @@ export default function AdminAuthWrapper({
   useEffect(() => {
     if (nextAuthStatus !== 'loading') {
       const isAdmin = nextAuthStatus === 'authenticated' && session?.user?.role === 'ADMIN';
+
+      // --- START ADDITION ---
+      // Set GA disable cookie if user is admin
+      if (isAdmin) {
+        document.cookie = "ga-disable=true; path=/; max-age=31536000"; // Set for 1 year
+      } else {
+        // Optional: Clear the cookie if the user is not admin or logs out
+        // Check if the cookie exists before trying to expire it
+        if (document.cookie.includes('ga-disable=true')) {
+          document.cookie = "ga-disable=true; path=/; max-age=0"; // Expire the cookie
+        }
+      }
+      // --- END ADDITION ---
       
       // Set authentication status
       setIsAuthenticated(isAdmin);

@@ -39,6 +39,19 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <head>
+        {/* --- START ADDITION --- */}
+        {/* Disable GA tracking if admin cookie is present */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (document.cookie.includes('ga-disable=true')) {
+                window['ga-disable-G-97YPDY8L1Q'] = true;
+              }
+            `,
+          }}
+        />
+        {/* --- END ADDITION --- */}
+
         {/* Google tag (gtag.js) */}
         <Script async src="https://www.googletagmanager.com/gtag/js?id=G-97YPDY8L1Q" />
         <script
