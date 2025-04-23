@@ -42,7 +42,7 @@ export default function SuggestRoute() {
         name: formData.get('name') as string,
         email: formData.get('email') as string,
         details: formData.get('details') as string,
-        type: formData.get('type') as string,
+        type: userType, // Use state variable directly instead of formData.get('type')
         recaptchaToken: token, // Include the Enterprise token
       };
 
