@@ -27,11 +27,15 @@ export default function SuggestRoute() {
       return;
     }
 
-    try {
-      await window.grecaptcha.enterprise.ready();
-      const token = await window.grecaptcha.enterprise.execute(siteKey, { action: 'SUGGEST_ROUTE' });
+    // Wrap the core logic in the ready callback
+    window.grecaptcha.enterprise.ready(async () => {
+      try {
+        const token = await window.grecaptcha.enterprise.execute(siteKey, { action: 'SUGGEST_ROUTE' });
 
-      const formData = new FormData(event.currentTarget);
+        // Need to access event.currentTarget inside the callback, ensure it's stable
+        // Or read form data *before* the ready() call if event object isn't stable across async boundary
+        const formElement = event.currentTarget; // Capture form element
+        const formData = new FormData(formElement);
       const data = {
         name: formData.get('name') as string,
         email: formData.get('email') as string,
@@ -54,15 +58,19 @@ export default function SuggestRoute() {
         throw new Error(result.error || `HTTP error! status: ${response.status}`);
       }
 
-      setSubmitStatus({ type: 'success', message: 'Suggestion submitted successfully! Thank you.' });
-      // Optionally reset the form: event.currentTarget.reset();
+        setSubmitStatus({ type: 'success', message: 'Suggestion submitted successfully! Thank you.' });
+        // Optionally reset the form: formElement.reset();
 
-    } catch (error: any) {
-      console.error('Submission error:', error);
-      setSubmitStatus({ type: 'error', message: `Submission failed: ${error.message || 'Please try again.'}` });
-    } finally {
-      setIsSubmitting(false);
-    }
+      } catch (error: any) {
+        console.error('Submission error:', error);
+        setSubmitStatus({ type: 'error', message: `Submission failed: ${error.message || 'Please try again.'}` });
+      } finally {
+        // Ensure isSubmitting is set to false regardless of success/error inside ready()
+        setIsSubmitting(false);
+      }
+    });
+    // Note: setIsSubmitting(false) is now inside the ready() callback's finally block
+    // to ensure it runs *after* the async operations complete.
   };
 
   return (
