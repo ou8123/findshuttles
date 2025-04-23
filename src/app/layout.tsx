@@ -39,6 +39,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en" className={`${inter.variable} h-full`}>
       <head>
         {/* Debugging inline script removed */}
+        <meta name="google-site-verification" content="ldADGVO7H18ffG-AUyaMvZHPttGJthBfhnYWKuj8gxA" />
       </head>
       <body className="antialiased flex flex-col min-h-screen"> {/* Removed dark: classes */}
         <AuthProvider>
