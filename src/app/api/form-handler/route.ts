@@ -76,6 +76,10 @@ async function verifyRecaptchaToken(token: string): Promise<{ valid: boolean; sc
 
 
 export async function POST(req: NextRequest) {
+  // --- Temporarily disabled due to reCAPTCHA config issues ---
+  console.log('Suggest Route API handler called, but is currently disabled.');
+  return NextResponse.json({ error: 'This feature is temporarily disabled.' }, { status: 503 });
+  /*
   try {
     // Read data from JSON body now
     const receivedData = await req.json();
@@ -141,4 +145,5 @@ export async function POST(req: NextRequest) {
     // Return a generic error message to the client
     return NextResponse.json({ error: 'Failed to process suggestion.' }, { status: 500 });
   }
+  */
 }
