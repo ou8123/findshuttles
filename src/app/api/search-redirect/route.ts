@@ -87,8 +87,17 @@ export async function POST(request: NextRequest) {
     // Use NEXT_PUBLIC_SITE_URL for the base URL to ensure the correct domain
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
     return NextResponse.redirect(new URL(`/routes/${routeSlug}`, siteUrl), 302);
-  } catch (error) {
+  } catch (error: any) { // Explicitly type error as any for logging stack
     console.error('Error in search redirect:', error);
+    // Log the full error object including stack trace
+    console.error('Search redirect error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      // Include other relevant error properties if available
+      // code: error.code,
+      // meta: error.meta,
+    });
     return new NextResponse(
       JSON.stringify({ error: 'Internal server error' }),
       {
