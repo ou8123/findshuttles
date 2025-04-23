@@ -4,6 +4,8 @@ import React from 'react'; // Explicitly import React
 import fs from 'fs'; // Import Node.js fs module
 import path from 'path'; // Import Node.js path module
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
+
 // Removed edge runtime export - use default Node.js runtime
 // export const runtime = "edge";
 
