@@ -41,13 +41,6 @@
   force = true
 
 
-# Fallback rule to ensure all paths are served
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  # Note: Consider if you need specific headers for this admin path
-
 [[redirects]]
   from = "/secure-access-9b1c3f5d7e"
   to = "/.netlify/functions/next_server"

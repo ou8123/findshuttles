@@ -1,12 +1,11 @@
-# Redirect Netlify deployment URLs to canonical domain
-https://*.netlify.app/*  https://www.bookshuttles.com/:splat  301!
+https://*.netlify.app/* https://www.bookshuttles.com/:splat 301!
 
 # Redirect non-www to www
-https://bookshuttles.com/*  https://www.bookshuttles.com/:splat  301!
+https://bookshuttles.com/* https://www.bookshuttles.com/:splat 301!
 
-# Redirect HTTP to HTTPS
-http://bookshuttles.com/*  https://bookshuttles.com/:splat  301!
-http://www.bookshuttles.com/*  https://www.bookshuttles.com/:splat  301!
+# Redirect http to https
+http://www.bookshuttles.com/* https://www.bookshuttles.com/:splat 301!
+http://bookshuttles.com/* https://www.bookshuttles.com/:splat 301!
 
-# Important: This must be the last rule - serve all paths normally
-/*  /index.html  200
+# Fallback for SPA routing (adjust as needed for Next.js)
+/* /index.html 200

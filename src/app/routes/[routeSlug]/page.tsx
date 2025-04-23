@@ -8,6 +8,7 @@ import ViatorSimpleWidget from '@/components/ViatorSimpleWidget';
 import AutoScroller from '@/components/AutoScroller';
 import FormattedDescription from '@/components/FormattedDescription';
 import RouteSummaryBlock from '@/components/RouteSummaryBlock'; // Added
+import SocialShareButtons from '@/components/SocialShareButtons'; // Import the share buttons
 import HotelsGrid from '@/components/HotelsGrid'; // Added
 import ItinerarySection from '@/components/ItinerarySection'; // Import the new component
 import AmenitiesTable from '@/components/AmenitiesTable'; // Import AmenitiesTable
@@ -239,7 +240,13 @@ export default async function RoutePage({ params }) {
 
   // --- Prepare Product Schema JSON-LD ---
   // Revert siteUrl to hardcoded www version for consistency
-  const siteUrl = 'https://www.bookshuttles.com';
+  const siteUrl = 'https://www.bookshuttles.com'; // Used for share URL as well
+
+  // --- Prepare Share Data ---
+  const shareUrl = `${siteUrl}/routes/${route.routeSlug}`;
+  const shareTitle = route.displayName || `Shuttle: ${route.departureCity?.name} to ${route.destinationCity?.name}`;
+  // --- End Share Data ---
+
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -450,6 +457,9 @@ export default async function RoutePage({ params }) {
 
           {/* 1. Top Route Summary Block (Now includes Route Type Badge) */}
           <RouteSummaryBlock route={route} />
+
+          {/* Social Share Buttons */}
+          <SocialShareButtons url={shareUrl} title={shareTitle} />
 
           {/* NEW: Amenities Highlights Grid */}
           <AmenitiesTable amenities={route.amenities} />

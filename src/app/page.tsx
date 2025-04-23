@@ -1,7 +1,14 @@
 import HomeSearchForm from '@/components/HomeSearchForm';
 import HeroSection from '@/components/HeroSection'; // Import the new component
+import SocialShareButtons from '@/components/SocialShareButtons'; // Import the share buttons
 
 export default function Home() {
+  // --- Prepare Share Data ---
+  const siteUrl = 'https://www.bookshuttles.com'; // Base site URL
+  const shareUrl = siteUrl;
+  const shareTitle = 'BookShuttles.com - Easy Shuttle Booking in Costa Rica & Beyond';
+  // --- End Share Data ---
+
   return (
     <>
       {/* Search area with dark green background - full width */}
@@ -24,6 +31,11 @@ export default function Home() {
       
       {/* Use the new HeroSection component */}
       <HeroSection />
+
+      {/* Social Share Buttons - Added below HeroSection */}
+      <div className="container mx-auto px-4 py-8 flex justify-center"> {/* Center the buttons */}
+        <SocialShareButtons url={shareUrl} title={shareTitle} />
+      </div>
     </>
   );
 }

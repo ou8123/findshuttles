@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
 import CountryRouteFilter from '@/components/CountryRouteFilter'; // Import the client component
+import SocialShareButtons from '@/components/SocialShareButtons'; // Import the share buttons
 
 // Generate metadata function
 export async function generateMetadata({ params }) {
@@ -127,6 +128,12 @@ export default async function CountryRoutesPage({ params }) {
 
   const { country, routes, cities } = data;
 
+  // --- Prepare Share Data ---
+  const siteUrl = 'https://www.bookshuttles.com'; // Use consistent base URL
+  const shareUrl = `${siteUrl}/countries/${countrySlug}`;
+  const shareTitle = `Explore Shuttle Routes in ${country.name}`;
+  // --- End Share Data ---
+
   // TODO: Replace this static content with dynamic content based on the country
   const pageContent = {
     title: `Shuttle Routes in ${country.name} | BookShuttles.com`,
@@ -148,6 +155,9 @@ export default async function CountryRoutesPage({ params }) {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">{pageContent.title.replace(' | BookShuttles.com', '')}</h1>
+
+      {/* Social Share Buttons */}
+      <SocialShareButtons url={shareUrl} title={shareTitle} />
       
       {/* Breadcrumbs */}
       <nav className="text-sm text-gray-600 dark:text-gray-400 mb-6" aria-label="Breadcrumb">

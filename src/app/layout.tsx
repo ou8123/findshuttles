@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter } from "next/font/google"; // Use Inter font instead of Geist
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -38,6 +39,19 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <head>
+        {/* Google tag (gtag.js) */}
+        <Script async src="https://www.googletagmanager.com/gtag/js?id=G-97YPDY8L1Q" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+
+              gtag('config', 'G-97YPDY8L1Q');
+            `,
+          }}
+        />
         {/* Debugging inline script removed */}
         <meta name="google-site-verification" content="ldADGVO7H18ffG-AUyaMvZHPttGJthBfhnYWKuj8gxA" />
       </head>
