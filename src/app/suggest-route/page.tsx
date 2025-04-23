@@ -28,6 +28,18 @@ export default function SuggestRoute() {
       return;
     }
 
+    // --- Get form values BEFORE the async callback ---
+    if (!formRef.current) {
+      setSubmitStatus({ type: 'error', message: 'Form reference error. Please try again.' });
+      setIsSubmitting(false);
+      return;
+    }
+    const currentForm = formRef.current;
+    const nameValue = (currentForm.elements.namedItem('name') as HTMLInputElement)?.value;
+    const emailValue = (currentForm.elements.namedItem('email') as HTMLInputElement)?.value;
+    const detailsValue = (currentForm.elements.namedItem('details') as HTMLTextAreaElement)?.value;
+    // We already use the userType state for type
+
     // Wrap the core logic in the ready callback
     window.grecaptcha.enterprise.ready(async () => {
       try {
@@ -40,16 +52,16 @@ export default function SuggestRoute() {
 
         // Use the ref to get the form element reliably
         if (!formRef.current) {
-          throw new Error("Form reference is not available.");
+          throw new Error("Form reference is not available."); // This check might be redundant now but safe to keep
         }
-        const formData = new FormData(formRef.current); // Use the ref here
-      const data = {
-        name: formData.get('name') as string,
-        email: formData.get('email') as string,
-        details: formData.get('details') as string,
-        type: userType, // Use state variable directly instead of formData.get('type')
-        recaptchaToken: token, // Include the Enterprise token
-      };
+        // Construct data using values captured *before* the callback
+        const data = {
+          name: nameValue,
+          email: emailValue,
+          details: detailsValue,
+          type: userType,
+          recaptchaToken: token,
+        };
 
       // Log the data being sent
       console.log('Sending data to API:', data);
