@@ -97,9 +97,32 @@ export async function generateMetadata({ params }) {
 
   // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
-  // Revert to using the internal API route for OG images (will be recreated)
-  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}?v=4`; // Cache bust again
-  // Define the static logo URL as a fallback
+  // Cloudinary configuration
+  const cloudName = 'dawjqh1qv';
+  const imagePublicId = 'book_shuttles_logo_sharing_dwulei'; // New base image
+
+  // Prepare text for overlay
+  // Use metaTitle or construct a simple one if missing
+  const routeTitleText = route.metaTitle || `${route.departureCity.name} to ${route.destinationCity.name}`;
+  // Basic sanitization and encoding for Cloudinary URL
+  // Encode URI components, then replace specific characters Cloudinary uses differently in text overlays
+  const overlayText = encodeURIComponent(routeTitleText)
+                        .replace(/%2C/g, '%252C') // Double encode commas
+                        .replace(/%2F/g, '%252F') // Double encode slashes
+                        .replace(/%3F/g, '%253F') // Double encode question marks
+                        .replace(/%26/g, '%2526') // Double encode ampersands
+                        .replace(/%23/g, '%2523') // Double encode hash
+                        .replace(/%5C/g, '%255C') // Double encode backslash
+                        .replace(/%20/g, '_');   // Replace space with underscore
+
+  // Define Cloudinary transformations for the text overlay
+  // Font: Arial, Size: 60, Weight: Bold, Color: #004d3b, Gravity: South, Y-offset: 100px
+  const textTransformations = `l_text:Arial_60_bold:${overlayText},co_rgb:004d3b,g_south,y_100`;
+
+  // Construct the final Cloudinary URL for dynamic OG image
+  const cloudinaryOgImageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${textTransformations}/${imagePublicId}.png`; // Assuming base is png
+
+  // Define the static logo URL (can be used elsewhere if needed)
   const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
 
 
@@ -119,14 +142,12 @@ export async function generateMetadata({ params }) {
       // Explicitly define the images array with only the dynamic URL
       images: [
         {
-          url: dynamicOgImageUrl, // Use the internal API route URL
+          url: cloudinaryOgImageUrl, // Use the dynamic Cloudinary URL
           width: 1200, // Standard OG width
           height: 630, // Standard OG height
-          alt: `Shuttle from ${route.departureCity.name} to ${route.destinationCity.name}`, // Dynamic alt text
+          alt: routeTitleText, // Use the title as alt text
           type: 'image/png', // Explicitly set image type
         }
-        // Optionally add static logo as fallback:
-        // { url: staticLogoUrl, width: 1396, height: 474, alt: 'Book Shuttles Logo' }
       ],
       locale: 'en_US', // Optional: Specify locale
       type: 'website', // Or 'article' if more appropriate
@@ -136,7 +157,7 @@ export async function generateMetadata({ params }) {
       title: finalTitle, // Use the final title
       description: route.metaDescription || `Quick & easy shuttle booking: ${route.departureCity.name} to ${route.destinationCity.name}. See schedules & prices.`, // Different phrasing for Twitter
       // Explicitly define the images array with only the dynamic URL
-      images: [dynamicOgImageUrl], // Use internal API route URL for Twitter card as well
+      images: [cloudinaryOgImageUrl], // Use dynamic Cloudinary URL for Twitter card as well
       // Optional: Add site or creator handle if available
       // site: '@YourTwitterHandle',
       // creator: '@CreatorHandle',
