@@ -97,8 +97,8 @@ export async function generateMetadata({ params }) {
   // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
   // Define the dynamic OG image URL using the route slug
-  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}`;
-  // Define the static logo URL as a fallback
+  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}?v=2`; // Added cache-busting parameter v=2
+  // Define the static logo URL as a fallback (kept for reference, not used in images array)
   const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
 
 
@@ -115,16 +115,14 @@ export async function generateMetadata({ params }) {
       description: route.metaDescription || `View scenic shuttle options from ${route.departureCity.name} to ${route.destinationCity.name}. Book your transfer easily!`, // Slightly different phrasing
       url: `${siteUrl}/routes/${route.routeSlug}`, // Use production URL for og:url
       siteName: 'BookShuttles.com',
-      // Use the dynamic OG image URL
+      // Explicitly define the images array with only the dynamic URL
       images: [
         {
-          url: dynamicOgImageUrl, // Use the dynamic URL
+          url: dynamicOgImageUrl, // Use the dynamic URL with cache busting
           width: 1200, // Standard OG width
           height: 630, // Standard OG height
           alt: `Shuttle from ${route.departureCity.name} to ${route.destinationCity.name}`, // Dynamic alt text
         }
-        // Optionally include staticLogoUrl as a fallback if needed
-        // { url: staticLogoUrl, width: 1396, height: 474, alt: 'Book Shuttles Logo' }
       ],
       locale: 'en_US', // Optional: Specify locale
       type: 'website', // Or 'article' if more appropriate
@@ -133,6 +131,7 @@ export async function generateMetadata({ params }) {
       card: 'summary_large_image',
       title: finalTitle, // Use the final title
       description: route.metaDescription || `Quick & easy shuttle booking: ${route.departureCity.name} to ${route.destinationCity.name}. See schedules & prices.`, // Different phrasing for Twitter
+      // Explicitly define the images array with only the dynamic URL
       images: [dynamicOgImageUrl], // Use dynamic image for Twitter card as well
       // Optional: Add site or creator handle if available
       // site: '@YourTwitterHandle',
