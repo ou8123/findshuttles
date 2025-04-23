@@ -33,6 +33,11 @@ export default function SuggestRoute() {
       try {
         const token = await window.grecaptcha.enterprise.execute(siteKey, { action: 'SUGGEST_ROUTE' });
 
+        // Add explicit check for the generated token
+        if (!token) {
+          throw new Error("reCAPTCHA token generation failed. Please try again.");
+        }
+
         // Use the ref to get the form element reliably
         if (!formRef.current) {
           throw new Error("Form reference is not available.");
