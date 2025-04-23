@@ -112,6 +112,25 @@ function create404Response(): NextResponse {
 // The middleware function
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const ua = request.headers.get('user-agent') || ''; // Get User Agent
+
+  // --- BEGIN Scraper Detection & Rewrite ---
+  const isCrawler =
+    ua.includes('facebookexternalhit') ||
+    ua.includes('Twitterbot') ||
+    ua.includes('WhatsApp') ||
+    ua.includes('Slackbot-LinkExpanding') ||
+    ua.includes('LinkedInBot');
+
+  const isRoutePage = pathname.startsWith('/routes/');
+
+  if (isCrawler && isRoutePage) {
+    console.log(`[Middleware] Detected crawler (${ua}) on route page (${pathname}). Rewriting to /og-lite.html`);
+    const staticOGUrl = new URL('/og-lite.html', request.url);
+    return NextResponse.rewrite(staticOGUrl);
+  }
+  // --- END Scraper Detection & Rewrite ---
+
   // Get IP from headers - more reliable across Next.js versions
   const ip = request.headers.get('x-forwarded-for') || 
              request.headers.get('x-real-ip') || 
