@@ -55,15 +55,7 @@ export async function GET(req: NextRequest) {
     console.log(`[OG Image Gen Debug] Sanitized From: '${sanitizedFrom}', Sanitized To: '${sanitizedTo}'`);
 
 
-    // Read font data directly from the filesystem
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.otf');
-    let fontData: Buffer;
-    try {
-      fontData = fs.readFileSync(fontPath);
-    } catch (error) {
-      console.error("Error reading font file:", error);
-      throw new Error(`Could not read font file: ${fontPath}`);
-    }
+    // Removed local font file reading - will rely on @vercel/og fetching from Google Fonts
 
     // Read logo data directly from the filesystem and create data URI
     const logoPath = path.join(process.cwd(), 'public', 'images', 'BookShuttles.com-Logo.png');
@@ -92,7 +84,7 @@ export async function GET(req: NextRequest) {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          fontFamily: '"Inter", sans-serif', // Use the loaded font
+          fontFamily: '"Inter Variable", sans-serif', // Use Google Font name
           padding: '20px', // Keep some padding
           textAlign: 'center', // Center text
           // Border removed as requested
@@ -121,17 +113,7 @@ export async function GET(req: NextRequest) {
       {
         width: 1200,
         height: 630,
-        // Provide path to font file relative to project root (or use public URL)
-        // Assuming the font is in public/fonts/
-        // Note: @vercel/og might require the full URL in edge runtime if relative path fails
-        fonts: [
-          {
-            name: 'Inter',
-            data: fontData, // Use the fetched font data
-            style: 'normal',
-            weight: 400, // Specify weight if needed
-          },
-        ],
+        // Removed fonts array - rely on automatic fetching from Google Fonts
         // Pass headers directly to ImageResponse constructor
         headers: {
           'Content-Type': 'image/png',
