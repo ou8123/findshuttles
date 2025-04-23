@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'; // Force dynamic rendering
 // Logo will still be referenced directly via public path
 
 export async function GET(req: NextRequest) {
+  console.log(`[OG Image Gen ENTRY] Request received for URL: ${req.url}`); // Add entry log
   try {
     const url = new URL(req.url);
     const { searchParams, pathname } = url;

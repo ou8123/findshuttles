@@ -123,6 +123,7 @@ export async function generateMetadata({ params }) {
           width: 1200, // Standard OG width
           height: 630, // Standard OG height
           alt: `Shuttle from ${route.departureCity.name} to ${route.destinationCity.name}`, // Dynamic alt text
+          type: 'image/png', // Explicitly set image type
         }
       ],
       locale: 'en_US', // Optional: Specify locale
