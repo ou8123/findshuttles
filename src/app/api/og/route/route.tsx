@@ -102,7 +102,8 @@ export async function GET(req: NextRequest) {
           )}
           {/* Route Text - Reverted size */}
           {/* Added display:flex to satisfy Satori */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, fontWeight: 700, lineHeight: 1.2 }}>
+          {/* Removed fontWeight: 700 as bold font is not available */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 72, lineHeight: 1.2 }}>
             {/* Use sanitized values */}
             {sanitizedFrom} → {sanitizedTo}
           </div>
