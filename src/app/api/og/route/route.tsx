@@ -46,10 +46,12 @@ export async function GET(req: NextRequest) {
     const sanitizedTo = to.replace(/[()]/g, '').trim();
 
     // Log the values being used for image generation
+    console.log(`[OG Image Gen] Pathname: ${pathname}`); // Log pathname
+    console.log(`[OG Image Gen] Parsed From: '${from}', Parsed To: '${to}'`); // Log parsed values
     console.log(`[OG Image Gen] Generating image for: From='${sanitizedFrom}', To='${sanitizedTo}' (Original: From='${from}', To='${to}')`);
 
     // Add logging for intermediate values
-    console.log(`[OG Image Gen Debug] Original From: '${from}', Original To: '${to}'`);
+    // console.log(`[OG Image Gen Debug] Original From: '${from}', Original To: '${to}'`); // Redundant log
     console.log(`[OG Image Gen Debug] Sanitized From: '${sanitizedFrom}', Sanitized To: '${sanitizedTo}'`);
 
 
