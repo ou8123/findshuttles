@@ -8,8 +8,7 @@ import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Import type
 import { matchAmenities } from '@/lib/amenity-matcher'; // Import matchAmenities
 import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import waypoint generation function and type
-import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import waypoint generation function and type
-import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import waypoint generation function and type
+// Removed duplicate imports again
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -361,16 +360,21 @@ Map Waypoints (for relevant types): ${mapWaypoints.length > 0 ? JSON.stringify(m
 - Keep CTAs short, warm, and varied — avoid repeating the exact same CTA across different routes.
 
 **Final Check:** Ensure the generated output strictly adheres to the JSON structure and all content rules before finalizing.
-`.trim();
-**Prompt for Generating SEO Content for Shuttle Routes**
+    // Moved closing backtick to the end of the prompt text below
 
-**Objective:** Generate human-like, SEO-optimized content for the shuttle route defined by the variables below. The output must be valid JSON following the specified structure.
+    /* --- Removed duplicate prompt text causing syntax error ---
+    **Prompt for Generating SEO Content for Shuttle Routes**
 
-**Input Variables:**
-Route type: ${routeTypeString}
-Departure city: ${departureCityName}, ${departureCountryName}
-Destination city: ${destinationCityName}, ${destinationCountryName}
-Is airport pickup? ${isAirportPickup}
+    **Objective:** Generate human-like, SEO-optimized content for the shuttle route defined by the variables below. The output must be valid JSON following the specified structure.
+
+
+    **Input Variables:**
+    Route type: ${routeTypeString}
+    Departure city: ${departureCityName}, ${departureCountryName}
+        */
+    // --- This block was incorrectly outside the template literal ---
+    Destination city: ${destinationCityName}, ${destinationCountryName}
+    Is airport pickup? ${isAirportPickup}
 Is airport dropoff? ${isAirportDropoff}
 Travel duration: ${travelTime || 'Not provided'}
 Other stops (if any): ${otherStops?.join(', ') || 'None'}
@@ -436,7 +440,8 @@ Destination tours link: ${viatorDestinationLink || 'None'}
 - Keep CTAs short, warm, and varied — avoid repeating the exact same CTA across different routes.
 
 **Final Check:** Ensure the generated output strictly adheres to the JSON structure and all content rules before finalizing.
-`.trim();
+    // --- End of prompt text ---
+`.trim(); // Moved closing backtick and trim() here
 
     // Construct the messages array for OpenAI - ** LATEST REFINED PROMPT **
     const messages: ChatCompletionMessageParam[] = [
