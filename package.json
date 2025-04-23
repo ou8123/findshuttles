@@ -20,6 +20,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@googlemaps/google-maps-services-js": "^3.4.1",
     "@googlemaps/polyline-codec": "^1.0.28",
+    "@hcaptcha/react-hcaptcha": "^1.12.0",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.5.0",

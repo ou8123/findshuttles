@@ -1,26 +1,40 @@
 'use client';
 
 import { useState, FormEvent, useRef } from "react";
-
-// Removed grecaptcha declaration
+import HCaptcha from '@hcaptcha/react-hcaptcha'; // Import HCaptcha
 
 export default function SuggestRoute() {
   const [userType, setUserType] = useState<"provider" | "traveler">("provider");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [isVerified, setIsVerified] = useState(false); // State for simple checkbox
+  const [hcaptchaToken, setHcaptchaToken] = useState<string | null>(null); // State for hCaptcha token
   const formRef = useRef<HTMLFormElement>(null);
+  const captchaRef = useRef<HCaptcha>(null); // Ref for HCaptcha component
 
-  // Removed siteKey constant
+  const siteKey = "fd9836ba-9c22-49d8-ae8e-d6a0b5b2e604"; // Your hCaptcha Site Key
+
+  const handleVerificationSuccess = (token: string) => {
+    setHcaptchaToken(token);
+  };
+
+  const handleVerificationExpire = () => {
+    setHcaptchaToken(null); // Reset token if it expires
+  };
+
+  const handleVerificationError = (err: string) => {
+    console.error("hCaptcha error:", err);
+    setSubmitStatus({ type: 'error', message: `hCaptcha error: ${err}` });
+    setHcaptchaToken(null);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
 
-    // --- Check simple verification checkbox ---
-    if (!isVerified) {
-      setSubmitStatus({ type: 'error', message: 'Please confirm you are not a robot.' });
+    // --- Check hCaptcha token ---
+    if (!hcaptchaToken) {
+      setSubmitStatus({ type: 'error', message: 'Please complete the CAPTCHA verification.' });
       setIsSubmitting(false);
       return;
     }
@@ -36,19 +50,16 @@ export default function SuggestRoute() {
     const emailValue = (currentForm.elements.namedItem('email') as HTMLInputElement)?.value;
     const detailsValue = (currentForm.elements.namedItem('details') as HTMLTextAreaElement)?.value;
 
-    // Removed grecaptcha logic (ready, execute)
-
     try {
-      // Construct data without reCAPTCHA token
+      // Construct data with hCaptcha token
       const data = {
         name: nameValue,
         email: emailValue,
         details: detailsValue,
         type: userType,
-        // recaptchaToken removed
+        hcaptchaToken: hcaptchaToken, // Send hCaptcha token
       };
 
-      // Log the data being sent
       console.log('Sending data to API:', data);
 
       const response = await fetch('/api/form-handler', {
@@ -62,14 +73,13 @@ export default function SuggestRoute() {
       const result = await response.json();
 
       if (!response.ok) {
-        // Use error message from API if available, otherwise generic message
         throw new Error(result.error || `HTTP error! status: ${response.status}`);
       }
 
       setSubmitStatus({ type: 'success', message: 'Suggestion submitted successfully! Thank you.' });
-      // Optionally reset the form
       currentForm.reset();
-      setIsVerified(false); // Reset verification checkbox state
+      setHcaptchaToken(null); // Reset token state
+      captchaRef.current?.resetCaptcha(); // Reset hCaptcha widget visually
 
     } catch (error: any) {
       console.error('Submission error:', error);
@@ -116,21 +126,14 @@ export default function SuggestRoute() {
           <textarea id="details" name="details" placeholder={`Enter details here...`} required disabled={isSubmitting} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-32 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100" />
         </div>
 
-        {/* Simple "I am not a robot" checkbox */}
-        <div className="flex items-center">
-          <input
-            id="verification"
-            name="verification"
-            type="checkbox"
-            checked={isVerified}
-            onChange={(e) => setIsVerified(e.target.checked)}
-            disabled={isSubmitting}
-            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <label htmlFor="verification" className="ml-2 block text-sm text-gray-900">
-            I am not a robot
-          </label>
-        </div>
+        {/* hCaptcha Component */}
+        <HCaptcha
+          sitekey={siteKey}
+          onVerify={handleVerificationSuccess}
+          onExpire={handleVerificationExpire}
+          onError={handleVerificationError}
+          ref={captchaRef}
+        />
 
         {/* Submission status message */}
         {submitStatus && (
@@ -139,10 +142,9 @@ export default function SuggestRoute() {
           </div>
         )}
 
-        <button type="submit" disabled={isSubmitting || !isVerified} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+        <button type="submit" disabled={isSubmitting || !hcaptchaToken} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSubmitting ? 'Submitting...' : 'Submit Suggestion'}
         </button>
-        {/* Removed Google reCAPTCHA terms paragraph */}
       </form>
     </div>
   );
