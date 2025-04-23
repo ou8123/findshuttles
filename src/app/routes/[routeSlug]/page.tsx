@@ -97,7 +97,7 @@ export async function generateMetadata({ params }) {
   // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
   // Define the dynamic OG image URL using the route slug
-  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}?v=2`; // Added cache-busting parameter v=2
+  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}?v=3`; // Incremented cache-busting parameter to v=3
   // Define the static logo URL as a fallback (kept for reference, not used in images array)
   const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
 
