@@ -86,7 +86,9 @@ export async function POST(request: NextRequest) {
     // Perform a 302 (temporary) redirect to the route page
     // Use NEXT_PUBLIC_SITE_URL for the base URL to ensure the correct domain
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
-    return NextResponse.redirect(new URL(`/routes/${routeSlug}`, siteUrl), 302);
+    // Manually construct the full absolute URL string
+    const redirectUrl = `${siteUrl}/routes/${routeSlug}`;
+    return NextResponse.redirect(redirectUrl, 302);
   } catch (error: any) { // Explicitly type error as any for logging stack
     console.error('Error in search redirect:', error);
     // Log the full error object including stack trace
