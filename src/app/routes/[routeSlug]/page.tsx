@@ -109,7 +109,8 @@ export async function generateMetadata({ params }) {
 
   // Define Cloudinary transformations for the text overlay
   // Font: Inter, Size: 65, Color: #004d3b (URL encoded), Gravity: South, Y-offset: 110px (Adjusted size and position)
-  const textTransformations = `l_text:Inter_65,co_rgb:004d3b:${overlayText},g_south,y_110`;
+  // TEMPORARY DEBUG: Use static text instead of dynamic overlayText
+  const textTransformations = `l_text:Inter_65,co_rgb:004d3b:Hello_World,g_south,y_110`;
 
   // Construct the final Cloudinary URL
   const cloudinaryOgImageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${textTransformations}/${imagePublicId}.png`;
@@ -206,6 +207,7 @@ const getAmenityIcon = (iconName) => {
  * Route Page - Now using .tsx extension
  */
 export default async function RoutePage({ params }) {
+  console.log(`[RoutePage] Rendering page for params:`, params); // Add entry log
   // Get user session server-side using getServerSession and authOptions
   const session = await getServerSession(authOptions);
 
@@ -217,9 +219,10 @@ export default async function RoutePage({ params }) {
   if (!routeSlug) {
     notFound();
   }
-
+  console.log(`[RoutePage] Fetching route data for slug: ${routeSlug}`);
   // Fetch the route data
   const route = await fetchRouteData(routeSlug);
+  console.log(`[RoutePage] Fetched route data:`, route ? `Route ID ${route.id}` : 'Not Found');
 
   // If no route found, show 404
   if (!route) {
