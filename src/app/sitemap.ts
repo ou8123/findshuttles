@@ -3,7 +3,10 @@ import prisma from '@/lib/prisma';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Base URL from environment or default (use the correct production URL)
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com'; 
+  let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bookshuttles.com';
+  if (!baseUrl.startsWith('https://')) {
+    baseUrl = `https://${baseUrl}`;
+  }
 
   // Fetch all countries, including updatedAt
   const countries = await prisma.country.findMany({
