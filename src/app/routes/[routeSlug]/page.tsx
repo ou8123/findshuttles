@@ -99,7 +99,7 @@ export async function generateMetadata({ params }) {
   const siteUrl = 'https://www.bookshuttles.com';
   // Cloudinary configuration
   const cloudName = 'dawjqh1qv';
-  const imagePublicId = 'BookShuttles.com-Logo_ifclmj';
+  const imagePublicId = 'book_shuttles_logo_sharing_dwulei'; // Updated Public ID
   const imageVersion = 'v1'; // Optional: Use a version if you update the base image
 
   // Prepare text for overlay, ensure proper encoding
@@ -108,8 +108,8 @@ export async function generateMetadata({ params }) {
   const overlayText = encodeURIComponent(`${fromText} → ${toText}`).replace(/%20/g, '_'); // URL safe encoding, replace space with underscore
 
   // Define Cloudinary transformations for the text overlay
-  // Font: Inter, Size: 70, Color: #004d3b (URL encoded), Gravity: South, Y-offset: 120px
-  const textTransformations = `l_text:Inter_70,co_rgb:004d3b:${overlayText},g_south,y_120`;
+  // Font: Inter, Size: 65, Color: #004d3b (URL encoded), Gravity: South, Y-offset: 110px (Adjusted size and position)
+  const textTransformations = `l_text:Inter_65,co_rgb:004d3b:${overlayText},g_south,y_110`;
 
   // Construct the final Cloudinary URL
   const cloudinaryOgImageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${textTransformations}/${imagePublicId}.png`;
