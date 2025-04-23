@@ -97,8 +97,23 @@ export async function generateMetadata({ params }) {
 
   // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
-  // Define the dynamic OG image URL using the route slug
-  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}?v=3`; // Incremented cache-busting parameter to v=3
+  // Cloudinary configuration
+  const cloudName = 'dawjqh1qv';
+  const imagePublicId = 'BookShuttles.com-Logo_ifclmj';
+  const imageVersion = 'v1'; // Optional: Use a version if you update the base image
+
+  // Prepare text for overlay, ensure proper encoding
+  const fromText = route.departureCity.name.replace(/[()]/g, '').trim(); // Basic sanitization
+  const toText = route.destinationCity.name.replace(/[()]/g, '').trim(); // Basic sanitization
+  const overlayText = encodeURIComponent(`${fromText} → ${toText}`).replace(/%20/g, '_'); // URL safe encoding, replace space with underscore
+
+  // Define Cloudinary transformations for the text overlay
+  // Font: Inter, Size: 70, Color: #004d3b (URL encoded), Gravity: South, Y-offset: 120px
+  const textTransformations = `l_text:Inter_70,co_rgb:004d3b:${overlayText},g_south,y_120`;
+
+  // Construct the final Cloudinary URL
+  const cloudinaryOgImageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${textTransformations}/${imagePublicId}.png`;
+
   // Define the static logo URL as a fallback (kept for reference, not used in images array)
   const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
 
@@ -119,7 +134,7 @@ export async function generateMetadata({ params }) {
       // Explicitly define the images array with only the dynamic URL
       images: [
         {
-          url: dynamicOgImageUrl, // Use the dynamic URL with cache busting
+          url: cloudinaryOgImageUrl, // Use the Cloudinary URL
           width: 1200, // Standard OG width
           height: 630, // Standard OG height
           alt: `Shuttle from ${route.departureCity.name} to ${route.destinationCity.name}`, // Dynamic alt text
@@ -134,7 +149,7 @@ export async function generateMetadata({ params }) {
       title: finalTitle, // Use the final title
       description: route.metaDescription || `Quick & easy shuttle booking: ${route.departureCity.name} to ${route.destinationCity.name}. See schedules & prices.`, // Different phrasing for Twitter
       // Explicitly define the images array with only the dynamic URL
-      images: [dynamicOgImageUrl], // Use dynamic image for Twitter card as well
+      images: [cloudinaryOgImageUrl], // Use Cloudinary image for Twitter card as well
       // Optional: Add site or creator handle if available
       // site: '@YourTwitterHandle',
       // creator: '@CreatorHandle',
