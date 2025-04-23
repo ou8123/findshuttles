@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef } from "react"; // Import useRef
 
 // Declare grecaptcha type for TypeScript
 declare global {
@@ -13,6 +13,7 @@ export default function SuggestRoute() {
   const [userType, setUserType] = useState<"provider" | "traveler">("provider");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null); // Create form ref
 
   const siteKey = "6LcsCSIrAAAAAOvQ2_r5wrPA9fIx3e3rLPFHvK95"; // Enterprise Site Key
 
@@ -32,10 +33,11 @@ export default function SuggestRoute() {
       try {
         const token = await window.grecaptcha.enterprise.execute(siteKey, { action: 'SUGGEST_ROUTE' });
 
-        // Need to access event.currentTarget inside the callback, ensure it's stable
-        // Or read form data *before* the ready() call if event object isn't stable across async boundary
-        const formElement = event.currentTarget; // Capture form element
-        const formData = new FormData(formElement);
+        // Use the ref to get the form element reliably
+        if (!formRef.current) {
+          throw new Error("Form reference is not available.");
+        }
+        const formData = new FormData(formRef.current); // Use the ref here
       const data = {
         name: formData.get('name') as string,
         email: formData.get('email') as string,
@@ -93,7 +95,7 @@ export default function SuggestRoute() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4"> {/* Attach ref */}
         <input type="hidden" name="type" value={userType} />
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700">Your Name</label>
