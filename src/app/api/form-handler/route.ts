@@ -84,14 +84,15 @@ export async function POST(req: NextRequest) {
 
     const { name, email, details, type, recaptchaToken } = receivedData;
 
-    if (!name || !email || !details || !type || !recaptchaToken) {
-      // Log which specific field might be missing for easier debugging
-      console.error('Validation failed. Missing fields:', {
-          name: !!name,
-          email: !!email,
-          details: !!details,
-          type: !!type,
-          recaptchaToken: !!recaptchaToken
+    // Updated validation: Check for null/undefined for text fields, but require token truthiness
+    if (name == null || email == null || details == null || type == null || !recaptchaToken) {
+      // Log the actual values received for better debugging
+      console.error('Validation failed. Received values:', {
+          name: name,
+          email: email,
+          details: details,
+          type: type,
+          recaptchaToken: recaptchaToken // Log the token itself (or its existence/type)
       });
       return NextResponse.json({ error: 'Missing required fields or reCAPTCHA token' }, { status: 400 });
     }
