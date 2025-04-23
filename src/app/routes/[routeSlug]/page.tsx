@@ -96,8 +96,11 @@ export async function generateMetadata({ params }) {
 
   // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
-  // Define the static logo URL
+  // Define the dynamic OG image URL using the route slug
+  const dynamicOgImageUrl = `${siteUrl}/api/og/routes/${route.routeSlug}`;
+  // Define the static logo URL as a fallback
   const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
+
 
   return {
     // Add fb:app_id using correct Next.js metadata structure
@@ -112,14 +115,16 @@ export async function generateMetadata({ params }) {
       description: route.metaDescription || `View scenic shuttle options from ${route.departureCity.name} to ${route.destinationCity.name}. Book your transfer easily!`, // Slightly different phrasing
       url: `${siteUrl}/routes/${route.routeSlug}`, // Use production URL for og:url
       siteName: 'BookShuttles.com',
-      // Use only the static logo image
+      // Use the dynamic OG image URL
       images: [
         {
-          url: staticLogoUrl,
-          width: 1396, // Corrected dimensions
-          height: 474, // Corrected dimensions
-          alt: 'Book Shuttles Logo',
+          url: dynamicOgImageUrl, // Use the dynamic URL
+          width: 1200, // Standard OG width
+          height: 630, // Standard OG height
+          alt: `Shuttle from ${route.departureCity.name} to ${route.destinationCity.name}`, // Dynamic alt text
         }
+        // Optionally include staticLogoUrl as a fallback if needed
+        // { url: staticLogoUrl, width: 1396, height: 474, alt: 'Book Shuttles Logo' }
       ],
       locale: 'en_US', // Optional: Specify locale
       type: 'website', // Or 'article' if more appropriate
@@ -128,7 +133,7 @@ export async function generateMetadata({ params }) {
       card: 'summary_large_image',
       title: finalTitle, // Use the final title
       description: route.metaDescription || `Quick & easy shuttle booking: ${route.departureCity.name} to ${route.destinationCity.name}. See schedules & prices.`, // Different phrasing for Twitter
-      images: [staticLogoUrl], // Use static logo for Twitter card as well
+      images: [dynamicOgImageUrl], // Use dynamic image for Twitter card as well
       // Optional: Add site or creator handle if available
       // site: '@YourTwitterHandle',
       // creator: '@CreatorHandle',
