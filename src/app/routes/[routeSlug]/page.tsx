@@ -15,9 +15,10 @@ import AmenitiesTable from '@/components/AmenitiesTable'; // Import AmenitiesTab
 import Link from 'next/link'; // Ensure Link is imported if not already
 import { getServerSession } from "next-auth/next"; // Import getServerSession
 import { authOptions } from '@/lib/auth'; // Import authOptions
-import { getSecureAdminPath } from '@/middleware'; // Import the helper function
+import { getSecureAdminPath } from '../../../middleware'; // Import the helper function with relative path
 // Import necessary Heroicons for the Highlights Grid helper
 import * as HIcons from '@heroicons/react/24/outline';
+import { generateOgImageUrl } from '@/lib/ogImage'; // Import the OG image generator function
 import { Prisma, Route, City, Country, Amenity, Hotel } from '@prisma/client'; // Import specific model types
 import { Waypoint } from '@/types/common'; // Import the Waypoint type
 import PossibleNearbyStops, { NearbyStop } from '@/components/PossibleNearbyStops'; // Import the new component
@@ -97,34 +98,16 @@ export async function generateMetadata({ params }) {
 
   // Define the hardcoded production site URL
   const siteUrl = 'https://www.bookshuttles.com';
-  // Cloudinary configuration
-  const cloudName = 'dawjqh1qv';
-  const imagePublicId = 'book_shuttles_logo_og_banner_lezyqm'; // Use new banner image ID
-
-  // Prepare text for overlay
-  // Use metaTitle or construct a simple one if missing
-  const routeTitleText = route.metaTitle || `${route.departureCity.name} to ${route.destinationCity.name}`;
-  // Basic sanitization and encoding for Cloudinary URL
-  // Encode URI components, then replace specific characters Cloudinary uses differently in text overlays
-  const overlayText = encodeURIComponent(routeTitleText)
-                        .replace(/%2C/g, '%252C') // Double encode commas
-                        .replace(/%2F/g, '%252F') // Double encode slashes
-                        .replace(/%3F/g, '%253F') // Double encode question marks
-                        .replace(/%26/g, '%2526') // Double encode ampersands
-                        .replace(/%23/g, '%2523') // Double encode hash
-                        .replace(/%5C/g, '%255C') // Double encode backslash
-                        .replace(/%20/g, '_');   // Replace space with underscore
-
-  // Define Cloudinary transformations for the text overlay
-  // Font: Arial, Size: 60, Weight: Bold, Color: White, Gravity: Center, Y-offset: 20 (from top)
-  const textTransformations = `l_text:Arial_60_bold:${overlayText},co_white,g_center,y_20`;
-
-  // Construct the final Cloudinary URL for dynamic OG image
-  const cloudinaryOgImageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${textTransformations}/${imagePublicId}.png`; // Assuming base is png
-
+  
+  // Generate the OG image URL using the proper function with green text and correct format
+  const cloudinaryOgImageUrl = generateOgImageUrl(
+    route.departureCity.name,
+    route.destinationCity.name
+  );
+  
   // Define the static logo URL (can be used elsewhere if needed)
   const staticLogoUrl = `${siteUrl}/images/BookShuttles.com-Logo.png`;
-
+  
 
   return {
     // Add fb:app_id using correct Next.js metadata structure
@@ -145,7 +128,7 @@ export async function generateMetadata({ params }) {
           url: cloudinaryOgImageUrl, // Use the dynamic Cloudinary URL
           width: 1200, // Standard OG width
           height: 630, // Standard OG height
-          alt: routeTitleText, // Use the title as alt text
+          alt: `${route.departureCity.name} → ${route.destinationCity.name}`, // Use the route text as alt text
           type: 'image/png', // Explicitly set image type
         }
       ],
