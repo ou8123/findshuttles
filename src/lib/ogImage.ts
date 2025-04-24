@@ -1,5 +1,5 @@
 const cloudName = "dawjqh1qv";
-const baseImage = "book_shuttles_logo_og_banner_lezyqm.png"; // Ensure this is the correct public ID
+const baseImage = "book_shuttles_og_image_hcq91q"; // New base image with 1200x630 dimensions
 
 /**
  * Scales font size linearly based on text length.
@@ -47,17 +47,17 @@ export function generateOgImageUrl(from: string, to: string): string {
   const taglineEncoded = encodeCloudinaryText(tagline);
 
   // Determine font sizes and color
-  const mainFontSize = scaleFont(routeText, 60, 40); // Adjusted scaling range slightly
-  const subFontSize = 30; // Tagline size
+  const mainFontSize = scaleFont(routeText, 100, 80); // Larger font size for maximum readability
+  const subFontSize = 50; // Larger tagline size
   const textColor = 'co_rgb:004d3b'; // Dark green color
 
   // Construct transformations string
   const transformations = [
-    // Use c_fit to maintain aspect ratio without cropping, with a reasonable max width
-    // This preserves the original 1080x1080 dimensions while ensuring it fits in OG requirements
-    `c_fit,w_1080`,
-    `l_text:Arial_${mainFontSize}_bold:${routeEncoded},${textColor},g_south,y_110`, // Main route text (Arial bold, green, lower)
-    `l_text:Arial_${subFontSize}:${taglineEncoded},${textColor},g_south,y_50`  // Tagline text (Arial regular, green, lowest)
+    // No need for size transformations as the base image is already 1200x630
+    // Position the main route text in the bottom area with plenty of space
+    `l_text:Arial_${mainFontSize}_bold:${routeEncoded},${textColor},g_south,y_150`,
+    // Position the tagline below the main text
+    `l_text:Arial_${subFontSize}:${taglineEncoded},${textColor},g_south,y_80`
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${baseImage}`;
