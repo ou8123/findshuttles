@@ -4,7 +4,10 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb'
-    }
+    },
+    serverComponentsExternalPackages: ['prisma'],
+    optimizeCss: true,
+    optimizeServerReact: true
   },
   // Configure image optimization
   images: {
@@ -16,6 +19,18 @@ const nextConfig = {
   rewrites: async () => {
     return {
       beforeFiles: [
+        // Special handling for social media crawlers
+        {
+          source: '/routes/:path*',
+          has: [
+            {
+              type: 'header',
+              key: 'user-agent',
+              value: '(facebookexternalhit|Twitterbot|WhatsApp|Slackbot|LinkedInBot)(.*)'
+            }
+          ],
+          destination: '/api/social-preview/:path*'
+        },
         // Secure admin routes
         {
           source: '/management-portal-8f7d3e2a1c/:path*',
