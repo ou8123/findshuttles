@@ -33,7 +33,7 @@ export function generateOgImageUrl(from: string, to: string): string {
   const cleanTo = to?.replace(/[()]/g, '').trim() || 'Destination';
 
   const routeText = `${cleanFrom} → ${cleanTo}`;
-  const tagline = `Shuttle Service · BookShuttles.com`;
+  const tagline = `Transfer Service · BookShuttles.com`;
 
   // URL-encode text components for Cloudinary URL (Simpler encoding)
   // Cloudinary generally handles standard URI encoding well for l_text
@@ -48,7 +48,7 @@ export function generateOgImageUrl(from: string, to: string): string {
 
   // Determine font sizes and color
   const mainFontSize = scaleFont(routeText, 70, 50); // Reduced font size to ensure text fits
-  const subFontSize = 35; // Reduced tagline size
+  const subFontSize = 45; // Increased tagline size for better readability
   const textColor = 'co_rgb:004d3b'; // Dark green color
 
   // Calculate width for text wrapping (80% of image width)
