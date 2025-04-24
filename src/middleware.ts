@@ -84,18 +84,20 @@ export function isLoginPath(path: string): boolean {
 // }
 
 // Add security headers to all responses
-function addSecurityHeaders(response: NextResponse): NextResponse {
-  // Prevent clickjacking
-  response.headers.set('X-Frame-Options', 'DENY');
+function addSecurityHeaders(response: NextResponse, options: { isCrawler?: boolean } = {}): NextResponse {
+  // Only add X-Frame-Options for non-crawler requests
+  if (!options.isCrawler) {
+    response.headers.set('X-Frame-Options', 'DENY');
+  }
 
-  // Restrict MIME type sniffing
+  // Add common security headers
   response.headers.set('X-Content-Type-Options', 'nosniff');
-
-  // Enable Cross-Site Scripting filter
   response.headers.set('X-XSS-Protection', '1; mode=block');
 
-  // Prevent caching of authenticated routes (Keep this? Maybe comment out if causing issues)
-  // response.headers.set('Cache-Control', 'no-store, max-age=0');
+  // Add caching headers based on request type
+  if (options.isCrawler) {
+    response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400');
+  }
 
   return response;
 }
@@ -114,7 +116,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ua = request.headers.get('user-agent') || ''; // Get User Agent
 
-  // --- BEGIN Scraper Detection & Rewrite ---
+  // --- BEGIN Scraper Detection & Handling ---
   const isCrawler =
     ua.includes('facebookexternalhit') ||
     ua.includes('Twitterbot') ||
@@ -124,7 +126,26 @@ export async function middleware(request: NextRequest) {
 
   const isRoutePage = pathname.startsWith('/routes/');
 
-  // --- END Scraper Detection & Rewrite ---
+  // Special handling for crawlers
+  if (isCrawler) {
+    const response = NextResponse.next();
+    
+    // Add crawler-friendly headers
+    response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400');
+    
+    // Allow framing for social media previews
+    response.headers.delete('X-Frame-Options');
+    
+    // Keep other security headers
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    
+    // Add timing allow origin for better debugging
+    response.headers.set('Timing-Allow-Origin', '*');
+    
+    return response;
+  }
+  // --- END Scraper Detection & Handling ---
 
 
   // --- Temporarily Commented Out All Other Logic ---

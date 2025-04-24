@@ -24,7 +24,15 @@
 
 # Apply timeout specifically to all functions
 [functions."*"]
-  timeout = 26 # Increase timeout for functions (e.g., OpenAI calls)
+  timeout = 30 # Increased timeout for functions and crawler requests
+
+[[headers]]
+  for = "/routes/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Timing-Allow-Origin = "*"
 
 [[headers]]
   for = "/api/*"
