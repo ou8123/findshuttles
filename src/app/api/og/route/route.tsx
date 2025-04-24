@@ -17,7 +17,7 @@ const TIMEOUT_MS = 5000;
 // Default fallback image URL
 const FALLBACK_IMAGE_URL = 'https://www.bookshuttles.com/images/book_shuttles_logo_og_banner.png';
 
-async function generateImage(from: string, to: string): Promise<ImageResponse> {
+async function generateImage(from: string, to: string): Promise<Response> {
   try {
     // Generate image with minimal React component
     return new ImageResponse(
@@ -104,23 +104,27 @@ export async function GET(req: NextRequest) {
 
     // Generate image with timeout
     const imagePromise = generateImage(from, to);
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<Response>((_, reject) => {
       setTimeout(() => reject(new Error('Image generation timed out')), TIMEOUT_MS);
     });
 
-    const response = await Promise.race([imagePromise, timeoutPromise]);
-    return response;
-
+    try {
+      const response = await Promise.race<Response>([imagePromise, timeoutPromise]);
+      return response;
+    } catch (error) {
+      console.error('OG Image Error:', error);
+      
+      // Return fallback image
+      return new Response(null, {
+        status: 302,
+        headers: {
+          'Location': FALLBACK_IMAGE_URL,
+          'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
+        },
+      });
+    }
   } catch (error) {
-    console.error('OG Image Error:', error);
-    
-    // Return fallback image
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': FALLBACK_IMAGE_URL,
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
-      },
-    });
+    console.error('Route Error:', error);
+    return new Response('Internal Server Error', { status: 500 });
   }
 }
