@@ -53,7 +53,9 @@ export function generateOgImageUrl(from: string, to: string): string {
 
   // Construct transformations string
   const transformations = [
-    `w_1200,h_630,c_pad,b_white`, // Base canvas size and padding
+    // Use c_fit to maintain aspect ratio without cropping, with a reasonable max width
+    // This preserves the original 1080x1080 dimensions while ensuring it fits in OG requirements
+    `c_fit,w_1080`,
     `l_text:Arial_${mainFontSize}_bold:${routeEncoded},${textColor},g_south,y_110`, // Main route text (Arial bold, green, lower)
     `l_text:Arial_${subFontSize}:${taglineEncoded},${textColor},g_south,y_50`  // Tagline text (Arial regular, green, lowest)
   ].join('/');
