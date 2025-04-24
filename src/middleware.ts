@@ -124,6 +124,11 @@ export async function middleware(request: NextRequest) {
     ua.includes('Slackbot-LinkExpanding') ||
     ua.includes('LinkedInBot');
 
+  // Skip middleware for Cloudinary requests
+  if (request.url.includes('res.cloudinary.com')) {
+    return NextResponse.next();
+  }
+
   const isRoutePage = pathname.startsWith('/routes/');
 
   // Special handling for crawlers
