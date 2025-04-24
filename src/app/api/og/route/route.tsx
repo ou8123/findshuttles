@@ -1,13 +1,15 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
-import React from 'react'; // Explicitly import React
-import fs from 'fs'; // Import Node.js fs module
-import path from 'path'; // Import Node.js path module
+import React from 'react';
+import fs from 'fs/promises'; // Use promise-based fs
+import path from 'path';
 
-export const dynamic = 'force-dynamic'; // Force dynamic rendering
+// Enable ISR with 1 hour revalidation
+export const dynamic = 'force-static';
+export const revalidate = 3600;
 
-// Removed edge runtime export - use default Node.js runtime
-// export const runtime = "edge";
+// Re-enable edge runtime for better performance
+export const runtime = "edge";
 
 // Removed getFontData function - will read file directly
 
@@ -57,19 +59,8 @@ export async function GET(req: NextRequest) {
 
     // Removed local font file reading - will rely on @vercel/og fetching from Google Fonts
 
-    // Read logo data directly from the filesystem and create data URI
-    const logoPath = path.join(process.cwd(), 'public', 'images', 'BookShuttles.com-Logo.png');
-    let logoDataUri: string;
-    try {
-      const logoBuffer = fs.readFileSync(logoPath);
-      const base64 = logoBuffer.toString('base64');
-      logoDataUri = `data:image/png;base64,${base64}`;
-    } catch (error) {
-      console.error("Error reading logo file:", error);
-      // Fallback or decide how to handle - maybe use a placeholder or throw
-      logoDataUri = ''; // Set to empty string if logo fails to load
-      // Or: throw new Error(`Could not read logo file: ${logoPath}`);
-    }
+    // Use a static logo URL instead of reading from filesystem
+    const logoUrl = 'https://www.bookshuttles.com/images/BookShuttles.com-Logo.png';
 
 
     // Generate the image using ImageResponse - Without border
@@ -90,12 +81,8 @@ export async function GET(req: NextRequest) {
           // Border removed as requested
           boxSizing: 'border-box', // Ensure padding/border are included in width/height
           }}>
-          {/* Use logo data URI */}
-          {logoDataUri ? (
-            <img src={logoDataUri} width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
-          ) : (
-            <div style={{ width: 450, height: 150, marginBottom: 30, border: '1px dashed grey', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'grey' }}>Logo Error</div>
-          )}
+          {/* Use static logo URL */}
+          <img src={logoUrl} width={450} height={150} style={{ marginBottom: 30 }} alt="BookShuttles.com Logo" />
           {/* Route Text - Reverted size */}
           {/* Added display:flex to satisfy Satori */}
           {/* Removed fontWeight: 700 as bold font is not available */}
@@ -114,10 +101,10 @@ export async function GET(req: NextRequest) {
         width: 1200,
         height: 630,
         // Removed fonts array - rely on automatic fetching from Google Fonts
-        // Pass headers directly to ImageResponse constructor
+        // Add proper caching headers
         headers: {
           'Content-Type': 'image/png',
-          'Cache-Control': 'no-cache', // Force no caching
+          'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
         },
       }
     );

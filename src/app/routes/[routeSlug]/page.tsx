@@ -1,6 +1,12 @@
 // Re-enable TypeScript checking
+export const dynamic = 'force-static';
+export const revalidate = 3600; // Revalidate every hour
 
 import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
+
+// Enable static generation with revalidation and caching
+export const fetchCache = 'force-cache';
 import prisma from '@/lib/prisma';
 import RouteMap from '@/components/RouteMap';
 import SearchForm from '@/components/SearchForm';
@@ -196,6 +202,10 @@ const getAmenityIcon = (iconName) => {
 /**
  * Route Page - Now using .tsx extension
  */
+export const generateStaticParams = async () => {
+  return [];
+};
+
 export default async function RoutePage({ params }) {
   console.log(`[RoutePage] Rendering page for params:`, params); // Add entry log
   // Get user session server-side using getServerSession and authOptions
