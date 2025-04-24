@@ -99,7 +99,7 @@ export async function generateMetadata({ params }) {
   const siteUrl = 'https://www.bookshuttles.com';
   // Cloudinary configuration
   const cloudName = 'dawjqh1qv';
-  const imagePublicId = 'book_shuttles_logo_sharing_dwulei'; // New base image
+  const imagePublicId = 'book_shuttles_logo_og_banner_lezyqm'; // Use new banner image ID
 
   // Prepare text for overlay
   // Use metaTitle or construct a simple one if missing
@@ -116,8 +116,8 @@ export async function generateMetadata({ params }) {
                         .replace(/%20/g, '_');   // Replace space with underscore
 
   // Define Cloudinary transformations for the text overlay
-  // Font: Arial, Size: 60, Weight: Bold, Color: #004d3b, Gravity: South, Y-offset: 100px
-  const textTransformations = `l_text:Arial_60_bold:${overlayText},co_rgb:004d3b,g_south,y_100`;
+  // Font: Arial, Size: 60, Weight: Bold, Color: White, Gravity: Center, Y-offset: 20 (from top)
+  const textTransformations = `l_text:Arial_60_bold:${overlayText},co_white,g_center,y_20`;
 
   // Construct the final Cloudinary URL for dynamic OG image
   const cloudinaryOgImageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${textTransformations}/${imagePublicId}.png`; // Assuming base is png
