@@ -35,31 +35,27 @@ export function generateOgImageUrl(from: string, to: string): string {
   const routeText = `${cleanFrom} → ${cleanTo}`;
   const tagline = `Shuttle Service · BookShuttles.com`;
 
-  // URL-encode text components, handling special Cloudinary characters
+  // URL-encode text components for Cloudinary URL (Simpler encoding)
+  // Cloudinary generally handles standard URI encoding well for l_text
   const encodeCloudinaryText = (text: string): string => {
-    return encodeURIComponent(text)
-      .replace(/%2C/g, '%252C') // Double encode commas
-      .replace(/%2F/g, '%252F') // Double encode slashes
-      .replace(/%3F/g, '%253F') // Double encode question marks
-      .replace(/%26/g, '%2526') // Double encode ampersands
-      .replace(/%23/g, '%2523') // Double encode hash
-      .replace(/%5C/g, '%255C') // Double encode backslash
-      .replace(/%20/g, '_');   // Replace space with underscore
+    // Replace commas and slashes manually as they are delimiters in Cloudinary URLs
+    const replacedText = text.replace(/,/g, '%2C').replace(/\//g, '%2F');
+    return encodeURIComponent(replacedText);
   };
 
   const routeEncoded = encodeCloudinaryText(routeText);
   const taglineEncoded = encodeCloudinaryText(tagline);
 
   // Determine font sizes and color
-  const mainFontSize = scaleFont(routeText, 70, 45); // Scale main text (adjust max/min as needed)
-  const subFontSize = 35; // Tagline size
+  const mainFontSize = scaleFont(routeText, 60, 40); // Adjusted scaling range slightly
+  const subFontSize = 30; // Tagline size
   const textColor = 'co_rgb:004d3b'; // Dark green color
 
   // Construct transformations string
   const transformations = [
     `w_1200,h_630,c_pad,b_white`, // Base canvas size and padding
-    `l_text:Inter_${mainFontSize}:${routeEncoded},${textColor},g_south,y_100`, // Main route text (Using Inter font)
-    `l_text:Inter_${subFontSize}:${taglineEncoded},${textColor},g_south,y_40` // Tagline text (Using Inter font)
+    `l_text:Arial_${mainFontSize}_bold:${routeEncoded},${textColor},g_south,y_110`, // Main route text (Arial bold, green, lower)
+    `l_text:Arial_${subFontSize}:${taglineEncoded},${textColor},g_south,y_50`  // Tagline text (Arial regular, green, lowest)
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${baseImage}`;
