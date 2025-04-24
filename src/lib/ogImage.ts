@@ -47,17 +47,21 @@ export function generateOgImageUrl(from: string, to: string): string {
   const taglineEncoded = encodeCloudinaryText(tagline);
 
   // Determine font sizes and color
-  const mainFontSize = scaleFont(routeText, 100, 80); // Larger font size for maximum readability
-  const subFontSize = 50; // Larger tagline size
+  const mainFontSize = scaleFont(routeText, 70, 50); // Reduced font size to ensure text fits
+  const subFontSize = 35; // Reduced tagline size
   const textColor = 'co_rgb:004d3b'; // Dark green color
+
+  // Calculate width for text wrapping (80% of image width)
+  const textWidth = 960; // 80% of 1200px
 
   // Construct transformations string
   const transformations = [
     // No need for size transformations as the base image is already 1200x630
     // Position the main route text in the bottom area with plenty of space
-    `l_text:Arial_${mainFontSize}_bold:${routeEncoded},${textColor},g_south,y_150`,
+    // Add width parameter to enable text wrapping
+    `l_text:Arial_${mainFontSize}_bold:${routeEncoded},${textColor},g_south,y_150,w_${textWidth},c_fit`,
     // Position the tagline below the main text
-    `l_text:Arial_${subFontSize}:${taglineEncoded},${textColor},g_south,y_80`
+    `l_text:Arial_${subFontSize}:${taglineEncoded},${textColor},g_south,y_80,w_${textWidth},c_fit`
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${baseImage}`;
