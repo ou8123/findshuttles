@@ -6,6 +6,12 @@ const nextConfig = {
       bodySizeLimit: '2mb'
     }
   },
+  // Configure image optimization
+  images: {
+    domains: ['res.cloudinary.com'],
+    minimumCacheTTL: 3600,
+    formats: ['image/webp'],
+  },
   // Configure route rewrites for Netlify
   rewrites: async () => {
     return {
@@ -20,8 +26,11 @@ const nextConfig = {
           source: '/secure-access-9b1c3f5d7e',
           destination: '/login',
         },
-        // NOTE: Removed redundant API rewrites below.
-        // The Netlify plugin should handle these automatically.
+        // Cloudinary image optimization
+        {
+          source: '/og-images/:path*',
+          destination: 'https://res.cloudinary.com/dawjqh1qv/image/upload/:path*'
+        }
       ]
     }
   }

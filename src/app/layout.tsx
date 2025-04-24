@@ -39,6 +39,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <head>
+        <link
+          rel="preconnect"
+          href="https://res.cloudinary.com"
+          crossOrigin="anonymous"
+        />
         {/* --- START ADDITION --- */}
         {/* Disable GA tracking if admin cookie is present */}
         <script
