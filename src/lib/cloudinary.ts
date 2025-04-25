@@ -45,176 +45,94 @@ export const createEagerVideo = async (
   const imageStartTime = 5; // When destination images start
   const imageDisplayTime = 2; // Seconds per image
 
-  const transformations = [
-    // Base video settings
-    {
-      width: 1920,
-      height: 1080,
-      background: "black",
-      duration: baseDuration
-    },
-    // Logo intro
-    {
-      overlay: logoPublicId,
-      width: 800,
-      crop: 'scale',
-      gravity: 'center',
-      opacity: 0,
-      duration: 3,
-      effect: 'fade:2000',
-    },
-    
-    // Route title overlay
-    {
-      overlay: {
-        font_family: 'Arial',
-        font_size: 50,
-        text: routeTitle,
-      },
-      color: '#FFFFFF',
-      effect: 'shadow:40',
-      gravity: 'center',
-      y: 100,
-      start_offset: 3,
-      duration: 2,
-    },
-
-    // Destination images
-    ...imagePublicIds.map((imageId, index) => ({
-      overlay: imageId,
-      width: 800,
-      height: 450,
-      crop: 'fill',
-      gravity: 'center',
-      opacity: index === 0 ? 100 : 0,
-      start_offset: imageStartTime + (index * imageDisplayTime),
-      duration: imageDisplayTime,
-      effect: 'fade:1000',
-    })),
-
-    // Logo outro with CTA
-    {
-      overlay: logoPublicId,
-      width: 800,
-      crop: 'scale',
-      gravity: 'center',
-      opacity: 0,
-      start_offset: baseDuration - 3,
-      duration: 3,
-      effect: 'fade:1000',
-    },
-    {
-      overlay: {
-        font_family: 'Arial',
-        font_size: 40,
-        text: 'Book Now',
-      },
-      color: '#FFFFFF',
-      effect: 'shadow:40',
-      gravity: 'south',
-      y: 50,
-      start_offset: baseDuration - 2,
-      duration: 2,
-    },
-  ];
-
   try {
-    // Step 1: Create base image
-    console.log('Creating base image...');
-    const baseImage = await cloudinary.uploader.upload(
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-      {
-        resource_type: "image",
-        public_id: `route_video_base_${Date.now()}`
-      }
-    );
-
-    console.log('Base image created:', baseImage.public_id);
-
-    // Step 2: Convert to video with overlays
-    console.log('Converting to video with overlays...');
-    const result = await cloudinary.uploader.explicit(baseImage.public_id, {
-      type: "upload",
+    // Generate video URL with transformations
+    console.log('Generating video URL...');
+    const videoUrl = cloudinary.url("video_base", {
       resource_type: "video",
-      eager: [{
-        transformation: [
-          // Convert to video
-          { format: "mp4", duration: baseDuration },
-          { width: 1920, height: 1080, crop: "pad", background: "black" },
-          
-          // Logo intro
-          {
-            overlay: logoPublicId,
-            width: 800,
-            crop: 'scale',
-            gravity: 'center',
-            opacity: 0,
-            start_offset: 0,
-            duration: 3,
-            effect: 'fade:2000'
+      transformation: [
+        // Logo intro
+        {
+          overlay: logoPublicId,
+          width: 800,
+          crop: 'scale',
+          gravity: 'center',
+          opacity: 0,
+          start_offset: 0,
+          duration: 3,
+          effect: 'fade:2000'
+        },
+        // Route title
+        {
+          overlay: {
+            font_family: 'Arial',
+            font_size: 50,
+            text: routeTitle
           },
-          // Route title
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 50,
-              text: routeTitle
-            },
-            color: '#FFFFFF',
-            effect: 'shadow:40',
-            gravity: 'center',
-            y: 100,
-            start_offset: 3,
-            duration: 2
+          color: '#FFFFFF',
+          effect: 'shadow:40',
+          gravity: 'center',
+          y: 100,
+          start_offset: 3,
+          duration: 2
+        },
+        // Destination images
+        ...imagePublicIds.map((imageId, index) => ({
+          overlay: imageId,
+          width: 800,
+          height: 450,
+          crop: 'fill',
+          gravity: 'center',
+          opacity: index === 0 ? 100 : 0,
+          start_offset: 5 + (index * 2),
+          duration: 2,
+          effect: 'fade:1000'
+        })),
+        // Logo outro
+        {
+          overlay: logoPublicId,
+          width: 800,
+          crop: 'scale',
+          gravity: 'center',
+          opacity: 0,
+          start_offset: baseDuration - 3,
+          duration: 3,
+          effect: 'fade:1000'
+        },
+        // Book Now CTA
+        {
+          overlay: {
+            font_family: 'Arial',
+            font_size: 40,
+            text: 'Book Now'
           },
-          // Destination images
-          ...imagePublicIds.map((imageId, index) => ({
-            overlay: imageId,
-            width: 800,
-            height: 450,
-            crop: 'fill',
-            gravity: 'center',
-            opacity: index === 0 ? 100 : 0,
-            start_offset: 5 + (index * 2),
-            duration: 2,
-            effect: 'fade:1000'
-          })),
-          // Logo outro
-          {
-            overlay: logoPublicId,
-            width: 800,
-            crop: 'scale',
-            gravity: 'center',
-            opacity: 0,
-            start_offset: baseDuration - 3,
-            duration: 3,
-            effect: 'fade:1000'
-          },
-          // Book Now CTA
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 40,
-              text: 'Book Now'
-            },
-            color: '#FFFFFF',
-            effect: 'shadow:40',
-            gravity: 'south',
-            y: 50,
-            start_offset: baseDuration - 2,
-            duration: 2
-          }
-        ]
-      }],
-      eager_async: false
+          color: '#FFFFFF',
+          effect: 'shadow:40',
+          gravity: 'south',
+          y: 50,
+          start_offset: baseDuration - 2,
+          duration: 2
+        }
+      ]
     });
 
-    if (!result || !result.eager?.[0]?.secure_url) {
+    console.log('Video URL generated:', videoUrl);
+
+    // Create permanent video
+    console.log('Creating permanent video...');
+    const result = await cloudinary.uploader.upload(videoUrl, {
+      resource_type: "video",
+      public_id: `route_video_${Date.now()}`,
+      overwrite: true,
+      invalidate: true
+    });
+
+    if (!result || !result.secure_url) {
       throw new Error('Failed to generate video URL');
     }
 
     console.log('Video generation complete');
-    return result.eager[0].secure_url;
+    return result.secure_url;
   } catch (error) {
     console.error('Error in createEagerVideo:', error);
     throw error;

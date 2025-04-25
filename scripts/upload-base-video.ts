@@ -1,31 +1,21 @@
 import { cloudinary } from '../src/lib/cloudinary';
-import axios from 'axios';
 
 async function uploadBaseVideo() {
   try {
-    // Download blank video
-    console.log('Downloading blank video...');
-    const response = await axios.get('https://res.cloudinary.com/demo/video/upload/v1/blank.mp4', {
-      responseType: 'arraybuffer'
+    // Create a black video
+    console.log('Creating base video...');
+    const result = await cloudinary.uploader.upload("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", {
+      resource_type: "image",
+      public_id: "video_base",
+      overwrite: true,
+      invalidate: true,
+      transformation: [
+        { width: 1920, height: 1080, crop: "pad", background: "black" },
+        { resource_type: "video", format: "mp4", duration: 14 }
+      ]
     });
 
-    // Upload to Cloudinary
-    console.log('Uploading to Cloudinary...');
-    const uploadResponse = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          public_id: 'video_base',
-          resource_type: 'video',
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      uploadStream.end(Buffer.from(response.data));
-    });
-
-    console.log('Upload successful!', uploadResponse);
+    console.log('Upload successful!', result);
   } catch (error) {
     console.error('Error:', error);
   }
