@@ -35,12 +35,27 @@ export const uploadBuffer = async (
   });
 };
 
-// Generate video URL with transformations
+// Create a permanent video with transformations
+export const createEagerVideo = async (
+  publicId: string,
+  transformations: any[]
+): Promise<string> => {
+  const result = await cloudinary.uploader.explicit(publicId, {
+    type: 'upload',
+    eager: [{ transformation: transformations }],
+    eager_async: false,
+  });
+  
+  return result.eager?.[0]?.secure_url || '';
+};
+
+// Generate video transformations
 export const generateVideoUrl = (
+  baseVideoId: string,
   logoPublicId: string,
   imagePublicIds: string[],
   routeTitle: string
-): string => {
+): any[] => {
   const baseDuration = 14; // Total video duration
   const imageStartTime = 5; // When destination images start
   const imageDisplayTime = 2; // Seconds per image
@@ -111,11 +126,7 @@ export const generateVideoUrl = (
     },
   ];
 
-  return cloudinary.url('video_base', {
-    resource_type: 'video',
-    transformation: transformations,
-    format: 'mp4',
-  });
+  return transformations;
 };
 
 export default cloudinary;
