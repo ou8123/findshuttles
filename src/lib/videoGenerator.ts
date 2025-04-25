@@ -50,8 +50,8 @@ async function generateDestinationImages(destinationCity: string, routeId: strin
       const { data } = await axios.get(imageUrl, { responseType: 'arraybuffer' });
 
       // Upload to Cloudinary
-      const publicId = `${routeId}-destination-${index}`;
-      const result = await uploadBuffer(Buffer.from(data), '', `destination_images/${publicId}`);
+      const publicId = `route_${routeId}_image_${index}`;
+      const result = await uploadBuffer(Buffer.from(data), '', publicId);
       return result.publicId;
     })
   );
