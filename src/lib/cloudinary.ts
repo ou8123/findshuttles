@@ -89,7 +89,7 @@ export const generateVideoUrl = (
 
     // Destination images
     ...imagePublicIds.map((imageId, index) => ({
-      overlay: `destination_images/${imageId}`,
+      overlay: imageId,
       width: 800,
       height: 450,
       crop: 'fill',

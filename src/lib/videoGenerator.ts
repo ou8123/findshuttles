@@ -51,7 +51,7 @@ async function generateDestinationImages(destinationCity: string, routeId: strin
 
       // Upload to Cloudinary
       const publicId = `${routeId}-destination-${index}`;
-      const result = await uploadBuffer(Buffer.from(data), 'destination_images', publicId);
+      const result = await uploadBuffer(Buffer.from(data), '', `destination_images/${publicId}`);
       return result.publicId;
     })
   );
