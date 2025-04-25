@@ -119,37 +119,78 @@ export const createEagerVideo = async (
   ];
 
   try {
-    // Generate video URL with transformations
-    const videoUrl = cloudinary.url(logoPublicId, {
+    // Step 1: Create base video
+    console.log('Creating base video...');
+    const baseVideo = await cloudinary.uploader.upload(logoPublicId, {
       resource_type: "image",
       transformation: [
-        {
-          width: 1920,
-          height: 1080,
-          crop: "pad",
-          background: "black"
-        },
-        { resource_type: "video", format: "mp4" },
-        { duration: baseDuration },
-        ...transformations
-      ]
+        { width: 1920, height: 1080, crop: "pad", background: "black" },
+        { resource_type: "video", format: "mp4", duration: baseDuration }
+      ],
+      public_id: `route_video_base_${Date.now()}`
     });
 
-    console.log('Generated video URL:', videoUrl);
+    console.log('Base video created:', baseVideo.public_id);
 
-    // Create permanent video from URL
-    const result = await cloudinary.uploader.upload(videoUrl, {
+    // Step 2: Apply overlays
+    console.log('Applying overlays...');
+    const result = await cloudinary.uploader.explicit(baseVideo.public_id, {
+      type: "upload",
       resource_type: "video",
-      public_id: `route_video_${Date.now()}`,
+      eager: [{
+        transformation: [
+          // Logo intro
+          {
+            overlay: logoPublicId,
+            width: 800,
+            crop: 'scale',
+            gravity: 'center',
+            start_offset: 0,
+            duration: 3
+          },
+          // Route title
+          {
+            overlay: {
+              font_family: 'Arial',
+              font_size: 50,
+              text: routeTitle
+            },
+            color: '#FFFFFF',
+            gravity: 'center',
+            y: 100,
+            start_offset: 3,
+            duration: 2
+          },
+          // Destination images
+          ...imagePublicIds.map((imageId, index) => ({
+            overlay: imageId,
+            width: 800,
+            height: 450,
+            crop: 'fill',
+            gravity: 'center',
+            start_offset: 5 + (index * 2),
+            duration: 2
+          })),
+          // Logo outro
+          {
+            overlay: logoPublicId,
+            width: 800,
+            crop: 'scale',
+            gravity: 'center',
+            start_offset: baseDuration - 3,
+            duration: 3
+          }
+        ]
+      }],
       eager_async: false
     });
 
-    if (!result || !result.secure_url) {
+    if (!result || !result.eager?.[0]?.secure_url) {
       throw new Error('Failed to generate video URL');
     }
 
-    console.log('Video generation result:', JSON.stringify(result, null, 2));
-    return result.secure_url;
+    console.log('Video generation complete');
+    return result.eager[0].secure_url;
   } catch (error) {
     console.error('Error in createEagerVideo:', error);
     throw error;
