@@ -1,5 +1,7 @@
 import { OpenAI } from 'openai';
 import axios from 'axios';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import prisma from './prisma';
 import cloudinary, { uploadBuffer, generateVideoUrl } from './cloudinary';
 
@@ -14,8 +16,8 @@ async function ensureLogoUploaded(): Promise<string> {
     return logoId;
   } catch {
     // Upload logo if it doesn't exist
-    const response = await fetch('/public/images/book_shuttles_logo_og_banner.png');
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const logoPath = join(process.cwd(), 'public', 'images', 'book_shuttles_logo_og_banner.png');
+    const buffer = await readFile(logoPath);
     const result = await uploadBuffer(buffer, '', logoId);
     return result.publicId;
   }
