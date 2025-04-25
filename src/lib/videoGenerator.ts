@@ -3,7 +3,7 @@ import axios from 'axios';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import prisma from './prisma';
-import cloudinary, { uploadBuffer, generateVideoUrl, createEagerVideo } from './cloudinary';
+import { cloudinary, uploadBuffer, createEagerVideo } from './cloudinary';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_VIDEO! });
 
@@ -89,11 +89,8 @@ export async function generateRouteVideo(routeId: string): Promise<{
     // Generate route title
     const routeTitle = `${route.departureCity.name} → ${route.destinationCity.name}`;
 
-    // Generate video transformations and create permanent video using logo as base
-    const transformations = generateVideoUrl(logoPublicId, logoPublicId, imagePublicIds, routeTitle);
-    
-    // Create permanent video using logo as base
-    const videoUrl = await createEagerVideo(logoPublicId, transformations);
+    // Generate video with transformations
+    const videoUrl = await createEagerVideo(logoPublicId, imagePublicIds, routeTitle);
 
     // Update route with image IDs and video URL
     await prisma.route.update({
