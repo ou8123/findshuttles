@@ -11,15 +11,17 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 async function ensureLogoUploaded(): Promise<string> {
   const logoId = 'book_shuttles_logo';
   try {
-    // Check if logo exists
-    await cloudinary.api.resource(logoId);
-    return logoId;
+    // Check if logo exists in Cloudinary
+    const result = await cloudinary.api.resource(logoId);
+    return result.public_id;
   } catch {
-    // Upload logo if it doesn't exist
-    const logoPath = join(process.cwd(), 'public', 'images', 'book_shuttles_logo_og_banner.png');
-    const buffer = await readFile(logoPath);
-    const result = await uploadBuffer(buffer, '', logoId);
-    return result.publicId;
+    // Upload logo to Cloudinary
+    const logoPath = join(process.cwd(), 'public', 'images', 'BookShuttles.com-Logo.png');
+    const uploadResult = await cloudinary.uploader.upload(logoPath, {
+      public_id: logoId,
+      overwrite: true
+    });
+    return uploadResult.public_id;
   }
 }
 

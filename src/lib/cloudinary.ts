@@ -48,7 +48,8 @@ export const createEagerVideo = async (
   try {
     // Generate video with transformations
     console.log('Generating video...');
-    const result = await cloudinary.uploader.upload(logoPublicId, {
+    const logoUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${logoPublicId}`;
+    const result = await cloudinary.uploader.upload(logoUrl, {
       resource_type: "image",
       public_id: `route_video_${Date.now()}`,
       eager: [{
