@@ -89,11 +89,11 @@ export async function generateRouteVideo(routeId: string): Promise<{
     // Generate route title
     const routeTitle = `${route.departureCity.name} → ${route.destinationCity.name}`;
 
-    // Generate video transformations
-    const transformations = generateVideoUrl('video_base', logoPublicId, imagePublicIds, routeTitle);
+    // Generate video transformations and create permanent video using logo as base
+    const transformations = generateVideoUrl(logoPublicId, logoPublicId, imagePublicIds, routeTitle);
     
-    // Create permanent video
-    const videoUrl = await createEagerVideo('video_base', transformations);
+    // Create permanent video using logo as base
+    const videoUrl = await createEagerVideo(logoPublicId, transformations);
 
     // Update route with image IDs and video URL
     await prisma.route.update({
