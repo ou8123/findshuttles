@@ -1,4 +1,4 @@
-import cloudinary from '../src/lib/cloudinary';
+import { cloudinary } from '../src/lib/cloudinary';
 import axios from 'axios';
 
 async function uploadBaseVideo() {
