@@ -118,28 +118,36 @@ export const createEagerVideo = async (
     },
   ];
 
-  // Download base video from CDN
-  const response = await fetch('https://res.cloudinary.com/demo/video/upload/v1624521811/black.mp4');
-  const buffer = Buffer.from(await response.arrayBuffer());
+  try {
+    // Create a video with a black background
+    const result = await cloudinary.uploader.upload("data:video/mp4;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", {
+      resource_type: "video",
+      public_id: `route_video_${Date.now()}`,
+      transformation: [
+        // Base video settings
+        {
+          width: 1920,
+          height: 1080,
+          crop: "fill",
+          background: "black",
+          duration: baseDuration
+        },
+        ...transformations
+      ],
+      eager_async: false,
+      format: "mp4"
+    });
 
-  // Upload as new video
-  const result = await new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: "video",
-        public_id: `route_video_${Date.now()}`,
-        transformation: transformations,
-        eager_async: false
-      },
-      (error, result) => {
-        if (error) reject(error);
-        else if (result) resolve(result.secure_url);
-      }
-    );
-    uploadStream.end(buffer);
-  });
-  
-  return result as string;
+    if (!result || !result.secure_url) {
+      throw new Error('Failed to generate video URL');
+    }
+
+    console.log('Video generation result:', result);
+    return result.secure_url;
+  } catch (error) {
+    console.error('Error in createEagerVideo:', error);
+    throw error;
+  }
 };
 
 export { cloudinary };
