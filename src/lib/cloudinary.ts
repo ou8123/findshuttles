@@ -119,30 +119,38 @@ export const createEagerVideo = async (
   ];
 
   try {
-    // Create a video with a black background
-    const result = await cloudinary.uploader.upload("data:video/mp4;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", {
-      resource_type: "video",
-      public_id: `route_video_${Date.now()}`,
-      transformation: [
-        // Base video settings
-        {
-          width: 1920,
-          height: 1080,
-          crop: "fill",
-          background: "black",
-          duration: baseDuration
-        },
-        ...transformations
-      ],
-      eager_async: false,
-      format: "mp4"
-    });
+    // Create a video from a black image
+    const result = await cloudinary.uploader.upload(
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      {
+        resource_type: "image",
+        public_id: `route_video_${Date.now()}`,
+        transformation: [
+          // Convert image to video dimensions
+          {
+            width: 1920,
+            height: 1080,
+            crop: "fill",
+            background: "black"
+          },
+          // Convert to video with duration
+          {
+            resource_type: "video",
+            format: "mp4",
+            duration: baseDuration
+          },
+          // Apply all other transformations
+          ...transformations
+        ],
+        eager_async: false
+      }
+    );
 
     if (!result || !result.secure_url) {
       throw new Error('Failed to generate video URL');
     }
 
-    console.log('Video generation result:', result);
+    console.log('Video generation result:', JSON.stringify(result, null, 2));
     return result.secure_url;
   } catch (error) {
     console.error('Error in createEagerVideo:', error);
