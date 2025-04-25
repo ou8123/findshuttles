@@ -46,93 +46,92 @@ export const createEagerVideo = async (
   const imageDisplayTime = 2; // Seconds per image
 
   try {
-    // Generate video URL with transformations
-    console.log('Generating video URL...');
-    const videoUrl = cloudinary.url("video_base", {
+    // Generate video with transformations
+    console.log('Generating video...');
+    const result = await cloudinary.uploader.upload("video_base", {
       resource_type: "video",
-      transformation: [
-        // Logo intro
-        {
-          overlay: logoPublicId,
-          width: 800,
-          crop: 'scale',
-          gravity: 'center',
-          opacity: 0,
-          start_offset: 0,
-          duration: 3,
-          effect: 'fade:2000'
-        },
-        // Route title
-        {
-          overlay: {
-            font_family: 'Arial',
-            font_size: 50,
-            text: routeTitle
-          },
-          color: '#FFFFFF',
-          effect: 'shadow:40',
-          gravity: 'center',
-          y: 100,
-          start_offset: 3,
-          duration: 2
-        },
-        // Destination images
-        ...imagePublicIds.map((imageId, index) => ({
-          overlay: imageId,
-          width: 800,
-          height: 450,
-          crop: 'fill',
-          gravity: 'center',
-          opacity: index === 0 ? 100 : 0,
-          start_offset: 5 + (index * 2),
-          duration: 2,
-          effect: 'fade:1000'
-        })),
-        // Logo outro
-        {
-          overlay: logoPublicId,
-          width: 800,
-          crop: 'scale',
-          gravity: 'center',
-          opacity: 0,
-          start_offset: baseDuration - 3,
-          duration: 3,
-          effect: 'fade:1000'
-        },
-        // Book Now CTA
-        {
-          overlay: {
-            font_family: 'Arial',
-            font_size: 40,
-            text: 'Book Now'
-          },
-          color: '#FFFFFF',
-          effect: 'shadow:40',
-          gravity: 'south',
-          y: 50,
-          start_offset: baseDuration - 2,
-          duration: 2
-        }
-      ]
-    });
-
-    console.log('Video URL generated:', videoUrl);
-
-    // Create permanent video
-    console.log('Creating permanent video...');
-    const result = await cloudinary.uploader.upload(videoUrl, {
-      resource_type: "video",
+      type: "upload",
       public_id: `route_video_${Date.now()}`,
       overwrite: true,
-      invalidate: true
+      invalidate: true,
+      eager: [{
+        transformation: [
+          // Base settings
+          { width: 1920, height: 1080, crop: "pad", background: "black" },
+          
+          // Logo intro
+          {
+            overlay: logoPublicId,
+            width: 800,
+            crop: 'scale',
+            gravity: 'center',
+            opacity: 0,
+            start_offset: 0,
+            duration: 3,
+            effect: 'fade:2000'
+          },
+          // Route title
+          {
+            overlay: {
+              font_family: 'Arial',
+              font_size: 50,
+              text: routeTitle
+            },
+            color: '#FFFFFF',
+            effect: 'shadow:40',
+            gravity: 'center',
+            y: 100,
+            start_offset: 3,
+            duration: 2
+          },
+          // Destination images
+          ...imagePublicIds.map((imageId, index) => ({
+            overlay: imageId,
+            width: 800,
+            height: 450,
+            crop: 'fill',
+            gravity: 'center',
+            opacity: index === 0 ? 100 : 0,
+            start_offset: 5 + (index * 2),
+            duration: 2,
+            effect: 'fade:1000'
+          })),
+          // Logo outro
+          {
+            overlay: logoPublicId,
+            width: 800,
+            crop: 'scale',
+            gravity: 'center',
+            opacity: 0,
+            start_offset: baseDuration - 3,
+            duration: 3,
+            effect: 'fade:1000'
+          },
+          // Book Now CTA
+          {
+            overlay: {
+              font_family: 'Arial',
+              font_size: 40,
+              text: 'Book Now'
+            },
+            color: '#FFFFFF',
+            effect: 'shadow:40',
+            gravity: 'south',
+            y: 50,
+            start_offset: baseDuration - 2,
+            duration: 2
+          }
+        ]
+      }],
+      eager_async: false
     });
 
-    if (!result || !result.secure_url) {
+    if (!result || !result.eager?.[0]?.secure_url) {
       throw new Error('Failed to generate video URL');
     }
 
     console.log('Video generation complete');
-    return result.secure_url;
+    return result.eager[0].secure_url;
   } catch (error) {
     console.error('Error in createEagerVideo:', error);
     throw error;
