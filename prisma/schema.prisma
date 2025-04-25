@@ -102,6 +102,8 @@ model Route {
   mapWaypoints           Json?
   possibleNearbyStops    Json?
   viatorDestinationLink String? // ✅ New field for destination tour link
+  imagePublicIds        String[] @default([])
+  videoUrl             String?
   departureCity          City      @relation("DepartureCity", fields: [departureCityId], references: [id])
   departureCountry       Country   @relation("DepartureCountry", fields: [departureCountryId], references: [id])
   destinationCity        City      @relation("DestinationCity", fields: [destinationCityId], references: [id])

@@ -26,6 +26,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Bars3Icon } from '@heroicons/react/24/outline'; // For drag handle icon
+import VideoGenerator from '@/components/admin/VideoGenerator';
 
 interface City {
   id: string;
@@ -61,6 +62,8 @@ interface RouteData {
     mapWaypoints?: WaypointStop[] | null; // Add mapWaypoints field
     possibleNearbyStops?: NearbyStop[] | null;
     viatorDestinationLink?: string | null; // Ensure this matches DB schema (String?)
+    imagePublicIds?: string[]; // Added for video generation
+    videoUrl?: string | null; // Added for video generation
     amenities: { id: string; name?: string }[]; // Include name if selected in API
     departureCity: { name: string; id: string };
     destinationCity: { name: string; id: string };
@@ -728,6 +731,9 @@ const EditRoutePage = () => {
           </div>
         </div>
         </div>
+
+        {/* Video Generator */}
+        <VideoGenerator routeId={routeId} videoUrl={originalData?.videoUrl} />
 
         {/* Travel Time */}
         <div>
