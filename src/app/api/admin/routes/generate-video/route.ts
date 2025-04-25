@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateRouteVideo } from '@/lib/videoGenerator';
 import { checkApiAuth, RequiredRole, secureApiResponse } from '@/lib/api-auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Check admin authentication

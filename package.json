@@ -38,6 +38,7 @@
     "bcrypt": "^5.1.1",
     "canvas": "^3.1.0",
     "cloudinary": "^2.6.0",
+    "critters": "^0.0.23",
     "dotenv": "^16.4.7",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.27",
