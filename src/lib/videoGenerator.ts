@@ -3,7 +3,7 @@ import axios from 'axios';
 import prisma from './prisma';
 import cloudinary, { uploadBuffer, generateVideoUrl } from './cloudinary';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_VIDEO! });
 
 // Upload logo to Cloudinary if not already uploaded
 async function ensureLogoUploaded(): Promise<string> {
