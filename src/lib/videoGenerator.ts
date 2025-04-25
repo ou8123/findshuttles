@@ -1,11 +1,11 @@
-import { OpenAI } from 'openai';
+import {  OpenAI } from 'openai';
 import axios from 'axios';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import prisma from './prisma';
 import { cloudinary, uploadBuffer, createEagerVideo } from './cloudinary';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_VIDEO! });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 // Upload logo to Cloudinary if not already uploaded
 async function ensureLogoUploaded(): Promise<string> {
@@ -96,8 +96,8 @@ export async function generateRouteVideo(routeId: string): Promise<{
     await prisma.route.update({
       where: { id: route.id },
       data: {
-        imagePublicIds,
-        videoUrl,
+        imagePublicIds: imagePublicIds,
+        videoUrl: videoUrl,
       },
     });
 
