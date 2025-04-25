@@ -20,8 +20,10 @@
   node_bundler = "esbuild"
   external_node_modules = ["bcrypt", "@prisma/client", "prisma"]
   included_files = ["prisma/**", ".env*", "public/**/*"]
-  memory = 1024
   maxDuration = 30
+
+[functions.api]
+  memory = 1024
 
 [functions.next_server]
   included_files = ["public/**/*", "prisma/**"]
