@@ -12,6 +12,11 @@
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
   NODE_ENV = "production"
+  # Add placeholders for required environment variables
+  CLOUDINARY_CLOUD_NAME = ""
+  CLOUDINARY_API_KEY = ""
+  CLOUDINARY_API_SECRET = ""
+  OPENAI_API_KEY = ""
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -20,15 +25,16 @@
   node_bundler = "esbuild"
   external_node_modules = ["bcrypt", "@prisma/client", "prisma"]
   included_files = ["prisma/**", ".env*", "public/**/*"]
-  maxDuration = 30
+  timeout = 30
 
 [functions.api]
   memory = 1024
+  timeout = 30
 
 [functions.next_server]
   included_files = ["public/**/*", "prisma/**"]
   memory = 1024
-  maxDuration = 30
+  timeout = 30
 
 [[headers]]
   for = "/routes/*"
