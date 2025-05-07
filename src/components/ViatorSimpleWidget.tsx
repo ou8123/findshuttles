@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+// Module-level flags to ensure the Viator script is loaded only once per page session
+let viatorScriptLoadAttempted = false;
+let viatorScriptLoadedSuccessfully = false;
+let viatorScriptLoadError = false; // Track if the main script itself failed to load
+
 interface ViatorSimpleWidgetProps {
   widgetCode: string;
   className?: string;
@@ -10,59 +15,111 @@ interface ViatorSimpleWidgetProps {
 
 /**
  * ViatorSimpleWidget
- * 
- * A simplified widget component that works reliably in all environments.
- * Used as a fallback when more advanced implementations have issues.
+ *
+ * Loads the main Viator script once and injects widgetCode HTML when it changes.
  */
 const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
   widgetCode,
   className = '',
-  minHeight = 240, // Smaller default height as requested
+  minHeight = 240,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  
-  // Handle widget initialization on the client side only
+
+  // Effect to load the main Viator script (widget.js) once per page session
   useEffect(() => {
-    if (typeof window === 'undefined' || !containerRef.current) return;
-    
-    try {
-      // Insert the widget code directly
-      containerRef.current.innerHTML = widgetCode;
-      
-      // Load the Viator script
-      const script = document.createElement('script');
-      script.src = 'https://www.viator.com/orion/partner/widget.js';
-      script.async = true;
-      
-      script.onload = () => {
-        setIsLoading(false);
-        // Give the widget some time to render its content
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
-      };
-      
-      script.onerror = () => {
-        setHasError(true);
-        setIsLoading(false);
-      };
-      
-      // Append the script to the document
-      document.body.appendChild(script);
-      
-      return () => {
-        // Clean up
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
-      };
-    } catch (error) {
-      console.error('Error initializing Viator widget:', error);
+    if (typeof window === 'undefined' || viatorScriptLoadAttempted) {
+      // Don't run on server or if script load has already been attempted
+      return;
+    }
+
+    viatorScriptLoadAttempted = true;
+    const script = document.createElement('script');
+    script.src = 'https://www.viator.com/orion/partner/widget.js';
+    script.async = true;
+
+    script.onload = () => {
+      viatorScriptLoadedSuccessfully = true;
+      viatorScriptLoadError = false;
+      // Dispatch resize as the script might initialize widgets present in the DOM
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    script.onerror = () => {
+      console.error('ViatorSimpleWidget: Failed to load Viator main script (widget.js).');
+      viatorScriptLoadedSuccessfully = false;
+      viatorScriptLoadError = true;
+      // This will cause individual widgets that depend on it to show an error.
+    };
+
+    document.body.appendChild(script);
+    // This script is intended to stay loaded for the page session, so no cleanup in this effect.
+  }, []); // Empty dependency array ensures this runs only once
+
+  // Effect to handle widgetCode changes and render the specific widget instance
+  useEffect(() => {
+    if (typeof window === 'undefined' || !containerRef.current) {
+      return;
+    }
+
+    const currentContainer = containerRef.current;
+    currentContainer.innerHTML = ''; // Always clear previous content first
+
+    if (!widgetCode) {
+      setIsLoading(false);
+      setHasError(false); // No widget code, so not loading and no error
+      return;
+    }
+
+    // Reset states for the current widget rendering attempt
+    setIsLoading(true);
+    setHasError(false);
+
+    // If the main Viator script itself failed to load, this widget cannot load.
+    if (viatorScriptLoadError) {
       setHasError(true);
       setIsLoading(false);
+      return;
     }
-  }, [widgetCode]);
-  
+    
+    // Inject the new widget HTML content
+    currentContainer.innerHTML = widgetCode;
+
+    if (viatorScriptLoadedSuccessfully) {
+      // If the main script is confirmed loaded, the widget should be processed.
+      // The "Try Again" button's success implies re-injecting HTML is picked up.
+      setTimeout(() => {
+        setIsLoading(false); // Assume the widget is now rendered or being rendered by widget.js
+        window.dispatchEvent(new Event('resize')); // Nudge for layout
+      }, 100); // Short delay, adjust if needed
+    } else if (viatorScriptLoadAttempted && !viatorScriptLoadedSuccessfully && !viatorScriptLoadError) {
+      // Main script load is in progress. Widget HTML is injected.
+      // Rely on the main script's onload to eventually process this widget.
+      // isLoading is already true. Add a timeout to prevent indefinite loading state for this widget.
+      const processingTimeoutId = setTimeout(() => {
+        // Check if still loading after a reasonable period
+        // This check needs to be against a component's own loading state if setIsLoading is called in script.onload
+        // For simplicity, we assume if script.onload hasn't flipped viatorScriptLoadedSuccessfully, this widget might be stuck.
+        if (!viatorScriptLoadedSuccessfully) { // Re-check main script status
+          console.warn('ViatorSimpleWidget: Widget loading timed out. Main script might not have processed it or is still loading.');
+          setHasError(true); // Show error for this specific widget
+          setIsLoading(false);
+        } else {
+          // If main script loaded in the meantime, but this widget didn't clear its loading state
+          setIsLoading(false);
+          window.dispatchEvent(new Event('resize'));
+        }
+      }, 5000); // 5-second timeout for this widget to be processed after injection
+      return () => clearTimeout(processingTimeoutId);
+    } else if (!viatorScriptLoadAttempted) {
+      // This case (script load not attempted yet) should ideally be handled by the mount effect.
+      // If reached, it implies a potential race or logic issue.
+      // For now, keep isLoading true and hope the mount effect for script loading runs soon.
+    }
+    // No script tag cleanup here, as the main script is managed by the first effect.
+  }, [widgetCode]); // Re-run when widgetCode changes
+
   return (
     <div className={`viator-simple-widget ${className}`}>
       {/* Widget container */}
