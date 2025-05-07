@@ -490,7 +490,6 @@ You are a professional travel content writer generating SEO content for shuttle 
           messages: messages, // Use the messages array here
           temperature: 0.6, // Adjusted temperature as per example
           max_tokens: 2000,
-          response_format: { type: "json_object" },
         });
 
         // Get the response text
