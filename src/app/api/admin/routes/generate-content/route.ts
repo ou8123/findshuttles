@@ -486,10 +486,11 @@ You are a professional travel content writer generating SEO content for shuttle 
       try {
         // Generate content with OpenAI using the new messages array
         const completion = await openai.chat.completions.create({
-          model: "gpt-4",
+          model: "gpt-4-turbo-preview",
           messages: messages, // Use the messages array here
           temperature: 0.6, // Adjusted temperature as per example
           max_tokens: 2000,
+          response_format: { type: "json_object" },
         });
 
         // Get the response text
