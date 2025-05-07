@@ -170,7 +170,6 @@ async function fetchRouteData(routeSlug) {
         destinationCountry: true,
         hotelsServed: { select: { name: true } }, // Okay to select specific fields on nested relations
         amenities: true, // Include full amenity objects
-        viatorWidgetCode: true,
       },
     });
     return routeData;
