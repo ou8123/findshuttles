@@ -24,18 +24,17 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
   minHeight = 240,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  // Removed isLoading and hasError states
 
   // Effect to load the main Viator script (widget.js) once per page session
   useEffect(() => {
     if (typeof window === 'undefined' || viatorScriptLoadAttempted) {
-      // Don't run on server or if script load has already been attempted
       return;
     }
 
     viatorScriptLoadAttempted = true;
     const script = document.createElement('script');
+    script.id = 'viator-main-widget-script'; // Add an ID for potential future reference
     script.src = 'https://www.viator.com/orion/partner/widget.js';
     script.async = true;
 
@@ -43,6 +42,7 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
       viatorScriptLoadedSuccessfully = true;
       viatorScriptLoadError = false;
       // Dispatch resize as the script might initialize widgets present in the DOM
+      // or widgets injected immediately after script load.
       window.dispatchEvent(new Event('resize'));
     };
 
@@ -50,12 +50,14 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
       console.error('ViatorSimpleWidget: Failed to load Viator main script (widget.js).');
       viatorScriptLoadedSuccessfully = false;
       viatorScriptLoadError = true;
-      // This will cause individual widgets that depend on it to show an error.
+      // If the main script fails, widgets using it won't load.
+      // We can update the container of currently mounted widgets if needed.
+      // For now, this error is logged, and subsequent widget injections will check viatorScriptLoadError.
     };
 
     document.body.appendChild(script);
-    // This script is intended to stay loaded for the page session, so no cleanup in this effect.
-  }, []); // Empty dependency array ensures this runs only once
+    // Main script stays loaded.
+  }, []);
 
   // Effect to handle widgetCode changes and render the specific widget instance
   useEffect(() => {
@@ -64,60 +66,29 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
     }
 
     const currentContainer = containerRef.current;
-    currentContainer.innerHTML = ''; // Always clear previous content first
+    currentContainer.innerHTML = ''; // Always clear previous content
 
-    if (!widgetCode) {
-      setIsLoading(false);
-      setHasError(false); // No widget code, so not loading and no error
-      return;
-    }
-
-    // Reset states for the current widget rendering attempt
-    setIsLoading(true);
-    setHasError(false);
-
-    // If the main Viator script itself failed to load, this widget cannot load.
     if (viatorScriptLoadError) {
-      setHasError(true);
-      setIsLoading(false);
+      // Main script failed to load, display a simple error or leave blank
+      currentContainer.textContent = 'Booking widget could not be loaded.';
       return;
     }
-    
-    // Inject the new widget HTML content
-    currentContainer.innerHTML = widgetCode;
 
-    if (viatorScriptLoadedSuccessfully) {
-      // If the main script is confirmed loaded, the widget should be processed.
-      // The "Try Again" button's success implies re-injecting HTML is picked up.
-      setTimeout(() => {
-        setIsLoading(false); // Assume the widget is now rendered or being rendered by widget.js
-        window.dispatchEvent(new Event('resize')); // Nudge for layout
-      }, 100); // Short delay, adjust if needed
-    } else if (viatorScriptLoadAttempted && !viatorScriptLoadedSuccessfully && !viatorScriptLoadError) {
-      // Main script load is in progress. Widget HTML is injected.
-      // Rely on the main script's onload to eventually process this widget.
-      // isLoading is already true. Add a timeout to prevent indefinite loading state for this widget.
-      const processingTimeoutId = setTimeout(() => {
-        // Check if still loading after a reasonable period
-        // This check needs to be against a component's own loading state if setIsLoading is called in script.onload
-        // For simplicity, we assume if script.onload hasn't flipped viatorScriptLoadedSuccessfully, this widget might be stuck.
-        if (!viatorScriptLoadedSuccessfully) { // Re-check main script status
-          console.warn('ViatorSimpleWidget: Widget loading timed out. Main script might not have processed it or is still loading.');
-          setHasError(true); // Show error for this specific widget
-          setIsLoading(false);
-        } else {
-          // If main script loaded in the meantime, but this widget didn't clear its loading state
-          setIsLoading(false);
-          window.dispatchEvent(new Event('resize'));
-        }
-      }, 5000); // 5-second timeout for this widget to be processed after injection
-      return () => clearTimeout(processingTimeoutId);
-    } else if (!viatorScriptLoadAttempted) {
-      // This case (script load not attempted yet) should ideally be handled by the mount effect.
-      // If reached, it implies a potential race or logic issue.
-      // For now, keep isLoading true and hope the mount effect for script loading runs soon.
+    if (widgetCode) {
+      currentContainer.innerHTML = widgetCode; // Inject the new widget HTML
+
+      // If the script is already loaded, or once it loads, it should process this.
+      // A resize event can help.
+      // It's also possible the Viator script automatically scans for new widgets.
+      if (viatorScriptLoadedSuccessfully) {
+         // Give a very brief moment for DOM update then resize
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+      } else {
+        // If script is not yet loaded, it should pick up this widget once it does.
+        // The onload of the main script also dispatches a resize.
+      }
     }
-    // No script tag cleanup here, as the main script is managed by the first effect.
+    // No custom loading/error UI for individual widgets beyond the main script error.
   }, [widgetCode]); // Re-run when widgetCode changes
 
   return (
@@ -133,102 +104,12 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
           background: '#fff',
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
           position: 'relative',
+          // Ensure container is visible even if widget content takes time or fails
+          // display: 'block', // Default for div
         }}
       />
-      
-      {/* Loading indicator */}
-      {isLoading && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(255,255,255,0.8)',
-            zIndex: 5,
-          }}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                display: 'inline-block',
-                width: '24px',
-                height: '24px',
-                border: '4px solid #f3f3f3',
-                borderTop: '4px solid #3498db',
-                borderRadius: '50%',
-                animation: 'viatorSpin 1s linear infinite',
-              }}
-            />
-            <p style={{ marginTop: '8px', fontSize: '14px', color: '#555' }}>
-              Loading travel options...
-            </p>
-          </div>
-        </div>
-      )}
-      
-      {/* Error message */}
-      {hasError && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(255,255,255,0.8)',
-            zIndex: 5,
-          }}
-        >
-          <div style={{
-            padding: '16px',
-            background: '#fff1f0',
-            border: '1px solid #ffccc7',
-            borderRadius: '4px',
-            maxWidth: '80%',
-            textAlign: 'center',
-          }}>
-            <p style={{ color: '#cf1322' }}>
-              There was an issue loading the booking widget.
-            </p>
-            <button
-              onClick={() => {
-                setHasError(false);
-                setIsLoading(true);
-                if (containerRef.current) {
-                  containerRef.current.innerHTML = '';
-                  containerRef.current.innerHTML = widgetCode;
-                }
-              }}
-              style={{
-                marginTop: '8px',
-                padding: '6px 16px',
-                background: '#1890ff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      )}
-      
-      <style jsx>{`
-        @keyframes viatorSpin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* Removed custom loading and error message JSX */}
+      {/* The style tag for viatorSpin is no longer needed if the loading spinner is removed */}
     </div>
   );
 };
