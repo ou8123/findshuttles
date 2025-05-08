@@ -127,7 +127,7 @@ const EditRoutePage = () => {
         console.log(`Fetching initial data for route ID: ${routeId}`);
         const [amenitiesResponse, citiesResponse, routeResponse] = await Promise.all([
           fetch('/api/admin/amenities'),
-          fetch('/api/admin/cities'),
+          fetch('/api/admin/cities?limit=9999'), // Fetch all cities
           fetch(`/api/admin/routes/${routeId}`)
         ]);
 
