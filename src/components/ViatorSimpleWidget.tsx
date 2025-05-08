@@ -2,115 +2,85 @@
 
 import { useEffect, useRef } from 'react';
 
-// Module-level flags to ensure the Viator script is loaded only once per page session
-let viatorScriptLoadAttempted = false;
-let viatorScriptLoadedSuccessfully = false;
-let viatorScriptLoadError = false; // Track if the main script itself failed to load
-
 interface ViatorSimpleWidgetProps {
   widgetCode: string;
   className?: string;
   minHeight?: number;
-  // Note: uniqueKey prop is NOT present in this version's interface
+  // The `key` prop provided by the parent component in page.tsx will ensure
+  // this component instance is new for each route, triggering useEffect.
 }
 
-/**
- * ViatorSimpleWidget
- *
- * Loads the main Viator script once and injects widgetCode HTML when it changes.
- */
 const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
   widgetCode,
   className = '',
   minHeight = 240,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Effect to load the main Viator script (widget.js) once per page session
   useEffect(() => {
-    if (typeof window === 'undefined' || viatorScriptLoadAttempted) {
-      // If script load already attempted (successfully or not), don't re-attempt.
-      // If it failed, the other useEffect will show an error.
-      // If successful, other useEffect will render.
+    if (typeof window === 'undefined' || !iframeRef.current) {
       return;
     }
 
-    viatorScriptLoadAttempted = true;
-    const script = document.createElement('script');
-    script.id = 'viator-main-widget-script'; 
-    script.src = 'https://www.viator.com/orion/partner/widget.js';
-    script.async = true;
+    const iframe = iframeRef.current;
 
-    script.onload = () => {
-      viatorScriptLoadedSuccessfully = true;
-      viatorScriptLoadError = false;
-      window.dispatchEvent(new Event('resize')); // Dispatch resize on main script load
-    };
-
-    script.onerror = () => {
-      console.error('ViatorSimpleWidget: Failed to load Viator main script (widget.js).');
-      viatorScriptLoadedSuccessfully = false;
-      viatorScriptLoadError = true;
-      // Attempt to show error in any currently mounted container if script fails
-      // This is a bit broad, but targets containers waiting for this script.
-      document.querySelectorAll('.viator-simple-widget div[data-widget-container="true"]').forEach(el => {
-        if (el instanceof HTMLElement) {
-             el.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget could not be loaded (main script error).</p>';
-        }
-      });
-    };
-
-    document.body.appendChild(script);
-    // Main script stays loaded.
-  }, []); // Empty dependency array: load main script once
-
-  // Effect to handle widgetCode changes and render the specific widget instance
-  useEffect(() => {
-    if (typeof window === 'undefined' || !containerRef.current) {
+    if (!widgetCode) {
+      // Clear iframe or show placeholder if no widget code
+      iframe.srcdoc = '<p style="text-align: center; padding: 20px; color: #888;">No booking information available.</p>';
       return;
     }
 
-    const currentContainer = containerRef.current;
-    currentContainer.innerHTML = ''; // Always clear previous content
+    // Construct the HTML for the iframe
+    // This includes the specific widget code and the main Viator script loader.
+    // The main Viator script will be loaded fresh inside each iframe instance.
+    const iframeHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Viator Widget</title>
+        <style>
+          body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: ${minHeight}px; }
+          /* Basic styling for the widget container within the iframe if needed */
+          .viator-widget-wrapper { width: 100%; }
+        </style>
+      </head>
+      <body>
+        <div class="viator-widget-wrapper">
+          ${widgetCode}
+        </div>
+        <script async src="https://www.viator.com/orion/partner/widget.js"></script>
+      </body>
+      </html>
+    `;
 
-    if (viatorScriptLoadError) {
-      currentContainer.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget failed: main script error.</p>';
-      return;
-    }
+    iframe.srcdoc = iframeHtml;
 
-    if (widgetCode) {
-      currentContainer.innerHTML = widgetCode; // Inject the new widget HTML
-
-      if (viatorScriptLoadedSuccessfully) {
-        // If main script is already loaded, dispatch resize after a brief delay
-        // Also try to dispatch DOMContentLoaded and load events to potentially re-trigger script processing
-        setTimeout(() => {
-          window.dispatchEvent(new Event('resize'));
-          window.dispatchEvent(new Event('DOMContentLoaded'));
-          window.dispatchEvent(new Event('load'));
-          // console.log(`[ViatorSimpleWidget] Dispatched resize, DOMContentLoaded, load for ${widgetCode ? 'new widget' : 'no widget'}`);
-        }, 100); // Increased delay slightly to ensure innerHTML is set
+    // Optional: Clean up srcdoc on unmount, though remounting with a new key
+    // should effectively replace the iframe.
+    return () => {
+      if (iframeRef.current) {
+        iframeRef.current.srcdoc = ''; // Clear content on unmount
       }
-      // If main script is not yet loaded, its onload will dispatch a resize.
-    } else {
-        currentContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">No booking information available.</p>';
-    }
-  }, [widgetCode]); // Re-run when widgetCode changes
+    };
+  }, [widgetCode, minHeight]); // Re-run if widgetCode or minHeight changes
 
   return (
     <div className={`viator-simple-widget ${className}`}>
-      <div
-        ref={containerRef}
-        data-widget-container="true" // Added hook for error message
+      <iframe
+        ref={iframeRef}
+        title="Viator Booking Widget"
         style={{
           width: '100%',
           minHeight: `${minHeight}px`,
-          border: '1px solid rgba(0,0,0,0.1)',
+          border: '1px solid rgba(0,0,0,0.1)', // Keep some styling for the frame
           borderRadius: '8px',
-          background: '#fff',
+          background: '#fff', // Background for the iframe itself
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-          position: 'relative',
         }}
+        // sandbox="allow-scripts allow-same-origin allow-popups allow-forms" // Consider sandbox attributes
+        // allow="payment *" // If payment processing happens directly in widget
       />
     </div>
   );
