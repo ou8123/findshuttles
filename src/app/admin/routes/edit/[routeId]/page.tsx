@@ -563,6 +563,7 @@ const EditRoutePage = () => {
                 value={departureCityId}
                 onChange={(e) => setDepartureCityId(e.target.value)}
                 required
+                size={10} // Add size attribute
                 className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               >
                 <option value="">Select departure city</option>
@@ -590,6 +591,7 @@ const EditRoutePage = () => {
                 value={destinationCityId}
                 onChange={(e) => setDestinationCityId(e.target.value)}
                 required
+                size={10} // Add size attribute
                 className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               >
                 <option value="">Select destination city</option>
