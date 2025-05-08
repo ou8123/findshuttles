@@ -501,38 +501,15 @@ You are a professional travel content writer generating SEO content for shuttle 
           payload: completionPayload,
         });
 
-        // Get the response text from the parsed JSON returned by the helper
-        const responseText = safeCompletion.choices?.[0]?.message?.content;
-        if (!responseText) {
-          // callOpenAISafe should throw before this if response is invalid,
-          // but check content existence for robustness.
-          throw new Error('No valid content in OpenAI response');
+        // The helper now directly returns the parsed nested JSON content or throws an error
+        const parsedResponse = safeCompletion;
+
+        // Basic validation of the parsed structure (optional but recommended)
+        if (!parsedResponse || typeof parsedResponse !== 'object') {
+           console.error("Parsed response from safe helper is not a valid object:", parsedResponse);
+           throw new Error('Parsed response from safe helper is not a valid object.');
         }
-
-        // Log raw response for debugging
-        console.log("RAW OPENAI RESPONSE LENGTH:", responseText.length);
-        console.log("RAW OPENAI RESPONSE SAMPLE:", responseText.substring(0, 200) + "...");
-
-        // Clean the response text to remove any potential control characters
-        const cleanedText = responseText.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-
-        // Parse the cleaned JSON
-        let parsedResponse;
-        try {
-          parsedResponse = JSON.parse(cleanedText);
-          console.log("Successfully parsed JSON response");
-        } catch (parseError) {
-          console.error("JSON Parse Error:", parseError);
-          console.error("Raw text that failed to parse:", cleanedText.substring(0, 200) + "...");
-
-          // If we have retries left, try again
-          if (retryCount < maxRetries) {
-            console.log("Retrying due to JSON parse error...");
-            return generateContent(retryCount + 1, maxRetries);
-          }
-
-          throw new Error(`Failed to parse OpenAI response as JSON: ${parseError.message}`);
-        }
+        console.log("Successfully received and parsed JSON response via safe helper");
 
         // --- NEW: Validate mapWaypoints if present ---
         // Note: The prompt asks the AI to only include mapWaypoints for relevant types,

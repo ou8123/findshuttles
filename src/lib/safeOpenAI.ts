@@ -20,17 +20,39 @@ export async function callOpenAISafe({
   const raw = await res.text();
 
   if (!res.ok || !contentType.includes('application/json')) {
-    console.error('⚠️ OpenAI returned non-JSON or error response:');
-    console.error(raw.slice(0, 500)); // Log first 500 characters
-    // Consider throwing a more specific error or returning a structured error object
+    console.error('❌ OpenAI returned non-JSON or error response:');
+    console.error(raw.slice(0, 300)); // Log more context on error
     throw new Error(`OpenAI API Error: Status ${res.status}. Response: ${raw.slice(0, 100)}...`);
   }
 
+  // First, parse the overall JSON response from OpenAI
+  let parsedOuterResponse;
   try {
-    return JSON.parse(raw);
+      parsedOuterResponse = JSON.parse(raw);
   } catch (err) {
-    console.error('❌ JSON parsing error:');
-    console.error(raw); // Log the full raw response on parsing failure
-    throw new Error('Failed to parse OpenAI JSON response');
+      console.error('❌ Failed to parse the main OpenAI JSON response:');
+      console.error(raw);
+      throw new Error('Invalid JSON structure in OpenAI main response');
+  }
+
+  // Extract the nested content string
+  const content = parsedOuterResponse?.choices?.[0]?.message?.content;
+
+  if (!content || typeof content !== 'string') {
+    console.error('❌ OpenAI response missing expected content string:');
+    console.error('Parsed Outer Response:', JSON.stringify(parsedOuterResponse, null, 2)); // Log structure
+    throw new Error('OpenAI response missing expected content string in choices[0].message.content');
+  }
+
+  // Now, parse the nested JSON *within* the content string
+  try {
+    // Clean potentially problematic control characters before parsing the nested JSON
+    const cleanedContent = content.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+    const jsonContent = JSON.parse(cleanedContent);
+    return jsonContent; // Return the successfully parsed nested JSON
+  } catch (err) {
+    console.error('❌ Failed to parse OpenAI message.content as JSON:');
+    console.error('Raw message.content:', content.slice(0, 500)); // Log more of the problematic content
+    throw new Error('Invalid JSON in OpenAI message.content');
   }
 }
