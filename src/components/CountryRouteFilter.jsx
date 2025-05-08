@@ -90,9 +90,10 @@ export default function CountryRouteFilter({ country, initialRoutes = [], cities
       <div className="space-y-2 pl-2">
         {routes.map((route) => (
           <div key={route.id || route.routeSlug} className="p-2 border-l-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center">
-            <Link href={`/routes/${route.routeSlug}`} className="text-blue-600 hover:underline dark:text-blue-400">
+            {/* Replace Link with standard <a> tag for full page reload */}
+            <a href={`/routes/${route.routeSlug}`} className="text-blue-600 hover:underline dark:text-blue-400">
               {route.departureCity?.name || 'Unknown'} to {route.destinationCity?.name || 'Unknown'}
-            </Link>
+            </a>
             {/* Display travel time if available - Removed hardcoded tilde */}
             {route.travelTime && (
               <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 whitespace-nowrap">
