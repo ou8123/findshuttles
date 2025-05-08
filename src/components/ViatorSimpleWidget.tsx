@@ -82,16 +82,39 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
       currentContainer.innerHTML = widgetCode; // Inject the new widget HTML
 
       if (viatorScriptLoadedSuccessfully) {
-        // If main script is already loaded, dispatch resize after a brief delay
-        // Also try to dispatch DOMContentLoaded and load events to potentially re-trigger script processing
+        // Main script is loaded. Now, handle scripts *within* the injected widgetCode.
+        const scripts = currentContainer.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          // Copy attributes (like src, async, defer, type)
+          oldScript.getAttributeNames().forEach(attrName => {
+            const attrValue = oldScript.getAttribute(attrName);
+            if (attrValue !== null) {
+              newScript.setAttribute(attrName, attrValue);
+            }
+          });
+          // Copy inline content
+          if (oldScript.textContent) {
+            newScript.textContent = oldScript.textContent;
+          }
+          // Remove the original script from the injected HTML
+          oldScript.parentNode?.removeChild(oldScript);
+          // Append the new script to force re-evaluation. Appending to head is generally safer.
+          document.head.appendChild(newScript);
+          // console.log('[ViatorSimpleWidget] Re-executed script from widgetCode:', newScript.src || 'inline script');
+
+          // Attempt cleanup of the re-added script tag after execution? Risky.
+          // Best to let them accumulate or manage IDs if necessary.
+        });
+
+        // Dispatch resize after attempting script re-execution
         setTimeout(() => {
           window.dispatchEvent(new Event('resize'));
-          window.dispatchEvent(new Event('DOMContentLoaded'));
-          window.dispatchEvent(new Event('load'));
-          // console.log(`[ViatorSimpleWidget] Dispatched resize, DOMContentLoaded, load for ${widgetCode ? 'new widget' : 'no widget'}`);
-        }, 100); // Increased delay slightly to ensure innerHTML is set
+          // console.log(`[ViatorSimpleWidget] Dispatched resize after script re-execution`);
+        }, 150); // Slightly longer delay after script manipulation
       }
-      // If main script is not yet loaded, its onload will dispatch a resize.
+      // If main script is not yet loaded, its onload will handle initial resize.
+      // The scripts within widgetCode will be handled when this effect re-runs after main script loads.
     } else {
         currentContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">No booking information available.</p>';
     }
