@@ -8,11 +8,13 @@ import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Import type
 import { matchAmenities } from '@/lib/amenity-matcher'; // Import matchAmenities
 import { getSuggestedWaypoints, WaypointStop } from '@/lib/aiWaypoints'; // Import waypoint generation function and type
+import { callOpenAISafe } from '@/lib/safeOpenAI'; // Import the safe helper
 // Removed duplicate imports again
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI client initialization might not be needed if using the helper exclusively for this call
+// const openai = new OpenAI({
+//   apiKey: process.env.OPENAI_API_KEY,
+// });
 
 /**
  * Preprocess additional instructions to clean URLs, format city/hotel lists, and neutralize tone
@@ -484,19 +486,27 @@ You are a professional travel content writer generating SEO content for shuttle 
       console.log(`Generate attempt ${retryCount + 1}/${maxRetries + 1}`);
 
       try {
-        // Generate content with OpenAI using the new messages array
-        const completion = await openai.chat.completions.create({
+        // Generate content using the safe helper function
+        const completionPayload = {
           model: "gpt-4-turbo-preview",
           messages: messages, // Use the messages array here
           temperature: 0.6, // Adjusted temperature as per example
           max_tokens: 2000,
           response_format: { type: "json_object" },
+        };
+
+        const safeCompletion = await callOpenAISafe({
+          url: 'https://api.openai.com/v1/chat/completions',
+          apiKey: process.env.OPENAI_API_KEY!,
+          payload: completionPayload,
         });
 
-        // Get the response text
-        const responseText = completion.choices[0]?.message?.content;
+        // Get the response text from the parsed JSON returned by the helper
+        const responseText = safeCompletion.choices?.[0]?.message?.content;
         if (!responseText) {
-          throw new Error('No response from OpenAI');
+          // callOpenAISafe should throw before this if response is invalid,
+          // but check content existence for robustness.
+          throw new Error('No valid content in OpenAI response');
         }
 
         // Log raw response for debugging
