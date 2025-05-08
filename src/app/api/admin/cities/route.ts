@@ -37,7 +37,8 @@ export async function GET(request: Request) {
 
   // Validate pagination
   const validPage = page > 0 ? page : 1;
-  const validLimit = limit > 0 && limit <= 100 ? limit : 25; // Max limit 100
+  // Remove the upper cap (<= 100) to allow fetching all cities when a large limit is requested
+  const validLimit = limit > 0 ? limit : 25;
   const skip = (validPage - 1) * validLimit;
 
   try {
