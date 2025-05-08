@@ -1,99 +1,121 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-// Module-level flags to ensure the Viator script is loaded only once per page session
+// Module-level state for managing the main Viator script
 let viatorScriptLoadAttempted = false;
 let viatorScriptLoadedSuccessfully = false;
-let viatorScriptLoadError = false; // Track if the main script itself failed to load
+let viatorScriptLoadError = false;
+let pendingWidgetRenders: Array<{ id: string, renderFn: () => void }> = []; // Store widget render functions with an ID
 
 interface ViatorSimpleWidgetProps {
   widgetCode: string;
   className?: string;
   minHeight?: number;
+  uniqueKey: string; // Expect a unique key for managing pending renders
 }
 
-/**
- * ViatorSimpleWidget
- *
- * Loads the main Viator script once and injects widgetCode HTML when it changes.
- */
 const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
   widgetCode,
   className = '',
   minHeight = 240,
+  uniqueKey, // Used to identify this widget instance in the pending queue
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Removed isLoading and hasError states
 
   // Effect to load the main Viator script (widget.js) once per page session
   useEffect(() => {
     if (typeof window === 'undefined' || viatorScriptLoadAttempted) {
+      // If already attempted, subsequent instances don't need to do anything here.
+      // If it was successful, their own render effect will handle them.
+      // If it failed, their render effect will also show an error.
       return;
     }
 
     viatorScriptLoadAttempted = true;
     const script = document.createElement('script');
-    script.id = 'viator-main-widget-script'; // Add an ID for potential future reference
+    script.id = 'viator-main-widget-script';
     script.src = 'https://www.viator.com/orion/partner/widget.js';
     script.async = true;
 
     script.onload = () => {
       viatorScriptLoadedSuccessfully = true;
       viatorScriptLoadError = false;
-      // Dispatch resize as the script might initialize widgets present in the DOM
-      // or widgets injected immediately after script load.
-      window.dispatchEvent(new Event('resize'));
+      window.dispatchEvent(new Event('resize')); // Initial resize after script loads
+
+      // Process any widgets that were mounted and tried to render before the script was fully loaded
+      pendingWidgetRenders.forEach(item => item.renderFn());
+      pendingWidgetRenders = []; // Clear the queue
     };
 
     script.onerror = () => {
       console.error('ViatorSimpleWidget: Failed to load Viator main script (widget.js).');
       viatorScriptLoadedSuccessfully = false;
       viatorScriptLoadError = true;
-      // If the main script fails, widgets using it won't load.
-      // We can update the container of currently mounted widgets if needed.
-      // For now, this error is logged, and subsequent widget injections will check viatorScriptLoadError.
+      // Attempt to update already mounted containers to show an error
+      document.querySelectorAll('.viator-widget-container-hook').forEach(el => {
+        if (el instanceof HTMLElement) {
+          el.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget could not be loaded due to a script error.</p>';
+        }
+      });
+      pendingWidgetRenders = []; // Clear queue as renders will fail
     };
 
     document.body.appendChild(script);
-    // Main script stays loaded.
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once per page session
 
-  // Effect to handle widgetCode changes and render the specific widget instance
+  // Effect to handle widgetCode changes and render this specific widget instance
   useEffect(() => {
-    if (typeof window === 'undefined' || !containerRef.current) {
-      return;
-    }
-
     const currentContainer = containerRef.current;
-    currentContainer.innerHTML = ''; // Always clear previous content
+    if (!currentContainer) return;
 
-    if (viatorScriptLoadError) {
-      // Main script failed to load, display a simple error or leave blank
-      currentContainer.textContent = 'Booking widget could not be loaded.';
-      return;
-    }
+    const renderWidget = () => {
+      currentContainer.innerHTML = ''; // Clear previous content
 
-    if (widgetCode) {
-      currentContainer.innerHTML = widgetCode; // Inject the new widget HTML
-
-      // If the script is already loaded, or once it loads, it should process this.
-      // A resize event can help.
-      // It's also possible the Viator script automatically scans for new widgets.
-      if (viatorScriptLoadedSuccessfully) {
-         // Give a very brief moment for DOM update then resize
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
-      } else {
-        // If script is not yet loaded, it should pick up this widget once it does.
-        // The onload of the main script also dispatches a resize.
+      if (viatorScriptLoadError) {
+        currentContainer.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget failed: main script error.</p>';
+        return;
       }
+
+      if (widgetCode) {
+        currentContainer.innerHTML = widgetCode;
+        // It's assumed the Viator script, once loaded, will process new widgets.
+        // A resize event can help it recognize new content or layout changes.
+        window.dispatchEvent(new Event('resize'));
+      } else {
+        // If no widgetCode, ensure the container is empty or shows a placeholder
+        currentContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">No booking information available.</p>';
+      }
+    };
+
+    if (viatorScriptLoadedSuccessfully) {
+      renderWidget();
+    } else if (viatorScriptLoadAttempted && !viatorScriptLoadError) {
+      // Main script is loading, queue this widget's render function
+      // Add if not already queued for this uniqueKey
+      if (!pendingWidgetRenders.some(item => item.id === uniqueKey)) {
+        pendingWidgetRenders.push({ id: uniqueKey, renderFn: renderWidget });
+      }
+    } else if (!viatorScriptLoadAttempted) {
+      // Main script load hasn't even started (e.g., this component mounts very early)
+      // Queue it, the main script loader effect will pick it up.
+       if (!pendingWidgetRenders.some(item => item.id === uniqueKey)) {
+        pendingWidgetRenders.push({ id: uniqueKey, renderFn: renderWidget });
+      }
+    } else { // This case implies viatorScriptLoadError is true, handled in renderWidget
+        renderWidget();
     }
-    // No custom loading/error UI for individual widgets beyond the main script error.
-  }, [widgetCode]); // Re-run when widgetCode changes
+
+    return () => {
+      // Cleanup: remove this specific render function from the queue if the component unmounts
+      // before the script loads and processes it.
+      pendingWidgetRenders = pendingWidgetRenders.filter(item => item.id !== uniqueKey);
+    };
+  }, [widgetCode, uniqueKey]); // Depend on uniqueKey to re-evaluate for new instances
 
   return (
-    <div className={`viator-simple-widget ${className}`}>
-      {/* Widget container */}
+    // Added 'viator-widget-container-hook' class for error message targeting
+    <div className={`viator-simple-widget ${className} viator-widget-container-hook`}>
       <div
         ref={containerRef}
         style={{
@@ -104,12 +126,8 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
           background: '#fff',
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
           position: 'relative',
-          // Ensure container is visible even if widget content takes time or fails
-          // display: 'block', // Default for div
         }}
       />
-      {/* Removed custom loading and error message JSX */}
-      {/* The style tag for viatorSpin is no longer needed if the loading spinner is removed */}
     </div>
   );
 };
