@@ -1,122 +1,109 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-const VIATOR_SCRIPT_ID = 'viator-main-widget-script';
-
-// Module-level flags, reset on each "successful" script removal attempt or page load.
-// These are now more like instance-based flags due to the reset logic.
-let scriptLoadInitiatedThisInstance = false;
-let scriptLoadedSuccessfullyThisInstance = false;
-let scriptLoadErrorThisInstance = false;
-
+const VIATOR_SCRIPT_ID_BASE = 'viator-main-widget-script';
 
 interface ViatorSimpleWidgetProps {
   widgetCode: string;
   className?: string;
   minHeight?: number;
-  uniqueKey: string; // Used for logging and potentially for more fine-grained control if needed
+  uniqueKey: string; // This key from the parent ensures this component instance is new
 }
 
 const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
   widgetCode,
   className = '',
   minHeight = 240,
-  uniqueKey,
+  uniqueKey, // This key changes when navigating to a new route, forcing a remount
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // State to track if the script for *this instance* has loaded
+  const [scriptLoadedForThisInstance, setScriptLoadedForThisInstance] = useState(false);
+  const [scriptLoadErrorForThisInstance, setScriptLoadErrorForThisInstance] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    // This effect runs when the component mounts (i.e., when uniqueKey changes)
+    if (typeof window === 'undefined' || !containerRef.current) return;
 
     const currentContainer = containerRef.current;
-    if (!currentContainer) return;
-
-    // console.log(`[ViatorSimpleWidget ${uniqueKey}] Mount/Update. WidgetCode: ${widgetCode ? 'Present' : 'Absent'}`);
-
-    // --- Attempt to clean up previous script and reset state ---
-    // This happens on each mount (due to key change on parent page)
-    const existingScript = document.getElementById(VIATOR_SCRIPT_ID);
-    if (existingScript) {
-      // console.log(`[ViatorSimpleWidget ${uniqueKey}] Removing existing Viator script.`);
-      existingScript.remove();
-    }
-    // Reset flags for this "new" instance/attempt
-    scriptLoadInitiatedThisInstance = false;
-    scriptLoadedSuccessfullyThisInstance = false;
-    scriptLoadErrorThisInstance = false;
-    // --- End cleanup ---
-
-    currentContainer.innerHTML = ''; // Clear container
+    currentContainer.innerHTML = ''; // Clear previous content immediately
 
     if (!widgetCode) {
       currentContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">No booking information available.</p>';
+      setScriptLoadedForThisInstance(true); // No script to load, effectively "loaded"
       return;
     }
 
-    const loadAndRender = () => {
-      if (scriptLoadedSuccessfullyThisInstance) {
-        // console.log(`[ViatorSimpleWidget ${uniqueKey}] Main script already loaded. Rendering widget.`);
-        currentContainer.innerHTML = widgetCode;
+    // Reset state for this instance
+    setScriptLoadedForThisInstance(false);
+    setScriptLoadErrorForThisInstance(false);
+
+    // Attempt to remove any script tag with the same base ID + previous uniqueKey
+    // This is a bit more robust than just a fixed ID if multiple widgets were on one page (though not our case here)
+    const oldScriptId = `${VIATOR_SCRIPT_ID_BASE}-${uniqueKey}-old`; // A hypothetical old ID scheme
+    const oldScript = document.getElementById(oldScriptId) || document.getElementById(VIATOR_SCRIPT_ID_BASE);
+    if (oldScript) {
+        // console.log(`[ViatorSimpleWidget ${uniqueKey}] Removing old script: ${oldScript.id}`);
+        oldScript.remove();
+    }
+    
+    // Create a new script tag for this instance
+    const script = document.createElement('script');
+    // Use the uniqueKey to make the script ID unique for this mount, helps avoid conflicts
+    // and ensures we can target *this* script if needed.
+    const currentScriptId = `${VIATOR_SCRIPT_ID_BASE}-${uniqueKey}`;
+    script.id = currentScriptId;
+    // Add a cache-busting query parameter to the script URL
+    script.src = `https://www.viator.com/orion/partner/widget.js?cb=${new Date().getTime()}`;
+    script.async = true;
+
+    // console.log(`[ViatorSimpleWidget ${uniqueKey}] Loading script: ${script.src}`);
+
+    script.onload = () => {
+      // console.log(`[ViatorSimpleWidget ${uniqueKey}] Script loaded: ${script.id}`);
+      setScriptLoadedForThisInstance(true);
+      setScriptLoadErrorForThisInstance(false);
+      if (containerRef.current) { // Ensure container still exists
+        containerRef.current.innerHTML = widgetCode; // Inject content now that script is loaded
         window.dispatchEvent(new Event('resize'));
-        return;
       }
-
-      if (scriptLoadErrorThisInstance) {
-        // console.log(`[ViatorSimpleWidget ${uniqueKey}] Main script failed to load previously. Showing error.`);
-        currentContainer.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget failed: main script error.</p>';
-        return;
-      }
-
-      if (scriptLoadInitiatedThisInstance) {
-        // Script load is in progress by this instance, but not yet complete.
-        // This state should ideally be short-lived.
-        // console.log(`[ViatorSimpleWidget ${uniqueKey}] Main script loading is in progress by this instance. Waiting...`);
-        // We could implement a timeout here if needed, but let's see if onload handles it.
-        // For now, we'll inject and hope the script picks it up when it loads.
-        currentContainer.innerHTML = widgetCode; // Pre-inject
-        return;
-      }
-
-      // console.log(`[ViatorSimpleWidget ${uniqueKey}] Initiating main Viator script load.`);
-      scriptLoadInitiatedThisInstance = true;
-      const script = document.createElement('script');
-      script.id = VIATOR_SCRIPT_ID;
-      script.src = 'https://www.viator.com/orion/partner/widget.js';
-      script.async = true;
-
-      script.onload = () => {
-        // console.log(`[ViatorSimpleWidget ${uniqueKey}] Main Viator script loaded successfully.`);
-        scriptLoadedSuccessfullyThisInstance = true;
-        scriptLoadErrorThisInstance = false;
-        
-        // Now render the widget content for this instance
-        if (containerRef.current && containerRef.current.innerHTML !== widgetCode) { // Check if not already injected by a race condition
-            containerRef.current.innerHTML = widgetCode;
-        }
-        window.dispatchEvent(new Event('resize'));
-      };
-
-      script.onerror = () => {
-        console.error(`[ViatorSimpleWidget ${uniqueKey}] Failed to load Viator main script (widget.js).`);
-        scriptLoadedSuccessfullyThisInstance = false;
-        scriptLoadErrorThisInstance = true;
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget could not be loaded due to a script error.</p>';
-        }
-      };
-
-      document.body.appendChild(script);
-      // Pre-inject the HTML. The script, upon loading, should process it.
-      // This helps if the script processes DOM content present at load time.
-      currentContainer.innerHTML = widgetCode;
     };
 
-    loadAndRender();
+    script.onerror = () => {
+      console.error(`[ViatorSimpleWidget ${uniqueKey}] Error loading script: ${script.src}`);
+      setScriptLoadedForThisInstance(false);
+      setScriptLoadErrorForThisInstance(true);
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget could not be loaded (script error).</p>';
+      }
+    };
 
-    // No specific cleanup for this effect, as script is managed per "instance" due to keying.
-    // The script tag is removed at the start of the effect on next mount.
-  }, [widgetCode, uniqueKey]); // uniqueKey ensures this runs on remount
+    document.body.appendChild(script);
+
+    return () => {
+      // Cleanup when this specific instance unmounts
+      // console.log(`[ViatorSimpleWidget ${uniqueKey}] Unmounting. Removing script: ${currentScriptId}`);
+      const scriptToRemove = document.getElementById(currentScriptId);
+      if (scriptToRemove) {
+        scriptToRemove.remove();
+      }
+      // Also clear the container just in case
+      if (currentContainer) {
+        currentContainer.innerHTML = '';
+      }
+    };
+  }, [widgetCode, uniqueKey]); // Key dependency ensures this runs on remount
+
+  // Conditional rendering based on script load error for this instance
+  // This is minimal, as the useEffect handles most direct DOM manipulation.
+  // We don't show a loading indicator anymore as per user feedback.
+  if (scriptLoadErrorForThisInstance && containerRef.current && !containerRef.current.innerHTML.includes('script error')) {
+      // This is a fallback if the onerror in useEffect didn't update innerHTML yet or was cleared
+      // It's unlikely to be hit if onerror works as expected.
+      containerRef.current.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Booking widget error.</p>';
+  }
+
 
   return (
     <div className={`viator-simple-widget ${className}`}>
@@ -131,6 +118,7 @@ const ViatorSimpleWidget: React.FC<ViatorSimpleWidgetProps> = ({
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
           position: 'relative',
         }}
+        // The content is set by useEffect
       />
     </div>
   );
