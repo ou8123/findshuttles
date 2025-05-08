@@ -156,8 +156,12 @@ const EditRoutePage = () => {
 
         // Set Cities State
         const citiesArray = citiesData.cities || [];
+        console.log("--- CITIES DATA RECEIVED FROM API ---"); // Log separator
+        console.log("Total cities received:", citiesArray.length);
+        console.log("Cities Array:", JSON.stringify(citiesArray, null, 2)); // Log the full array
+        console.log("--- END CITIES DATA ---");
         setAvailableCities(citiesArray);
-        console.log("Fetched cities:", citiesArray.length);
+        // console.log("Fetched cities:", citiesArray.length); // Original log, commented out
 
         // Set Route State
         console.log("Successfully fetched route directly:", routeData);
