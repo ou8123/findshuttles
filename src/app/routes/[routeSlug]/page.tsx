@@ -525,7 +525,6 @@ export default async function RoutePage({ params }) {
                {route.viatorWidgetCode ? (
                 <ViatorSimpleWidget
                   key={`viator-${route.routeSlug}`}
-                  uniqueKey={`viator-${route.routeSlug}`} // Add uniqueKey prop
                   widgetCode={route.viatorWidgetCode}
                   className="w-full"
                   minHeight={240}
