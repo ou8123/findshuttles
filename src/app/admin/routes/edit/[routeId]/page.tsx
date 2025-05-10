@@ -409,12 +409,21 @@ const EditRoutePage = () => {
         }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate content');
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        console.error('⚠️ Received non-JSON response from /api/admin/routes/generate-content:', text.slice(0, 500));
+        throw new Error(`API returned non-JSON content. Status: ${response.status}. Preview: ${text.slice(0,100)}`);
       }
 
-      const data = await response.json();
+      // Now that we've confirmed it's JSON, proceed to parse
+      const data = await response.json(); // This should be safe now
+
+      // If response.ok is false, but it was still JSON (e.g. a JSON error from the API route itself)
+      if (!response.ok) {
+        // data should contain the error object from the API
+        throw new Error(data.error || `Failed to generate content. Status: ${response.status}`);
+      }
       console.log("Received data from generate-content:", data); // DEBUG LOG 1
       setMetaTitle(data.metaTitle || '');
       setMetaDescription(data.metaDescription || '');
